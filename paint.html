@@ -1,7 +1,7 @@
+
 <!doctype html>
 <html>
 <head>
-
 	<script type="module">
 		if ('CSS' in window && 'registerProperty' in CSS) {
 			CSS.registerProperty({
@@ -20,15 +20,16 @@
 				name: '--headTurnDegree',
 				syntax: '<angle>',
 				inherits: false,
-				initialValue: '180deg'
+				initialValue: '130deg'
 			});
 		}
 		CSS.paintWorklet.addModule('doom-worklet.js');
-	</script>
+		// Duplicate map for collision in JS
 
+	</script>
 	<style>
 		.doom {
-			width: 1000px;
+			width: 640px;
 			/* Matches typical raycaster width for performance */
 			height: 480px;
 			background-image: paint(doom);
@@ -37,7 +38,16 @@
 	</style>
 </head>
 <body>
+	<p>buttons:
+		<li>w: forward</li>
+		<li>s: backward</li>
+		<li>a: strafe left</li>
+		<li>d: strafe right</li>
+		<li>arrow keys: turn</li>
+		<i>AI slop</i>
+	</p>
 	<div class="doom"></div>
+
 
 	<script>
 		// Duplicate map for collision in JS
@@ -58,13 +68,13 @@
 			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-			[1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 1],
 			[1, 4, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
 			[1, 4, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
 			[1, 4, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 1],
-			[1, 4, 0, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
 			[1, 4, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
-			[1, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
+			[1, 4, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
+			[1, 0, 0, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
 			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 		];
 
@@ -89,7 +99,7 @@
 			const perpY = -dirX;
 
 			// Forward
-			if (keys['w']) {
+			if (keys['w'] || keys['ArrowUp']) {
 				const newX = posX + dirX * moveSpeed;
 				const newY = posY + dirY * moveSpeed;
 				if (worldMap[Math.floor(newX)][Math.floor(newY)] === 0) {
@@ -98,7 +108,7 @@
 				}
 			}
 			// Backward
-			if (keys['s']) {
+			if (keys['s'] || keys['ArrowDown']) {
 				const newX = posX - dirX * moveSpeed;
 				const newY = posY - dirY * moveSpeed;
 				if (worldMap[Math.floor(newX)][Math.floor(newY)] === 0) {
