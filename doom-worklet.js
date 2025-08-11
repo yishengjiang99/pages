@@ -1,3 +1,4 @@
+
 registerPaint('doom', class {
 	static get inputProperties() {
 		return ['--positionX', '--positionY', '--headTurnDegree'];
@@ -16,7 +17,7 @@ registerPaint('doom', class {
 		const dirRad = headTurnDeg * Math.PI / 180;
 		const dirX = Math.cos(dirRad);
 		const dirY = Math.sin(dirRad);
-		const planeX = dirY * 0.66; // Perpendicular vector for camera plane (FOV factor ~66°)
+		const planeX = dirY * 0.66; // Perpendicular vector for camera plane (FOV factor ~66Â°)
 		const planeY = -dirX * 0.66;
 
 		// Hardcoded 24x24 map (0 = empty, >0 = wall type)
@@ -39,13 +40,13 @@ registerPaint('doom', class {
 			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-			[1, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1],
+			[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 1],
 			[1, 4, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
 			[1, 4, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
 			[1, 4, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 1],
-			[1, 4, 0, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
 			[1, 4, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
-			[1, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
+			[1, 4, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
+			[1, 0, 0, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
 			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 		];
 
@@ -108,10 +109,10 @@ registerPaint('doom', class {
 			let color;
 			const wallType = worldMap[mapX][mapY];
 			switch (wallType) {
-				case 1: color = 'rgb(255,0,0)'; break; // red
+				case 1: color = 'rgb(32,22,122)'; break; // red
 				case 2: color = 'rgb(0,255,0)'; break; // green
 				case 3: color = 'rgb(0,0,255)'; break; // blue
-				case 4: color = 'rgb(255,255,255)'; break; // white
+				case 4: color = 'rgb(22,255,255)'; break; // white
 				case 5: color = 'rgb(255,255,0)'; break; // yellow
 				default: color = 'rgb(128,128,128)'; // gray
 			}
@@ -132,6 +133,9 @@ registerPaint('doom', class {
 			// Draw floor (flat gray)
 			ctx.fillStyle = 'gray';
 			ctx.fillRect(x, drawEnd, 1, h - drawEnd);
+
+			// ctx.fillStyle = 'black'; // Text color for debug
+			// ctx.fillText(`(${mapX}, ${mapY})`, x + 2, drawStart + 12); // Debug: show map coordinates
 		}
 	}
 });
