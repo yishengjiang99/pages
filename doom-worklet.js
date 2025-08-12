@@ -1,7 +1,6 @@
-
 registerPaint('doom', class {
 	static get inputProperties() {
-		return ['--positionX', '--positionY', '--headTurnDegree'];
+		return ['--positionX', '--positionY', '--positionZ', '--headTurnDegree'];
 	}
 
 	paint(ctx, size, props) {
@@ -12,12 +11,13 @@ registerPaint('doom', class {
 		// Parse properties
 		const posX = props.get('--positionX').value;
 		const posY = props.get('--positionY').value;
+		const posZ = props.get('--positionZ').value || 0; // New z position (height)
 		const headTurnDeg = props.get('--headTurnDegree').value; // in degrees
 
 		const dirRad = headTurnDeg * Math.PI / 180;
 		const dirX = Math.cos(dirRad);
 		const dirY = Math.sin(dirRad);
-		const planeX = dirY * 0.66; // Perpendicular vector for camera plane (FOV factor ~66Â°)
+		const planeX = dirY * 0.66; // Perpendicular vector for camera plane (FOV factor ~66°)
 		const planeY = -dirX * 0.66;
 
 		// Hardcoded 24x24 map (0 = empty, >0 = wall type)
@@ -49,6 +49,7 @@ registerPaint('doom', class {
 			[1, 0, 0, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
 			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 		];
+
 
 		for (let x = 0;x < w;x++) {
 			const cameraX = 2 * x / w - 1;
@@ -91,19 +92,26 @@ registerPaint('doom', class {
 					mapY += stepY;
 					side = 1;
 				}
-				if (worldMap[mapX][mapY] > 0) hit = true;
+				if (!worldMap[mapX] || worldMap[mapX][mapY] > 0) hit = true;
 			}
 
 			let perpWallDist;
 			if (side === 0) perpWallDist = sideDistX - deltaDistX;
 			else perpWallDist = sideDistY - deltaDistY;
 
-			const lineHeight = Math.floor(h / perpWallDist);
+			// Adjust wall height based on z-position
+			const perspective = 1000; // Perspective constant
+			const zScale = perspective / (perspective + posZ); // Scale based on z-position
+			const lineHeight = Math.floor((h / perpWallDist) * zScale);
 
-			let drawStart = Math.floor(-lineHeight / 2 + h / 2);
-			if (drawStart < 0) drawStart = 0;
-			let drawEnd = Math.floor(lineHeight / 2 + h / 2);
-			if (drawEnd > h) drawEnd = h;
+			// Adjust drawStart and drawEnd for vertical positioning
+			const baseDrawStart = Math.floor(-lineHeight / 2 + h / 2);
+			const drawStart = Math.floor(baseDrawStart - posZ * zScale); // Shift based on z-position
+			const drawEnd = Math.floor(drawStart + lineHeight);
+
+			// Clamp to canvas bounds
+			const clampedDrawStart = Math.max(0, drawStart);
+			const clampedDrawEnd = Math.min(h, drawEnd);
 
 			// Wall color based on type
 			let color;
@@ -124,18 +132,15 @@ registerPaint('doom', class {
 
 			// Draw ceiling (flat dark gray)
 			ctx.fillStyle = 'darkgray';
-			ctx.fillRect(x, 0, 1, drawStart);
+			ctx.fillRect(x, 0, 1, clampedDrawStart);
 
 			// Draw wall
 			ctx.fillStyle = color;
-			ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
+			ctx.fillRect(x, clampedDrawStart, 1, clampedDrawEnd - clampedDrawStart);
 
 			// Draw floor (flat gray)
 			ctx.fillStyle = 'gray';
-			ctx.fillRect(x, drawEnd, 1, h - drawEnd);
-
-			// ctx.fillStyle = 'black'; // Text color for debug
-			// ctx.fillText(`(${mapX}, ${mapY})`, x + 2, drawStart + 12); // Debug: show map coordinates
+			ctx.fillRect(x, clampedDrawEnd, 1, h - clampedDrawEnd);
 		}
 	}
 });
