@@ -1,7 +1,9 @@
-
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Doom-like Paint Worklet</title>
 	<script type="module">
 		if ('CSS' in window && 'registerProperty' in CSS) {
 			CSS.registerProperty({
@@ -17,10 +19,16 @@
 				initialValue: '12'
 			});
 			CSS.registerProperty({
+				name: '--positionZ',
+				syntax: '<number>',
+				inherits: false,
+				initialValue: '0'
+			});
+			CSS.registerProperty({
 				name: '--headTurnDegree',
 				syntax: '<angle>',
 				inherits: false,
-				initialValue: '130deg'
+				initialValue: '0deg'
 			});
 		}
 		CSS.paintWorklet.addModule('doom-worklet.js');
@@ -28,28 +36,53 @@
 
 	</script>
 	<style>
-		.doom {
-			width: 640px;
-			/* Matches typical raycaster width for performance */
-			height: 480px;
+		body {
+			margin: 0;
+			overflow: hidden;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			height: 100vh;
+			background: #000;
+		}
+
+		#gameArea {
+			width: 800px;
+			height: 600px;
 			background-image: paint(doom);
+			image-rendering: pixelated;
+		}
+
+		#controls {
+			position: absolute;
+			top: 10px;
+			left: 10px;
+			color: white;
+			font-family: Arial, sans-serif;
+			font-size: 14px;
+			background: rgba(0, 0, 0, 0.7);
+			padding: 10px;
+			border-radius: 5px;
 		}
 
 	</style>
 </head>
 <body>
-	<p>buttons:
-		<li>w: forward</li>
-		<li>s: backward</li>
-		<li>a: strafe left</li>
-		<li>d: strafe right</li>
-		<li>arrow keys: turn</li>
-		<i>AI slop</i>
-	</p>
-	<div class="doom"></div>
+	<div id="controls">
+		<p>Controls:</p>
+		<ul>
+			<li>W: Forward</li>
+			<li>S: Backward</li>
+			<li>A: Strafe Left</li>
+			<li>D: Strafe Right</li>
+			<li>Arrow <a href=""></a>Keys: Turn</li>
+			<li>Space: Jump</li>
+		</ul>
+	</div>
+	<div class="doom" id="gameArea"></div>
 
 
-	<script>
+	<script type="module">
 		// Duplicate map for collision in JS
 		const worldMap = [
 			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -77,11 +110,25 @@
 			[1, 0, 0, 0, 0, 0, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1],
 			[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 		];
-
+		// Register the paint worklet
 		const elem = document.querySelector('.doom');
+
 		const keys = {};
 		window.addEventListener('keydown', e => keys[e.key] = true);
 		window.addEventListener('keyup', e => keys[e.key] = false);
+
+		document.addEventListener('keydown', (e) => {
+			keys[e.key] = true;
+			switch (e.code) {
+				case 'Space': // Jump
+					if (!jumping) {
+						jumping = true;
+						jumpStartTime = performance.now();
+					}
+					break;
+				default: break;
+			}
+		});
 
 		let posX = 22;
 		let posY = 12;
@@ -89,6 +136,34 @@
 
 		const moveSpeed = 0.1;
 		const rotSpeed = 3; // degrees per frame
+		// Jump animation
+		let jumping = false;
+		let jumpStartTime = 0;
+		const jumpHeight = 200; // Max height of jump
+		const jumpDuration = 500; // Duration of jump in ms
+		let posZ = 0;
+		function updateJump(timestamp) {
+			if (jumping) {
+				const elapsed = timestamp - jumpStartTime;
+				if (elapsed < jumpDuration) {
+					// Parabolic jump curve: rise and fall
+					const t = elapsed / jumpDuration;
+					posZ = jumpHeight * 4 * t * (1 - t); // Quadratic for smooth jump
+					console.log(`Jumping: ${jumping}, posZ: ${posZ}, elapsed: ${elapsed}, jumpStartTime: ${jumpStartTime}, timestamp: ${timestamp}`);
+
+				} else {
+					jumping = false;
+					posZ = 0;
+				}
+				if (posZ < 0) {
+					posZ = 0; // Reset to ground level if below
+					jumping = false; // Stop jumping if below ground
+				}
+				elem.style.setProperty('--positionZ', -1 * posZ);
+
+			}
+		}
+
 
 		function animate() {
 			// Compute direction from angle
@@ -142,6 +217,8 @@
 			if (keys['ArrowRight']) {
 				angle -= rotSpeed;
 			}
+
+			updateJump(performance.now());
 
 			// Update CSS properties to trigger repaint
 			elem.style.setProperty('--positionX', posX);
