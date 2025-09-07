@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Extract Text from PNG</title>
+  <title>PNG Deep Metadata + OCR</title>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <style>
     body {
@@ -13,12 +13,10 @@
       background: #f8f9fa;
       color: #333;
     }
-
     h2 {
       text-align: center;
       margin-bottom: 1rem;
     }
-
     .container {
       max-width: 600px;
       margin: auto;
@@ -27,7 +25,6 @@
       border-radius: 8px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
-
     input[type="file"] {
       display: block;
       margin: 1rem auto;
@@ -35,10 +32,15 @@
       border: 1px solid #ccc;
       border-radius: 6px;
       width: 100%;
-      max-width: 100%;
       font-size: 1rem;
     }
-
+    img {
+      display: block;
+      max-width: 100%;
+      margin: 1rem auto;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    }
     pre {
       white-space: pre-wrap;
       word-wrap: break-word;
@@ -46,46 +48,92 @@
       padding: 1rem;
       border-radius: 6px;
       margin-top: 1rem;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       max-height: 300px;
       overflow-y: auto;
     }
-
     @media (max-width: 480px) {
-      body {
-        padding: 0.5rem;
-      }
-      pre {
-        font-size: 0.85rem;
-      }
+      body { padding: 0.5rem; }
+      pre { font-size: 0.8rem; }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>OCR Extract Text</h2>
-    <input type="file" id="fileInput" accept="image/png, image/jpeg" />
-    <pre id="output">Upload a PNG or JPG to see extracted text...</pre>
+    <h2>PNG Deep Metadata + OCR</h2>
+    <input type="file" id="fileInput" accept="image/png" />
+    <img id="preview" style="display:none;" />
+    <pre id="metadata">Upload a PNG to see chunk metadata...</pre>
+    <pre id="output">OCR text will appear here...</pre>
   </div>
 
   <script>
     const fileInput = document.getElementById('fileInput');
+    const preview = document.getElementById('preview');
+    const metadata = document.getElementById('metadata');
     const output = document.getElementById('output');
+
+    function parsePNGChunks(buffer) {
+      const view = new DataView(buffer);
+      let offset = 8; // skip PNG signature
+      const chunks = [];
+
+      while (offset < buffer.byteLength) {
+        const length = view.getUint32(offset);
+        const type = String.fromCharCode(
+          view.getUint8(offset + 4),
+          view.getUint8(offset + 5),
+          view.getUint8(offset + 6),
+          view.getUint8(offset + 7)
+        );
+        const dataStart = offset + 8;
+        const dataEnd = dataStart + length;
+        const data = new Uint8Array(buffer.slice(dataStart, dataEnd));
+        chunks.push({ type, length, data });
+
+        offset = dataEnd + 4; // skip CRC
+        if (type === "IEND") break;
+      }
+      return chunks;
+    }
+
+    function decodeTextChunk(data) {
+      try {
+        return new TextDecoder("utf-8").decode(data);
+      } catch {
+        return "(binary data)";
+      }
+    }
 
     fileInput.addEventListener('change', async (event) => {
       const file = event.target.files[0];
       if (!file) return;
 
-      output.textContent = "⏳ Processing...";
+      // Preview image
+      const reader = new FileReader();
+      reader.onload = e => {
+        preview.src = e.target.result;
+        preview.style.display = "block";
+      };
+      reader.readAsDataURL(file);
 
-      const { data: { text } } = await Tesseract.recognize(
-        file,
-        'eng',
-        {
-          logger: info => console.log(info)
+      // Parse chunks
+      const arrayBuffer = await file.arrayBuffer();
+      const chunks = parsePNGChunks(arrayBuffer);
+
+      let metaOutput = `File: ${file.name}\nSize: ${(file.size/1024).toFixed(2)} KB\n\nChunks:\n`;
+      for (const c of chunks) {
+        metaOutput += `- ${c.type} (${c.length} bytes)`;
+        if (["tEXt", "zTXt", "iTXt"].includes(c.type)) {
+          metaOutput += `\n   Content: ${decodeTextChunk(c.data)}`;
         }
-      );
+        metaOutput += "\n";
+      }
+      metadata.textContent = metaOutput;
 
+      // OCR
+      output.textContent = "⏳ Processing OCR...";
+      const { data: { text } } = await Tesseract.recognize(file, 'eng');
       output.textContent = text || "⚠️ No text found.";
     });
   </script>
