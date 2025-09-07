@@ -1,1 +1,2 @@
 # pages
+vibe coded pages
