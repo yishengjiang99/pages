@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>OCR + Color Segmentation</title>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    #canvas { border: 1px solid #ccc; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <h2>OCR + Color Segmentation Demo</h2>
+  <input type="file" id="fileInput" accept="image/*">
+  <br>
+  <canvas id="canvas"></canvas>
+
+  <!-- Tesseract.js for OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script>
+  function colorDistance(c1, c2) {
+    return Math.sqrt(
+      Math.pow(c1[0] - c2[0], 2) +
+      Math.pow(c1[1] - c2[1], 2) +
+      Math.pow(c1[2] - c2[2], 2)
+    );
+  }
+
+  function floodFill(x, y, imageData, visited, width, height, threshold=30) {
+    const stack = [[x, y]];
+    const section = [];
+    const baseIndex = (y * width + x) * 4;
+    const baseColor = [
+      imageData.data[baseIndex],
+      imageData.data[baseIndex + 1],
+      imageData.data[baseIndex + 2]
+    ];
+
+    while (stack.length > 0) {
+      const [cx, cy] = stack.pop();
+      const idx = cy * width + cx;
+      if (visited[idx]) continue;
+      visited[idx] = true;
+
+      const pixelIndex = idx * 4;
+      const color = [
+        imageData.data[pixelIndex],
+        imageData.data[pixelIndex+1],
+        imageData.data[pixelIndex+2]
+      ];
+
+      if (colorDistance(baseColor, color) < threshold) {
+        section.push([cx, cy]);
+        if (cx > 0) stack.push([cx-1, cy]);
+        if (cy > 0) stack.push([cx, cy-1]);
+        if (cx < width-1) stack.push([cx+1, cy]);
+        if (cy < height-1) stack.push([cx, cy+1]);
+      }
+    }
+    return section;
+  }
+
+  document.getElementById("fileInput").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const img = new Image();
+    img.onload = async () => {
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+      /* --- Step 1: OCR Paragraph Detection --- */
+      const { data } = await Tesseract.recognize(img, 'eng', { logger: m => console.log(m) });
+      const textSections = data.paragraphs.map(p => ({
+        left: p.bbox.x0,
+        top: p.bbox.y0,
+        width: p.bbox.x1 - p.bbox.x0,
+        height: p.bbox.y1 - p.bbox.y0,
+        text: p.text.trim()
+      }));
+
+      /* --- Step 2: Color Region Segmentation --- */
+      const visited = new Array(canvas.width * canvas.height).fill(false);
+      const colorSections = [];
+
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          const idx = y * canvas.width + x;
+          if (!visited[idx]) {
+            const section = floodFill(x, y, imageData, visited, canvas.width, canvas.height);
+            if (section.length > 200) { // ignore tiny noise
+              let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+              let rSum = 0, gSum = 0, bSum = 0;
+
+              section.forEach(([px, py]) => {
+                minX = Math.min(minX, px);
+                minY = Math.min(minY, py);
+                maxX = Math.max(maxX, px);
+                maxY = Math.max(maxY, py);
+
+                const idx = (py * canvas.width + px) * 4;
+                rSum += imageData.data[idx];
+                gSum += imageData.data[idx+1];
+                bSum += imageData.data[idx+2];
+              });
+
+              const avgR = Math.round(rSum / section.length);
+              const avgG = Math.round(gSum / section.length);
+              const avgB = Math.round(bSum / section.length);
+
+              colorSections.push({
+                left: minX,
+                top: minY,
+                width: maxX - minX,
+                height: maxY - minY,
+                size: section.length,
+                dominantColor: `rgb(${avgR},${avgG},${avgB})`
+              });
+            }
+          }
+        }
+      }
+
+      console.log("Paragraph sections:", textSections);
+      console.log("Color sections:", colorSections);
+
+      /* --- Visualization --- */
+      // Draw OCR paragraphs in blue
+      ctx.strokeStyle = "blue";
+      ctx.lineWidth = 2;
+      textSections.forEach(({left, top, width, height}) => {
+        ctx.strokeRect(left, top, width, height);
+      });
+
+      // Draw color regions in semi-transparent red
+      ctx.strokeStyle = "rgba(255,0,0,0.5)";
+      colorSections.forEach(({left, top, width, height}) => {
+        ctx.strokeRect(left, top, width, height);
+      });
+    };
+    img.src = URL.createObjectURL(file);
+  });
+  </script>
+</body>
+</html>
