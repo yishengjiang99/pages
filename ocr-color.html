@@ -3,20 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>PNG OCR + Non-rect Color Region Outlines</title>
+<title>PNG OCR + Non-ASCII Filter + Contour Color Fix</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
-  :root { --card-bg: #fff; --muted: #6c757d; }
-  body{
-    margin:0; padding:1rem; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    background:#f3f4f6; color:#111;
-  }
-  .card{
-    max-width:720px; margin:auto; background:var(--card-bg); border-radius:10px; padding:1rem;
-    box-shadow:0 6px 18px rgba(0,0,0,.08);
-  }
+  body{ margin:0; padding:1rem; font-family:system-ui,sans-serif; background:#f3f4f6; color:#111; }
+  .card{ max-width:720px; margin:auto; background:#fff; border-radius:10px; padding:1rem; box-shadow:0 6px 18px rgba(0,0,0,.08); }
   h2{ text-align:center; margin:.25rem 0 1rem 0; font-size:1.15rem; }
   input[type=file]{ width:100%; padding:.5rem; border-radius:6px; border:1px solid #ddd; }
   .preview-wrap{ position:relative; margin-top:1rem; display:flex; justify-content:center; align-items:center; }
@@ -28,398 +21,180 @@
   .meta-grid{ display:grid; gap:.5rem; grid-template-columns:1fr; margin-top:.75rem; }
   .color-row{ display:flex; gap:.5rem; align-items:center; padding:.4rem; border-radius:6px; background:#fff; border:1px solid #eee; }
   .swatch{ width:36px; height:24px; border-radius:4px; border:1px solid rgba(0,0,0,.08); flex:0 0 36px; }
-  .meta-text{ font-size:.9rem; color:var(--muted); }
+  .meta-text{ font-size:.9rem; color:#6c757d; }
   @media(min-width:560px){ .meta-grid{ grid-template-columns: 1fr 1fr; } }
 </style>
 </head>
 <body>
-  <div class="card">
-    <h2>PNG OCR + Color Region Outlines (non-rect)</h2>
+<div class="card">
+<h2>PNG OCR + ASCII Filter + Color Contour</h2>
 
-    <input id="fileInput" type="file" accept="image/png,image/jpeg" />
-    <div class="preview-wrap" id="previewWrap" style="display:none;">
-      <img id="preview" alt="preview" crossorigin="anonymous" />
-      <svg id="overlay" xmlns="http://www.w3.org/2000/svg" />
-    </div>
+<input id="fileInput" type="file" accept="image/png,image/jpeg" />
+<div class="preview-wrap" id="previewWrap" style="display:none;">
+  <img id="preview" alt="preview" crossorigin="anonymous" />
+  <svg id="overlay" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
 
-    <h3 style="margin:.75rem 0 .25rem 0;font-size:1rem;">OCR Text</h3>
-    <pre id="ocr">Upload a PNG and wait — OCR runs first, then metadata & color outlines appear below.</pre>
+<h3 style="margin:.75rem 0 .25rem 0;font-size:1rem;">OCR Text</h3>
+<pre id="ocr">Upload a PNG and wait — OCR runs first.</pre>
 
-    <details id="metaDetails">
-      <summary>Show Color & Text Sections</summary>
-      <div class="meta-grid" id="metaGrid" style="margin-top:.75rem;">
-        <!-- populated dynamically -->
-      </div>
-
-      <h4 style="margin-top:.75rem;">Text Groups</h4>
-      <pre id="textGroups" style="background:#fff; padding:.75rem; border-radius:6px; border:1px solid #eee; max-height:240px; overflow:auto;">Text groups will appear here.</pre>
-    </details>
-  </div>
+<details id="metaDetails">
+  <summary>Show Color & Text Sections</summary>
+  <div class="meta-grid" id="metaGrid"></div>
+  <h4 style="margin-top:.75rem;">Text Groups</h4>
+  <pre id="textGroups" style="background:#fff; padding:.75rem; border-radius:6px; border:1px solid #eee; max-height:240px; overflow:auto;">Text groups will appear here.</pre>
+</details>
+</div>
 
 <script>
 (async function(){
-  const fileInput = document.getElementById('fileInput');
-  const preview = document.getElementById('preview');
-  const overlay = document.getElementById('overlay');
-  const previewWrap = document.getElementById('previewWrap');
-  const ocrPre = document.getElementById('ocr');
-  const metaGrid = document.getElementById('metaGrid');
-  const textGroupsPre = document.getElementById('textGroups');
+const fileInput=document.getElementById('fileInput');
+const preview=document.getElementById('preview');
+const overlay=document.getElementById('overlay');
+const previewWrap=document.getElementById('previewWrap');
+const ocrPre=document.getElementById('ocr');
+const metaGrid=document.getElementById('metaGrid');
+const textGroupsPre=document.getElementById('textGroups');
 
-  function hexFromRgb(r,g,b){
-    return '#' + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
-  }
+function hexFromRgb(r,g,b){return '#'+[r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');}
+function quantizeColor(r,g,b,step=16){const q=v=>Math.round(v/step)*step; return [q(r),q(g),q(b)];}
+function colorDistance(a,b){const dr=a[0]-b[0],dg=a[1]-b[1],db=a[2]-b[2];return Math.sqrt(dr*dr+dg*dg+db*db);}
+function filterASCII(str){return str.replace(/[^\x20-\x7E]/g,'');}
 
-  function quantizeColor(r,g,b,step=16){
-    // reduce to buckets to make dominant detection fast
-    const q = v => Math.round(v/step)*step;
-    return [q(r), q(g), q(b)];
-  }
+// Simple border-following polygon from binary mask
+function maskToPolygons(mask,w,h){
+  const visited=new Uint8Array(w*h);
+  const idx=(x,y)=>y*w+x;
+  const inBounds=(x,y)=>x>=0&&x<w&&y>=0&&y<h;
+  const polygons=[];
+  const dirs=[[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
 
-  function colorDistance(a, b){
-    const dr = a[0]-b[0], dg = a[1]-b[1], db = a[2]-b[2];
-    return Math.sqrt(dr*dr + dg*dg + db*db);
-  }
-
-  // Simple marching-squares style boundary extractor from binary mask
-  // Returns an array of polygons (each polygon an array of [x,y])
-  function maskToPolygons(mask, w, h){
-    // We'll use a very simple border-following per connected component (8-neighbor)
-    const visited = new Uint8Array(w*h);
-    const idx = (x,y) => y*w + x;
-    const inBounds = (x,y) => x>=0 && x<w && y>=0 && y<h;
-
-    const dirs = [[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1],[0,-1],[1,-1]];
-
-    const polygons = [];
-
-    for(let y=0;y<h;y++){
-      for(let x=0;x<w;x++){
-        const i = idx(x,y);
-        if(!mask[i] || visited[i]) continue;
-
-        // find left-most pixel of this component to start border-follow
-        // flood to mark the whole component and collect border pixels
-        const stack=[ [x,y] ];
-        const comp = [];
-        visited[i]=1;
-        while(stack.length){
-          const [cx,cy] = stack.pop();
-          comp.push([cx,cy]);
-          for(let dy=-1;dy<=1;dy++){
-            for(let dx=-1;dx<=1;dx++){
-              if(dx===0 && dy===0) continue;
-              const nx=cx+dx, ny=cy+dy;
-              if(inBounds(nx,ny)){
-                const ni=idx(nx,ny);
-                if(mask[ni] && !visited[ni]){ visited[ni]=1; stack.push([nx,ny]); }
-              }
-            }
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const i=idx(x,y);
+      if(!mask[i]||visited[i])continue;
+      const stack=[[x,y]]; const comp=[]; visited[i]=1;
+      while(stack.length){
+        const [cx,cy]=stack.pop(); comp.push([cx,cy]);
+        for(let dy=-1;dy<=1;dy++){ for(let dx=-1;dx<=1;dx++){
+          if(dx===0&&dy===0) continue;
+          const nx=cx+dx,ny=cy+dy;
+          if(inBounds(nx,ny)){
+            const ni=idx(nx,ny);
+            if(mask[ni]&&!visited[ni]){visited[ni]=1; stack.push([nx,ny]);}
           }
-        }
-
-        // Now find border pixels of component (pixel that has neighbor outside)
-        const border = [];
-        const inComp = new Set(comp.map(p=>p[0] + ',' + p[1]));
-        for(const [cx,cy] of comp){
-          let isBorder=false;
-          for(let dy=-1;dy<=1;dy++){
-            for(let dx=-1;dx<=1;dx++){
-              const nx=cx+dx, ny=cy+dy;
-              if(!inBounds(nx,ny) || !inComp.has(nx+','+ny)) { isBorder=true; break; }
-            }
-            if(isBorder) break;
-          }
-          if(isBorder) border.push([cx,cy]);
-        }
-
-        if(border.length===0){
-          // isolated single pixel => tiny polygon
-          polygons.push([[x,y],[x+1,y],[x+1,y+1],[x,y+1]]);
-          continue;
-        }
-
-        // crude convex-hull-ish ordering: compute centroid then sort boundary points by angle
-        let cx=0, cy=0;
-        for(const p of border){ cx += p[0]; cy+=p[1]; }
-        cx /= border.length; cy /= border.length;
-        border.sort((a,b)=>{
-          const aa = Math.atan2(a[1]-cy, a[0]-cx);
-          const bb = Math.atan2(b[1]-cy, b[0]-cx);
-          return aa - bb;
-        });
-
-        // convert border pixels to path with slight offset to get nicer shape
-        const poly = border.map(p => [p[0]+0.5, p[1]+0.5]);
-        polygons.push(poly);
+        }}
       }
+      const border=[]; const inComp=new Set(comp.map(p=>p[0]+','+p[1]));
+      for(const [cx,cy] of comp){
+        let isBorder=false;
+        for(let dy=-1;dy<=1;dy++){ for(let dx=-1;dx<=1;dx++){
+          const nx=cx+dx,ny=cy+dy; if(!inBounds(nx,ny)||!inComp.has(nx+','+ny)){isBorder=true; break;}
+        } if(isBorder) break;}
+        if(isBorder) border.push([cx,cy]);
+      }
+      if(border.length===0){ polygons.push([[x,y],[x+1,y],[x+1,y+1],[x,y+1]]); continue;}
+      let cx=0,cy=0; for(const p of border){cx+=p[0];cy+=p[1];} cx/=border.length; cy/=border.length;
+      border.sort((a,b)=>Math.atan2(a[1]-cy,a[0]-cx)-Math.atan2(b[1]-cy,b[0]-cx));
+      const poly=border.map(p=>[p[0]+0.5,p[1]+0.5]);
+      polygons.push(poly);
     }
-    return polygons;
+  }
+  return polygons;
+}
+function drawSVGPathFromPoints(points){if(!points||points.length===0) return ''; let d=`M ${points[0][0]} ${points[0][1]} `; for(let i=1;i<points.length;i++){d+=`L ${points[i][0]} ${points[i][1]} `;} d+='Z'; return d;}
+
+function groupLinesByProximity(lines){
+  if(!lines||lines.length===0) return [];
+  const groups=[]; const used=new Array(lines.length).fill(false); const thresholdV=12;
+  for(let i=0;i<lines.length;i++){ if(used[i]) continue; used[i]=true; const g=[lines[i]];
+    for(let j=i+1;j<lines.length;j++){ if(used[j]) continue;
+      const va=Math.abs(lines[i].y0-lines[j].y0);
+      const overlap=!(lines[j].x1<lines[i].x0||lines[j].x0>lines[i].x1);
+      if(va<thresholdV||overlap){used[j]=true; g.push(lines[j]);}
+    }
+    const x0=Math.min(...g.map(l=>l.x0)),y0=Math.min(...g.map(l=>l.y0)),x1=Math.max(...g.map(l=>l.x1)),y1=Math.max(...g.map(l=>l.y1));
+    groups.push({text:g.map(x=>filterASCII(x.text)).join(' ').trim(),x0,y0,x1,y1,members:g});
+  }
+  return groups;
+}
+
+fileInput.addEventListener('change', async (ev)=>{
+  const file=ev.target.files[0]; if(!file) return;
+  overlay.innerHTML=''; metaGrid.innerHTML=''; textGroupsPre.textContent=''; ocrPre.textContent='⏳ Running OCR...';
+
+  const url=URL.createObjectURL(file); preview.src=url; previewWrap.style.display='flex';
+  await new Promise((res,rej)=>{preview.onload=res; preview.onerror=rej;});
+  const imgW=preview.naturalWidth,imgH=preview.naturalHeight;
+  overlay.setAttribute('viewBox',`0 0 ${imgW} ${imgH}`); overlay.style.width=preview.clientWidth+'px'; overlay.style.height=preview.clientHeight+'px';
+
+  const {data}=await Tesseract.recognize(file,'eng',{logger:m=>console.log(m)});
+  const rawLines=(data && (data.lines && data.lines.length ? data.lines : data.blocks || []));
+  const lines=rawLines.map(l=>{ return {text:filterASCII(l.text||''),x0:l.bbox?.x0||l.x0||0,y0:l.bbox?.y0||l.y0||0,x1:l.bbox?.x1||l.x1||0,y1:l.bbox?.y1||l.y1||0}; });
+  const groups = groupLinesByProximity(lines);
+
+  ocrPre.textContent = filterASCII(data.text||groups.map(g=>g.text).join('\n')) || '(no OCR text)';
+
+  const canvas=document.createElement('canvas'); canvas.width=imgW; canvas.height=imgH;
+  const ctx=canvas.getContext('2d',{willReadFrequently:true}); ctx.drawImage(preview,0,0,imgW,imgH);
+  const imgData=ctx.getImageData(0,0,imgW,imgH); const pixels=imgData.data;
+
+  const colorSections=[];
+  for(const g of groups){
+    const pad=Math.max(4,Math.round((g.x1-g.x0+g.y1-g.y0)/10));
+    const ex0=Math.max(0,Math.floor(g.x0-pad)),ey0=Math.max(0,Math.floor(g.y0-pad));
+    const ex1=Math.min(imgW-1,Math.ceil(g.x1+pad)),ey1=Math.min(imgH-1,Math.ceil(g.y1+pad));
+
+    const counts=new Map(); const step=Math.max(1,Math.round(Math.min(6,(ex1-ex0)/40||1)));
+    for(let y=ey0;y<=ey1;y+=step){ for(let x=ex0;x<=ex1;x+=step){
+      const i=(y*imgW+x)*4; const r=pixels[i],g_=pixels[i+1],b=pixels[i+2],a=pixels[i+3]; if(a<20) continue;
+      const qc=quantizeColor(r,g_,b,24); const key=qc.join(','); counts.set(key,(counts.get(key)||0)+1);
+    }}
+
+    let bestKey=null,bestCount=0; counts.forEach((c,k)=>{if(c>bestCount){bestCount=c;bestKey=k;}});
+    if(!bestKey) bestKey='255,255,255';
+    const bestRgb=bestKey.split(',').map(Number);
+
+    const threshold=60; const mask=new Uint8Array(imgW*imgH);
+    for(let y=0;y<imgH;y++){for(let x=0;x<imgW;x++){
+      const i=y*imgW+x; const r=pixels[i*4],g_=pixels[i*4+1],b=pixels[i*4+2],a=pixels[i*4+3]; if(a<20){mask[i]=0;continue;}
+      mask[i]=colorDistance([r,g_,b],bestRgb)<=threshold?1:0;
+    }}
+
+    const polygons=maskToPolygons(mask,imgW,imgH);
+    const selectedPolys=[]; const [cx0,cy0, cx1,cy1]=[ex0,ey0,ex1,ey1];
+    function polyCentroid(poly){let sx=0,sy=0; for(const p of poly){sx+=p[0]; sy+=p[1];} return [sx/poly.length,sy/poly.length];}
+    for(const poly of polygons){const [cx,cy]=polyCentroid(poly); if(cx>=cx0&&cx<=cx1&&cy>=cy0&&cy<=cy1){selectedPolys.push(poly);}}
+    if(selectedPolys.length===0){for(const poly of polygons){for(const p of poly){if(p[0]>=cx0&&p[0]<=cx1&&p[1]>=cy0&&p[1]<=cy1){selectedPolys.push(poly); break;}}}}
+    colorSections.push({text:g.text,bbox:{x0:ex0,y0:ey0,x1:ex1,y1:ey1},color:bestRgb,polygons:selectedPolys});
   }
 
-  function drawSVGPathFromPoints(points, transformScale=1, translateX=0, translateY=0){
-    if(!points||points.length===0) return '';
-    let d = `M ${ (points[0][0]*transformScale + translateX).toFixed(2) } ${ (points[0][1]*transformScale + translateY).toFixed(2) } `;
-    for(let i=1;i<points.length;i++){
-      d += `L ${ (points[i][0]*transformScale + translateX).toFixed(2) } ${ (points[i][1]*transformScale + translateY).toFixed(2) } `;
+  overlay.innerHTML='';
+  for(const sec of colorSections){
+    const hex=hexFromRgb(...sec.color);
+    for(const poly of sec.polygons){
+      const pathD=drawSVGPathFromPoints(poly); if(!pathD) continue;
+      const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('d',pathD); path.setAttribute('fill',hex); path.setAttribute('fill-opacity','0.2');
+      path.setAttribute('stroke',hex); path.setAttribute('stroke-width',Math.max(1,Math.round(Math.min(imgW,imgH)/600))); path.setAttribute('stroke-opacity','0.9');
+      overlay.appendChild(path);
     }
-    d += 'Z';
-    return d;
   }
 
-  // group proximate lines into "text groups" if needed
-  function groupLinesByProximity(lines){
-    if(!lines || lines.length===0) return [];
-    // each line: {text, x0,y0,x1,y1}
-    const groups = [];
-    const used = new Array(lines.length).fill(false);
-    const thresholdV = 12; // vertical gap threshold px
-    for(let i=0;i<lines.length;i++){
-      if(used[i]) continue;
-      used[i]=true;
-      const g = [lines[i]];
-      for(let j=i+1;j<lines.length;j++){
-        if(used[j]) continue;
-        // if vertically close and horizontally overlapping, merge
-        const va = Math.abs(lines[i].y0 - lines[j].y0);
-        const overlap = !(lines[j].x1 < lines[i].x0 || lines[j].x0 > lines[i].x1);
-        if(va < thresholdV || overlap){
-          used[j]=true;
-          g.push(lines[j]);
-        }
-      }
-      // compute bbox of group
-      const x0 = Math.min(...g.map(l=>l.x0));
-      const y0 = Math.min(...g.map(l=>l.y0));
-      const x1 = Math.max(...g.map(l=>l.x1));
-      const y1 = Math.max(...g.map(l=>l.y1));
-      groups.push({ text: g.map(x=>x.text).join(' ').trim(), x0,y0,x1,y1, members:g });
-    }
-    return groups;
+  metaGrid.innerHTML='';
+  for(const sec of colorSections){
+    const hex=hexFromRgb(...sec.color);
+    const div=document.createElement('div'); div.className='color-row';
+    const sw=document.createElement('div'); sw.className='swatch'; sw.style.background=hex;
+    const info=document.createElement('div'); const t=document.createElement('div'); t.textContent=hex; t.style.fontWeight='700';
+    const sub=document.createElement('div'); sub.className='meta-text'; sub.textContent=sec.text||'(no text)';
+    info.appendChild(t); info.appendChild(sub); div.appendChild(sw); div.appendChild(info); metaGrid.appendChild(div);
   }
 
-  fileInput.addEventListener('change', async (ev)=>{
-    const file = ev.target.files[0];
-    if(!file) return;
-    overlay.innerHTML = '';
-    metaGrid.innerHTML = '';
-    textGroupsPre.textContent = '';
-    ocrPre.textContent = '⏳ Running OCR... (may take a few seconds)';
-
-    // Load image to get dimensions
-    const url = URL.createObjectURL(file);
-    preview.src = url;
-    previewWrap.style.display = 'flex';
-
-    // wait for image load
-    await new Promise((res, rej) => {
-      preview.onload = () => { res(); };
-      preview.onerror = rej;
-    });
-
-    // fit the svg overlay to image pixel dimensions by setting viewBox
-    const imgW = preview.naturalWidth, imgH = preview.naturalHeight;
-    overlay.setAttribute('viewBox', `0 0 ${imgW} ${imgH}`);
-    overlay.style.width = preview.clientWidth + 'px'; // maintain overlay size
-    overlay.style.height = preview.clientHeight + 'px';
-
-    // OCR with full data to get lines
-    const { data } = await Tesseract.recognize(file, 'eng', { logger: m => console.log(m) });
-    // data.lines or data.blocks fallback
-    const rawLines = (data && (data.lines && data.lines.length ? data.lines : (data.paragraphs && data.paragraphs.length ? data.paragraphs : data.blocks || [])));
-
-    // Normalize line objects to {text, x0,y0,x1,y1}
-    const lines = rawLines.map(l => {
-      // tesseract.js line object shapes vary by version
-      // support multiple possible property names:
-      const get = (o, keys) => {
-        for(const k of keys) if(o[k] !== undefined) return o[k];
-        return undefined;
-      };
-      const text = get(l, ['text','words','textBlock']) || (l.words ? l.words.map(w=>w.text).join(' ') : '');
-      const x0 = get(l, ['bbox','x0','x0?','x0']) ?? get(l, ['x0','x']) ?? l.x;
-      const x1 = get(l, ['bbox','x1','x1?']) ?? get(l, ['x1','x2']) ?? l.x1;
-      const y0 = get(l, ['bbox','y0','y0?']) ?? get(l, ['y0','y']) ?? l.y;
-      const y1 = get(l, ['bbox','y1','y1?']) ?? get(l, ['y1','y2']) ?? l.y1;
-      // Fallback: if bbox object exists with x0,x1,y0,y1
-      if(l.bbox && typeof l.bbox === 'object'){
-        if(l.bbox.x0 !== undefined) { return { text: l.text || text, x0:l.bbox.x0, y0:l.bbox.y0, x1:l.bbox.x1, y1:l.bbox.y1 }; }
-      }
-      // If any are undefined, try words union
-      if((x0===undefined || x1===undefined || y0===undefined || y1===undefined) && l.words && l.words.length){
-        const xs = l.words.map(w=>w.x0??w.bbox?.x0??w.x);
-        const ys = l.words.map(w=>w.y0??w.bbox?.y0??w.y);
-        const x1s = l.words.map(w=>w.x1??w.bbox?.x1??(w.x + (w.width||0)));
-        const y1s = l.words.map(w=>w.y1??w.bbox?.y1??(w.y + (w.height||0)));
-        return { text: l.text || text || l.words.map(w=>w.text).join(' '), x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...x1s), y1: Math.max(...y1s) };
-      }
-      return { text: l.text || text, x0: x0||0, y0: y0||0, x1: x1||0, y1: y1||0 };
-    });
-
-    // If no lines found, fallback to words grouped
-    let groups = [];
-    if(lines.length>0){
-      groups = groupLinesByProximity(lines);
-    } else if(data && data.words && data.words.length){
-      const words = data.words.map(w => {
-        const x0 = w.bbox ? w.bbox.x0 : (w.x0 ?? w.x);
-        const x1 = w.bbox ? w.bbox.x1 : (w.x1 ?? (w.x + (w.width||0)));
-        const y0 = w.bbox ? w.bbox.y0 : (w.y0 ?? w.y);
-        const y1 = w.bbox ? w.bbox.y1 : (w.y1 ?? (w.y + (w.height||0)));
-        return { text: w.text, x0,y0,x1,y1 };
-      });
-      groups = groupLinesByProximity(words);
-    } else {
-      groups = [];
-    }
-
-    // display full OCR text
-    const fullText = (data && data.text) ? data.text : groups.map(g=>g.text).join('\n');
-    ocrPre.textContent = fullText || '(no OCR text)';
-
-    // prepare canvas to read pixels
-    const canvas = document.createElement('canvas');
-    canvas.width = imgW; canvas.height = imgH;
-    const ctx = canvas.getContext('2d', { willReadFrequently:true });
-    ctx.drawImage(preview, 0, 0, imgW, imgH);
-    const imgData = ctx.getImageData(0,0,imgW,imgH);
-    const pixels = imgData.data; // RGBA uint8
-
-    // helper to get pixel color at x,y
-    function pixelAt(x,y){
-      const i = (y*imgW + x)*4;
-      return [pixels[i], pixels[i+1], pixels[i+2], pixels[i+3]];
-    }
-
-    // For each text group: compute dominant color in an expanded bbox
-    const colorSections = [];
-    for(const g of groups){
-      // expand bbox slightly (10 px)
-      const pad = Math.max(4, Math.round((g.x1-g.x0 + g.y1-g.y0)/10));
-      const ex0 = Math.max(0, Math.floor(g.x0 - pad));
-      const ey0 = Math.max(0, Math.floor(g.y0 - pad));
-      const ex1 = Math.min(imgW-1, Math.ceil(g.x1 + pad));
-      const ey1 = Math.min(imgH-1, Math.ceil(g.y1 + pad));
-
-      // sample pixels sparsely to build histogram
-      const counts = new Map();
-      const step = Math.max(1, Math.round(Math.min(6, (ex1-ex0)/40 || 1)));
-      for(let y=ey0;y<=ey1;y+=step){
-        for(let x=ex0;x<=ex1;x+=step){
-          const [r,gc,b,a] = pixelAt(x,y);
-          if(a < 20) continue; // ignore transparent near-0
-          const qc = quantizeColor(r,gc,b,24);
-          const key = qc.join(',');
-          counts.set(key, (counts.get(key)||0) + 1);
-        }
-      }
-      // find most frequent bucket
-      let bestKey = null, bestCount = 0;
-      counts.forEach((c,k)=>{ if(c>bestCount){ bestCount=c; bestKey=k; }});
-      if(!bestKey){
-        // fallback: white or black
-        bestKey = '255,255,255';
-      }
-      const bestRgb = bestKey.split(',').map(Number);
-
-      // create global mask of pixels similar to dominant color using threshold
-      const threshold = 60; // color distance threshold
-      const mask = new Uint8Array(imgW * imgH);
-      for(let y=0;y<imgH;y++){
-        for(let x=0;x<imgW;x++){
-          const i = (y*imgW + x);
-          const r = pixels[i*4], g = pixels[i*4+1], b = pixels[i*4+2], a = pixels[i*4+3];
-          if(a < 20) { mask[i]=0; continue; }
-          const dist = colorDistance([r,g,b], bestRgb);
-          mask[i] = dist <= threshold ? 1 : 0;
-        }
-      }
-
-      // find connected components & polygons from mask
-      const polygons = maskToPolygons(mask, imgW, imgH);
-
-      // pick the polygon(s) that overlap the expanded bbox (simple centroid check)
-      const selectedPolys = [];
-      function polyCentroid(poly){
-        let sx=0, sy=0;
-        for(const p of poly){ sx+=p[0]; sy+=p[1]; }
-        return [sx/poly.length, sy/poly.length];
-      }
-      for(const poly of polygons){
-        const [cx,cy] = polyCentroid(poly);
-        if(cx >= ex0 && cx <= ex1 && cy >= ey0 && cy <= ey1){
-          selectedPolys.push(poly);
-        }
-      }
-
-      // If none selected, relax: pick polygons whose any vertex in expanded bbox
-      if(selectedPolys.length===0){
-        for(const poly of polygons){
-          for(const p of poly){
-            if(p[0] >= ex0 && p[0] <= ex1 && p[1] >= ey0 && p[1] <= ey1){
-              selectedPolys.push(poly);
-              break;
-            }
-          }
-        }
-      }
-
-      // if still none, we will skip outlines for this group
-      colorSections.push({
-        text: g.text,
-        bbox: { x0: ex0, y0: ey0, x1: ex1, y1: ey1 },
-        color: bestRgb,
-        polygons: selectedPolys
-      });
-    }
-
-    // Draw overlays for each color section
-    overlay.innerHTML = ''; // clear
-    for(const sec of colorSections){
-      const hex = hexFromRgb(...sec.color);
-      // draw each polygon as a path
-      for(const poly of sec.polygons){
-        const pathD = drawSVGPathFromPoints(poly, 1, 0, 0);
-        if(!pathD) continue;
-        const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-        path.setAttribute('d', pathD);
-        path.setAttribute('fill', hex);
-        path.setAttribute('fill-opacity', '0.2');
-        path.setAttribute('stroke', hex);
-        path.setAttribute('stroke-width', Math.max(1, Math.round(Math.min(imgW,imgH)/600)));
-        path.setAttribute('stroke-opacity', '0.9');
-        overlay.appendChild(path);
-      }
-    }
-
-    // Populate the details/meta area
-    metaGrid.innerHTML = '';
-    for(const sec of colorSections){
-      const hex = hexFromRgb(...sec.color);
-      const div = document.createElement('div');
-      div.className = 'color-row';
-      const sw = document.createElement('div');
-      sw.className='swatch'; sw.style.background = hex;
-      const info = document.createElement('div');
-      const t = document.createElement('div'); t.textContent = hex; t.style.fontWeight='700';
-      const sub = document.createElement('div'); sub.className='meta-text'; sub.textContent = sec.text || '(no text)';
-      info.appendChild(t); info.appendChild(sub);
-      div.appendChild(sw); div.appendChild(info);
-      metaGrid.appendChild(div);
-    }
-
-    // Print text groups details
-    const tgTxt = colorSections.map((s, idx) => {
-      const hex = hexFromRgb(...s.color);
-      const polyCount = s.polygons.length;
-      return `Group ${idx+1}:\nText: ${s.text}\nColor: ${hex}\nPolygons: ${polyCount}\nBBox: ${s.bbox.x0},${s.bbox.y0} → ${s.bbox.x1},${s.bbox.y1}\n`;
-    }).join('\n');
-    textGroupsPre.textContent = tgTxt || '(no text groups found)';
-
-    // free object URL
-    URL.revokeObjectURL(url);
-  });
-
+  const tgTxt=colorSections.map((s,i)=>`Group ${i+1}:\nText: ${s.text}\nColor: ${hexFromRgb(...s.color)}\nPolygons:${s.polygons.length}\nBBox:${s.bbox.x0},${s.bbox.y0} → ${s.bbox.x1},${s.bbox.y1}\n`).join('\n');
+  textGroupsPre.textContent=tgTxt || '(no text groups found)';
+  URL.revokeObjectURL(url);
+});
 })();
 </script>
 </body>
