@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIDI to SVG Piano Roll</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            touch-action: none;
+        }
+        #container {
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        #midiFile {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        #metadata {
+            width: 100%;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        #pianoRoll {
+            width: 100%;
+            height: 640px;
+            border: 1px solid black;
+            touch-action: none;
+        }
+        @media (max-width: 600px) {
+            #pianoRoll {
+                height: 400px;
+            }
+            #metadata {
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <input type="file" id="midiFile" accept=".mid,.midi">
+        <div id="metadata"></div>
+        <svg id="pianoRoll"></svg>
+    </div>
+
+    <script>
+        let transform = { x: 0, y: 0, scale: 1 };
+        let isDragging = false;
+        let startPoint = { x: 0, y: 0 };
+        let startTransform = { x: 0, y: 0 };
+        let lastPinchDistance = null;
+
+        const svg = document.getElementById('pianoRoll');
+        const container = document.getElementById('container');
+        const metadataDiv = document.getElementById('metadata');
+
+        function resizeSvg() {
+            const width = container.clientWidth;
+            svg.setAttribute('width', width);
+            drawPianoRoll(currentMidi);
+        }
+
+        window.addEventListener('resize', resizeSvg);
+
+        svg.addEventListener('mousedown', startDrag);
+        svg.addEventListener('mousemove', drag);
+        svg.addEventListener('mouseup', endDrag);
+        svg.addEventListener('mouseleave', endDrag);
+        svg.addEventListener('wheel', zoom);
+        svg.addEventListener('touchstart', handleTouch);
+        svg.addEventListener('touchmove', handleTouch);
+        svg.addEventListener('touchend', endDrag);
+
+        function startDrag(e) {
+            isDragging = true;
+            const point = getEventPoint(e);
+            startPoint = point;
+            startTransform = { ...transform };
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            e.preventDefault();
+            const point = getEventPoint(e);
+            transform.x = startTransform.x + (point.x - startPoint.x);
+            transform.y = startTransform.y + (point.y - startPoint.y);
+            updateView();
+        }
+
+        function endDrag() {
+            isDragging = false;
+            lastPinchDistance = null;
+        }
+
+        function zoom(e) {
+            e.preventDefault();
+            const point = getEventPoint(e);
+            const scaleChange = e.deltaY > 0 ? 0.9 : 1.1;
+            applyZoom(point, scaleChange);
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+            const touches = e.touches;
+            if (touches.length === 1) {
+                const point = { x: touches[0].clientX, y: touches[0].clientY };
+                if (!isDragging) {
+                    isDragging = true;
+                    startPoint = point;
+                    startTransform = { ...transform };
+                } else {
+                    transform.x = startTransform.x + (point.x - startPoint.x);
+                    transform.y = startTransform.y + (point.y - startPoint.y);
+                    updateView();
+                }
+            } else if (touches.length === 2) {
+                const dx = touches[0].clientX - touches[1].clientX;
+                const dy = touches[0].clientY - touches[1].clientY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const midPoint = {
+                    x: (touches[0].clientX + touches[1].clientX) / 2,
+                    y: (touches[0].clientY + touches[1].clientY) / 2
+                };
+
+                if (lastPinchDistance !== null) {
+                    const scaleChange = distance / lastPinchDistance;
+                    applyZoom(midPoint, scaleChange);
+                }
+                lastPinchDistance = distance;
+            }
+        }
+
+        function applyZoom(point, scaleChange) {
+            const oldScale = transform.scale;
+            transform.scale = Math.max(0.5, Math.min(transform.scale * scaleChange, 5));
+            const scaleRatio = transform.scale / oldScale;
+            transform.x = point.x - scaleRatio * (point.x - transform.x);
+            transform.y = point.y - scaleRatio * (point.y - transform.y);
+            updateView();
+        }
+
+        function getEventPoint(e) {
+            const rect = svg.getBoundingClientRect();
+            return {
+                x: (e.clientX || e.touches?.[0]?.clientX) - rect.left,
+                y: (e.clientY || e.touches?.[0]?.clientY) - rect.top
+            };
+        }
+
+        function updateView() {
+            svg.querySelector('g').setAttribute('transform',
+                `translate(${transform.x}, ${transform.y}) scale(${transform.scale})`
+            );
+        }
+
+        let currentMidi = null;
+
+        document.getElementById('midiFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const arrayBuffer = e.target.result;
+                currentMidi = parseMidi(arrayBuffer);
+                transform = { x: 0, y: 0, scale: 1 };
+                resizeSvg();
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function parseMidi(arrayBuffer) {
+            const data = new Uint8Array(arrayBuffer);
+            const view = new DataView(arrayBuffer);
+            let pos = 0;
+
+            // Read header
+            if (String.fromCharCode(data[pos++], data[pos++], data[pos++], data[pos++]) !== 'MThd') {
+                throw new Error('Not a valid MIDI file');
+            }
+            const headerLen = view.getUint32(pos); pos += 4;
+            const format = view.getUint16(pos); pos += 2;
+            const ntracks = view.getUint16(pos); pos += 2;
+            const division = view.getUint16(pos); pos += 2;
+
+            const tracks = [];
+            for (let i = 0; i < ntracks; i++) {
+                if (String.fromCharCode(data[pos++], data[pos++], data[pos++], data[pos++]) !== 'MTrk') {
+                    throw new Error('Invalid track header');
+                }
+                const trackLen = view.getUint32(pos); pos += 4;
+                const trackEnd = pos + trackLen;
+                const events = [];
+                let time = 0;
+                let lastStatus = 0;
+
+                while (pos < trackEnd) {
+                    let delta = 0;
+                    while (true) {
+                        const byte = data[pos++];
+                        delta = (delta << 7) + (byte & 0x7F);
+                        if (!(byte & 0x80)) break;
+                    }
+                    time += delta;
+
+                    let status = data[pos++];
+                    if (status < 0x80) {
+                        pos--;
+                        status = lastStatus;
+                    } else {
+                        lastStatus = status;
+                    }
+
+                    const type = status >> 4;
+                    const channel = status & 0x0F;
+
+                    if (type === 0x8 || type === 0x9) {
+                        const note = data[pos++];
+                        const velocity = data[pos++];
+                        events.push({
+                            time,
+                            type: type === 0x9 ? (velocity > 0 ? 'noteOn' : 'noteOff') : 'noteOff',
+                            note,
+                            velocity,
+                            channel,
+                            track: i
+                        });
+                    } else if (type === 0xA) {
+                        pos += 2;
+                    } else if (type === 0xB) {
+                        pos += 2;
+                    } else if (type === 0xC) {
+                        pos += 1;
+                    } else if (type === 0xD) {
+                        pos += 1;
+                    } else if (type === 0xE) {
+                        pos += 2;
+                    } else if (status === 0xFF) {
+                        const metaType = data[pos++];
+                        let len = 0;
+                        while (true) {
+                            const byte = data[pos++];
+                            len = (len << 7) + (byte & 0x7F);
+                            if (!(byte & 0x80)) break;
+                        }
+                        if (metaType === 0x51) {
+                            const uspq = (data[pos] << 16) | (data[pos + 1] << 8) | data[pos + 2];
+                            events.push({ time, type: 'tempo', uspq });
+                        }
+                        pos += len;
+                    } else if (status === 0xF0 || status === 0xF7) {
+                        let len = 0;
+                        while (true) {
+                            const byte = data[pos++];
+                            len = (len << 7) + (byte & 0x7F);
+                            if (!(byte & 0x80)) break;
+                        }
+                        pos += len;
+                    }
+                }
+                tracks.push(events);
+            }
+
+            const noteEvents = [];
+            let tempos = [{ tick: 0, uspq: 500000 }];
+            tracks.forEach(track => {
+                track.forEach(ev => {
+                    if (ev.type === 'noteOn' || ev.type === 'noteOff') {
+                        noteEvents.push(ev);
+                    } else if (ev.type === 'tempo') {
+                        tempos.push({ tick: ev.time, uspq: ev.uspq });
+                    }
+                });
+            });
+
+            tempos.sort((a, b) => a.tick - b.tick);
+            noteEvents.sort((a, b) => a.time - b.time);
+
+            const notesByTrack = Array(ntracks).fill().map(() => []);
+            const activeNotes = new Map();
+            noteEvents.forEach(ev => {
+                const key = (ev.track * 128 * 16) + (ev.channel * 128) + ev.note;
+                if (ev.type === 'noteOn') {
+                    activeNotes.set(key, { start: ev.time, velocity: ev.velocity });
+                } else if (ev.type === 'noteOff') {
+                    if (activeNotes.has(key)) {
+                        const { start, velocity } = activeNotes.get(key);
+                        notesByTrack[ev.track].push({ note: ev.note, start, end: ev.time, velocity, channel: ev.channel });
+                        activeNotes.delete(key);
+                    }
+                }
+            });
+
+            let maxTick = 0;
+            if (noteEvents.length > 0) {
+                maxTick = Math.max(...noteEvents.map(e => e.time));
+            }
+
+            return { division, format, ntracks, tracks, notesByTrack, tempos, maxTick };
+        }
+
+        function tickToSeconds(tick, tempos, ppq) {
+            let seconds = 0;
+            let lastTick = 0;
+            let currentUspq = 500000;
+            let i = 0;
+            while (i < tempos.length && tempos[i].tick <= tick) {
+                seconds += (tempos[i].tick - lastTick) * currentUspq / 1000000 / ppq;
+                currentUspq = tempos[i].uspq;
+                lastTick = tempos[i].tick;
+                i++;
+            }
+            seconds += (tick - lastTick) * currentUspq / 1000000 / ppq;
+            return seconds;
+        }
+
+        function drawPianoRoll(midi) {
+            if (!midi) return;
+
+            const svg = document.getElementById('pianoRoll');
+            svg.innerHTML = '';
+            metadataDiv.innerHTML = '';
+
+            if (midi.notesByTrack.every(track => track.length === 0)) return;
+
+            // Display metadata
+            const duration = tickToSeconds(midi.maxTick, midi.tempos, midi.division);
+            metadataDiv.innerHTML = `
+                Format: ${midi.format}<br>
+                Tracks: ${midi.ntracks}<br>
+                Division: ${midi.division} PPQ<br>
+                Duration: ${duration.toFixed(2)} seconds
+            `;
+
+            const width = container.clientWidth;
+            const noteHeight = 5;
+            const svgHeight = 128 * noteHeight;
+            svg.setAttribute('height', svgHeight);
+
+            const maxSec = tickToSeconds(midi.maxTick, midi.tempos, midi.division);
+            const pixelPerSec = maxSec > 0 ? width / maxSec : 0;
+
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            svg.appendChild(g);
+
+            // Draw background rectangles for pitch rows
+            for (let i = 0; i < 128; i++) {
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                const y = i * noteHeight;
+                rect.setAttribute('x', 0);
+                rect.setAttribute('y', y);
+                rect.setAttribute('width', width);
+                rect.setAttribute('height', noteHeight);
+                rect.setAttribute('fill', i % 2 === 0 ? '#e0e0e0' : '#c0c0c0');
+                g.appendChild(rect);
+            }
+
+            // Colors for different tracks
+            const trackColors = [
+                'rgba(0, 0, 255, %a)',   // Blue
+                'rgba(255, 0, 0, %a)',   // Red
+                'rgba(0, 128, 0, %a)',   // Green
+                'rgba(255, 165, 0, %a)', // Orange
+                'rgba(128, 0, 128, %a)', // Purple
+                'rgba(0, 128, 128, %a)'  // Teal
+            ];
+
+            // Draw note rectangles by track
+            midi.notesByTrack.forEach((trackNotes, trackIndex) => {
+                const color = trackColors[trackIndex % trackColors.length];
+                trackNotes.forEach(note => {
+                    const startSec = tickToSeconds(note.start, midi.tempos, midi.division);
+                    const endSec = tickToSeconds(note.end, midi.tempos, midi.division);
+                    const durationSec = endSec - startSec;
+
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    const x = startSec * pixelPerSec;
+                    const rectWidth = durationSec * pixelPerSec;
+                    const y = (127 - note.note) * noteHeight;
+                    rect.setAttribute('x', x);
+                    rect.setAttribute('y', y);
+                    rect.setAttribute('width', rectWidth);
+                    rect.setAttribute('height', noteHeight);
+                    rect.setAttribute('fill', color.replace('%a', note.velocity / 127));
+                    g.appendChild(rect);
+                });
+            });
+
+            updateView();
+        }
+
+        resizeSvg();
+    </script>
+</body>
+</html>
