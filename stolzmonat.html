@@ -1,184 +1,143 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Profile Image Generator with Germany Pride flag</title>
-	<style>
-		body {
-			font-family: sans-serif;
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			margin-top: 50px;
-		}
-
-		canvas {
-			border-radius: 50%;
-			background-color: #f0f0f0;
-		}
-
-		input[type="range"] {
-			width: 300px;
-			margin-top: 20px;
-		}
-
-		button {
-			margin-top: 20px;
-			padding: 8px 16px;
-			font-size: 16px;
-		}
-
-		.file-input-wrapper {
-			position: relative;
-			overflow: hidden;
-			display: inline-block;
-		}
-
-		.file-input-button {
-			border: 2px solid #4CAF50;
-			color: white;
-			background-color: #4CAF50;
-			padding: 12px 24px;
-			font-size: 16px;
-			border-radius: 8px;
-			cursor: pointer;
-			text-align: center;
-			display: inline-block;
-		}
-
-		.file-input-wrapper input[type=file] {
-			font-size: 100px;
-			/* make it huge to cover button */
-			position: absolute;
-			left: 0;
-			top: 0;
-			opacity: 0;
-			cursor: pointer;
-		}
-
-	</style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile Image Generator with Tricolor Border</title>
+<style>
+  body {
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 50px;
+  }
+  canvas {
+    display: none; /* hide canvas */
+  }
+  #preview {
+    border-radius: 50%;
+    background-color: #f0f0f0;
+    width: 300px;   /* display size */
+    height: 300px;  /* display size */
+    object-fit: cover;
+  }
+  input[type="range"] {
+    width: 300px;
+    margin-top: 20px;
+  }
+  button {
+    margin-top: 20px;
+    padding: 8px 16px;
+    font-size: 16px;
+  }
+</style>
 </head>
 <body>
 
-	<h2>Stolzmonat Profile Image generator</h2>
-	<i>weil kulturelle Aneignung ist klarr</i>
-	<br>
+<h2>Profile Image Generator</h2>
+<input type="file" id="upload" accept="image/*">
+<img id="preview" alt="Profile preview">
+<label for="borderWidthSlider">Border Scale</label>
+<input type="range" id="borderWidthSlider" min="0.5" max="2" step="0.01" value="1">
+<button id="downloadBtn">Download Image</button>
 
-	<div class="file-input-wrapper">
-		<button class="file-input-button">Choose File</button>
-		<input type="file" id="upload" accept="image/*">
-	</div>
+<!-- Hidden high-res canvas -->
+<canvas id="canvas" width="1000" height="1000"></canvas>
 
-	<canvas id="canvas" width="300" height="300"></canvas>
-	<label for="borderWidthSlider">Border Scale</label>
-	<input type="range" id="borderWidthSlider" min="1" max="2" step="0.01" value="1.1">
-	<button style='display:none' id="downloadBtn">Download Image</button>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const upload = document.getElementById('upload');
+const borderWidthSlider = document.getElementById('borderWidthSlider');
+const downloadBtn = document.getElementById('downloadBtn');
+const preview = document.getElementById('preview');
 
-	<script>
-		const canvas = document.getElementById('canvas');
-		const ctx = canvas.getContext('2d');
-		const upload = document.getElementById('upload');
-		const borderWidthSlider = document.getElementById('borderWidthSlider');
-		const downloadBtn = document.getElementById('downloadBtn');
+let uploadedImg = null;
+let borderScale = parseFloat(borderWidthSlider.value);
 
-		let uploadedImg = null;
-		let borderScale = parseFloat(borderWidthSlider.value);
-
-		// SVG border as a string
-		const borderSvgString = `
-<svg xmlns="http://www.w3.org/2000/svg" width="590" height="622">
-	<path fill="#87051B" stroke="#87051B"
-		d="M0 173l50.5 1 1-1h25l1 1h10l1-1h13l1 1h10l1-1h12l1 1h25l49-1 1 1h22l1-1h26l1 1h22l1-1h38l1 1h9l1-1h38l1 1h11l1-1h37l1 1h10l1-1h13l1 1h35l1-1h13l1 1h22l1-1h25l1 1h34l1-1H590q2.8 7.5-5.5 5l-1-1H0v-4z" />
-	<path fill="#FBC90C" stroke="#FBC90C"
-		d="M0 439h589.5l.5 2-91.5-1-1 1h-24l-1-1h-23l-1 1h-25l-1-1h-23l-1 1h-24l-1-1h-23l-1 1h-24l-1-1h-24l-1 1h-25l-1-1h-22l-1 1h-13l-1-1h-35l-1 1h-12l-1-1h-24l-1 1h-24l-1-1h-35l-1 1h-12l-1-1h-36l-1 1h-12l-1-1h-36L0 441v-2zM0 521h570.5l3 2H590l-.5 5H0v-7z" />
-	<path fill="#FEEF03" stroke="#FEEF03"
-		d="M0 528h589.5l.5 4-15.5 1-1 1-1-1h-11l-1 1h-13l-1-1h-10l-1 1h-23l-2 2-1-3h-11l-.5 1.5-1.5-.5h-10l-.5 1.5h-1l-.5-2.5h-10l-1 1h-25l-1-1h-10l-1 1H412l-.5 3-2-4h-10l-.5 2.5h-1l-.5-1.5H387l-.5 2-.5-3h-11.5l-.5 1.5-1.5-.5h-22l-.5 1.5h-1l-.5-2.5h-10l-1 1h-13l-1-1h-10l-2 4-.5-3-36-1-.5 2-1-1H263l-.5 2-.5-3h-10.5l-1 1H226l-.5 2-.5-3h-10.5l-2 2-1-1h-9l-2.5 1.5q2.3-1.2-.5-2.5h-11l-.5 1.5-1.5-.5h-22l-1 1-.5-2h-11.5l-.5 1.5-1.5-.5h-22l-1 1-.5-2h-11.5l-.5 2.5-2.5-1.5h-9l-.5 2.5h-1l-1.5-3.5h-10l-.5 2.5h-1l-.5-1.5h-22l-2.5 1.5 1-2.5H52.5l-.5 1.5-1.5-.5h-10l-.5 1.5h-1l-.5-2.5h-10l-1 1H0v-6zM585.5 535l4.5.5-4.5.5v-1zM574.5 539h10q1.3 3 5.5 2l-.5 2h-16l-2-2-10.5-.5 12.5-.5 1-1zM28.5 540l10.5.5-10.5.5v-1zM52.5 540l10.5.5-10.5.5v-1zM90.5 540l9.5.5-9.5.5v-1zM115.5 540h9l1.5 1.5-1.5-.5h-9v-1zM152.5 540l10.5.5-10.5.5v-1zM189.5 540l9.5.5-9.5.5v-1zM214.5 540h9l1.5 1.5-1.5-.5h-9v-1zM251.5 540l10.5.5-10.5.5v-1zM276.5 540l9.5.5-9.5.5v-1zM313.5 540l9.5.5-9.5.5v-1zM338.5 540l10.5.5-10.5.5v-1zM375.5 540l10.5.5-10.5.5v-1zM400.5 540l9.5.5-9.5.5v-1zM437.5 540l10.5.5-10.5.5v-1zM474.5 540l10.5.5-10.5.5v-1zM499.5 540l9.5.5-9.5.5v-1zM536.5 540l10.5.5-10.5.5v-1zM23.5 552l1 2q-2.8.7-1-2zM146.5 552l.5 2h19.5l2-1 1 1h42l2-1 1 1h25l1-1 5 1 2-1 1 1h16l2-1 1 1h44l1-1 1 1h55l1-1 1 1h77l1-1 1 1h15q4.8 1.2 6-1l1 1H488l.5-2 2 2h21l4-1 1 1H590v12H28.5l-.5-.5v-10l-.5-1.5h14l1-1 1 1h22l2-1 5 1h16l1-1 1 1h22l1-1 1 1h22q8 2 10-2zM.5 556l26.5.5-26.5.5v-1zM.5 567l26.5.5-26.5.5v-1zM588.5 613l1.5.5-5.5 2.5v-1l4-2z" />
-	<path fill="#DE1E24" stroke="#DE1E24" d="M0 262h589.5l.5 4H.5l-.5-4zM.5 348l589.5.5L.5 349v-1z" />
-	<path fill="#EE1A23" stroke="#EE1A23" d="M0 266h589.5l.5.5V347H.5l-.5-.5V266z" />
-	<path fill="#010000" stroke="#010000" d="M0 0h589.5l.5.5V84H.5l-.5-.5V0z" />
-	<path fill="#FA8022" stroke="#FA8022"
-		d="M0 357h589.5l.5 5H.5l-.5-5zM152.5 421h22l1 1h124l1-1h23l1 1h25l1-1h22l1 1h172l1-1h26l1 1H590l-.5 4h-16l-1 1h-25l-1-1h-171l-1 1h-25l-1-1h-23l-1 1h-25l-1-1h-121l-1 1h-26l-1-1H0l.5-4h151l1-1zM0 434h589.5l.5 5H.5l-.5-5z" />
-	<path fill="#FCF100" stroke="#FCF100"
-		d="M584.5 532q7.3-2.2 5.5 3l-5 .5 5 .5v5h-3.5l-2-2h-10l-1 1-12.5.5 10.5.5 2 2H590v11h-73.5l-1-1-4 1h-21l-2-2-.5 2h-16.5l-1-1q-1.2 2.2-6 1h-15l-1-1-1 1h-77l-1-1-1 1h-55l-1-1-1 1h-44l-2-1-1 1h-16l-2-1-5 1h-15l-1-1-1 1h-10l-2-1-1 1h-42l-2-1-1 1H147l-.5-2q-2 4-10 2h-22l-1-1-1 1h-22l-1-1-1 1h-16l-6-1-1 1h-24l-14.5.5 1 1V566h561.5l.5.5V613l-6.5 3-2-1-1 1H0v-48h26.5v-1H0v-10l27-.5-27-.5v-22h27.5l1-1H39l.5 3 .5-2h10.5l1 1 .5-2h11.5l.5 1.5 1.5-.5h22l.5 1.5h1l.5-2.5h10l2 4 .5-3h9.5l2 2 .5-3h11.5l.5 1.5 1.5-.5h22l1 1 .5-2h11.5l.5 1.5 1.5-.5h22l1 1 .5-2h11.5l2 2 1-1h9q1.5 2.5 3-1h10l.5 2.5h1l.5-1.5h24l1-1H262l.5 3 .5-2h10.5l1 1 .5-2 36 1 .5 3 2-4 24 1 1-1H349l.5 3 .5-2h22.5l1 1 .5-2h11.5l.5 2.5h1l.5-1.5H398l.5 2 .5-3h10.5l1.5 1.5.5 2.5.5-3 35.5-1 1 1h25l1-1H485l.5 3 .5-2h10.5l1 1 .5-2h11.5l2 2 1-1 34-1 1 1h13l1-1h22l1-1zM29 540v1h10l-10-1zm24 0v1h10l-10-1zm38 0v1h9l-9-1zm25 0v1h9l-9-1zm37 0v1h10l-10-1zm37 0v1h9l-9-1zm25 0v1h9l-9-1zm37 0v1h10l-10-1zm25 0v1h9l-9-1zm37 0v1h9l-9-1zm25 0v1h10l-10-1zm37 0v1h10l-10-1zm25 0v1h9l-9-1zm37 0v1h10l-10-1zm37 0v1h10l-10-1zm25 0v1h9l-9-1zm37 0v1h10l-10-1zM24 552q-2 3 1 2l-1-2z" />
-	<path fill="#FFCA0B" stroke="#FFCA0B" d="M.5 518h589l.5 5h-16.5l-1-4H.5v-1z" />
-	<path fill="#FFCA0B" stroke="#FFCA0B" d="M.5 520h571l.5 1.5-1.5-.5H.5v-1z" />
-	<path fill="#FFCA0C" stroke="#FFCA0C"
-		d="M2.5 440h36l1 1h12l1-1h36l1 1h12l1-1h35l1 1h24l1-1h24l1 1h12l1-1h35l1 1h13l1-1h22l1 1h25l1-1h24l1 1h24l1-1h23l1 1h24l1-1h23l1 1h25l1-1h23l1 1h24l1-1h24l1 1H590v76.5l-.5.5H0v-76.5l1.5-.5 1-1zM.5 519h572l.5 2.5h-1l-.5-1.5H.5v-1z" />
-	<path fill="#48010B" stroke="#48010B" d="M0 84h589.5l.5.5V173H.5l-.5-.5V84z" />
-	<path fill="#FF7D27" stroke="#FF7D27"
-		d="M0 351h589.5l.5.5v5.5H.5l-.5-.5V351zM0 362h589.5l.5.5V422h-16.5l-1-1h-26l-1 1h-172l-1-1h-22l-1 1h-25l-1-1h-23l-1 1h-124l-1-1h-22l-1 1H0v-60zM0 426h149.5l1 1h26l1-1h121l1 1h25l1-1h23l1 1h25l1-1h171l1 1h25l1-1H590v7.5l-.5.5H0v-8z" />
-	<path fill="#E22D17" stroke="#E22D17" d="M.5 347l589.5.5L.5 348v-1zM0 349h589.5l.5 2H.5l-.5-2z" />
-	<path fill="#8C0411" stroke="#8C0411"
-		d="M27.5 173l23.5.5-23.5.5v-1zM77.5 173l10.5.5-10.5.5v-1zM102.5 173l10.5.5-10.5.5v-1zM126.5 173l23.5.5-23.5.5v-1zM151.5 173l23.5.5-23.5.5v-1zM201.5 173l22.5.5-22.5.5v-1zM251.5 173l22.5.5-22.5.5v-1zM313.5 173l9.5.5-9.5.5v-1zM362.5 173l11.5.5-11.5.5v-1zM412.5 173l10.5.5-10.5.5v-1zM437.5 173l35.5.5-35.5.5v-1zM487.5 173l22.5.5-22.5.5v-1zM536.5 173l34.5.5-34.5.5v-1zM15.5 180l11.5.5q-2.2 1.3.5 2.5h36l.5-1.5 1.5-1.5H76l.5 3H114l1.5-3h9l1.5 1.5.5 1.5H301l.5-3h9l1 3h38l1-3h10l1 3h37l.5-1.5 1.5-1.5h9l1.5 3h178.5l.5 2H.5l-.5-2q4.3 1 3.5-2h11l1-1zM277.5 252h20l2.5 2.5-24.5.5 2-3zM0 256h459.5l1 1h12l1-1h111l5.5 1-.5 4H0v-5z" />
-	<path fill="#8F0516" stroke="#8F0516"
-		d="M0 177h583.5l6.5 1-.5 5H411l-1.5-3h-9l-1.5 1.5-.5 1.5h-37l-1-3h-10l-1 3h-38l-1-3h-9l-1 3H126l-1.5-3h-9l-1.5 1.5-.5 1.5H76l-.5-3h-10l-1.5 3H27.5l-1.5-1.5.5-1.5L3 181q1.1 3.3-3 2v-6zM0 185h589.5l.5.5V257l-5.5-1h-111l-1 1h-12l-1-1H0v-71zm278 67l-2 3h24l-2-3h-20zM.5 261l589.5.5L.5 262v-1z" />
+// Tricolor SVG border (black, red, gold stripes inside a circular border)
+const borderSvgString = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
+  <defs>
+    <clipPath id="circleClip">
+      <circle cx="500" cy="500" r="480"/>
+      <circle cx="500" cy="500" r="400" fill="white"/>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#circleClip)">
+    <rect width="1000" height="333" y="0" fill="black"/>
+    <rect width="1000" height="333" y="333" fill="red"/>
+    <rect width="1000" height="334" y="666" fill="gold"/>
+  </g>
 </svg>
-
 `;
 
-		// Convert SVG to Image
-		const borderImg = new Image();
-		borderImg.src = 'data:image/svg+xml;base64,' + btoa(borderSvgString);
+// Convert SVG to Image
+const borderImg = new Image();
+borderImg.src = 'data:image/svg+xml;base64,' + btoa(borderSvgString);
 
-		// Draw function
-		function drawCanvas() {
-			ctx.clearRect(0, 0, canvas.width, canvas.height);
+// Draw function
+function drawCanvas() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-			// Draw border first (bottom layer) with scaling
-			const borderSize = canvas.width * borderScale;
-			const offset = (canvas.width - borderSize) / 2;
-			ctx.drawImage(borderImg, offset, offset, borderSize, borderSize);
+  // Draw border first (bottom layer) with scaling
+  const borderSize = canvas.width * borderScale;
+  const offset = (canvas.width - borderSize) / 2;
+  ctx.drawImage(borderImg, offset, offset, borderSize, borderSize);
 
-			// Draw circular clipped content on top
-			ctx.save();
-			const radius = canvas.width / 2 - (canvas.width * (borderScale - 1) / 2);
-			ctx.beginPath();
-			ctx.arc(canvas.width / 2, canvas.height / 2, radius, 0, Math.PI * 2);
-			ctx.closePath();
-			ctx.clip();
+  // Draw circular clipped content on top
+  ctx.save();
+  const radius = canvas.width / 2 - (canvas.width * (borderScale - 1) / 2);
+  ctx.beginPath();
+  ctx.arc(canvas.width/2, canvas.height/2, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
 
-			if (uploadedImg) {
-				const size = Math.min(uploadedImg.width, uploadedImg.height);
-				const sx = (uploadedImg.width - size) / 2;
-				const sy = (uploadedImg.height - size) / 2;
-				ctx.drawImage(uploadedImg, sx, sy, size, size, 0, 0, canvas.width, canvas.height);
-			} else {
-				// Draw silhouette
-				ctx.fillStyle = '#ccc';
-				ctx.fillRect(0, 0, canvas.width, canvas.height);
-			}
+  if (uploadedImg) {
+    const size = Math.min(uploadedImg.width, uploadedImg.height);
+    const sx = (uploadedImg.width - size) / 2;
+    const sy = (uploadedImg.height - size) / 2;
+    ctx.drawImage(uploadedImg, sx, sy, size, size, 0, 0, canvas.width, canvas.height);
+  } else {
+    // Draw silhouette
+    ctx.fillStyle = '#ccc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
-			ctx.restore();
-		}
+  ctx.restore();
 
-		// File upload
-		upload.addEventListener('change', (e) => {
-			const file = e.target.files[0];
-			if (!file) return;
+  // Update preview <img> from canvas (scaled down)
+  preview.src = canvas.toDataURL('image/png');
+}
 
-			uploadedImg = new Image();
-			uploadedImg.src = URL.createObjectURL(file);
-			uploadedImg.onload = drawCanvas;
-			downloadBtn.style.display = 'block'
-		});
+// File upload
+upload.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
 
-		// Border scale slider
-		borderWidthSlider.addEventListener('input', (e) => {
-			borderScale = parseFloat(e.target.value);
-			drawCanvas();
-		});
+  uploadedImg = new Image();
+  uploadedImg.src = URL.createObjectURL(file);
+  uploadedImg.onload = drawCanvas;
+});
 
-		// Download button
-		downloadBtn.addEventListener('click', () => {
-			const link = document.createElement('a');
-			link.download = 'profile-image.png';
-			link.href = canvas.toDataURL('image/png');
-			link.click();
-		});
+// Border scale slider
+borderWidthSlider.addEventListener('input', (e) => {
+  borderScale = parseFloat(e.target.value);
+  drawCanvas();
+});
 
-		drawCanvas();
-	</script>
+// Download button
+downloadBtn.addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.download = 'profile-image.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+// Initial preview
+drawCanvas();
+</script>
 
 </body>
 </html>
