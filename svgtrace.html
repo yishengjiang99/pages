@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convert PNG to SVG with Markup Display</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            max-width: 100vw;
+            overflow-x: hidden;
+        }
+
+        #pngInput {
+            display: block;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 400px;
+            padding: 10px;
+            font-size: 1rem;
+        }
+
+        #svgOutput {
+            max-width: 100%;
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+
+        #svgOutput svg {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        #svgOutput a {
+            display: inline-block;
+            margin-top: 10px;
+            color: #0066cc;
+            text-decoration: none;
+            font-size: 1rem;
+        }
+
+        #svgOutput a:hover {
+            text-decoration: underline;
+        }
+
+        pre#svgMarkup {
+            background: #f4f4f4;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            overflow-x: auto;
+            max-height: 50vh;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+        }
+
+        @media screen and (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+
+            #pngInput {
+                font-size: 0.9rem;
+                padding: 8px;
+            }
+
+            pre#svgMarkup {
+                font-size: 0.8rem;
+                padding: 10px;
+                max-height: 40vh;
+            }
+
+            #svgOutput a {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <input type="file" id="pngInput" accept="image/png">
+    <canvas id="canvas" style="display: none;"></canvas>
+    <div id="svgOutput"></div>
+    <pre id="svgMarkup"></pre>
+    <script>
+        const input = document.getElementById('pngInput');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const svgOutput = document.getElementById('svgOutput');
+        const svgMarkup = document.getElementById('svgMarkup');
+
+        // PNG filter types
+        const FILTER_NONE = 0;
+        const FILTER_SUB = 1;
+        const FILTER_UP = 2;
+        const FILTER_AVERAGE = 3;
+        const FILTER_PAETH = 4;
+
+        input.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                processPNG(e.target.result);
+                // Load PNG for SVG conversion
+                const img = new Image();
+                img.onload = () => convertToSVG(img);
+                img.src = URL.createObjectURL(file);
+            };
+            reader.readAsArrayBuffer(file);
+        });
+
+        function processPNG(arrayBuffer) {
+            const data = new Uint8Array(arrayBuffer);
+
+            // Verify PNG signature
+            const pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+            for (let i = 0; i < 8; i++) {
+                if (data[i] !== pngSignature[i]) {
+                    console.error('Invalid PNG signature');
+                    return;
+                }
+            }
+
+            let offset = 8;
+            let ihdr = null;
+            let idatData = [];
+
+            // Parse chunks
+            while (offset < data.length) {
+                const length = readUInt32(data, offset);
+                const type = String.fromCharCode(
+                    data[offset + 4], data[offset + 5], data[offset + 6], data[offset + 7]
+                );
+                const chunkData = data.subarray(offset + 8, offset + 8 + length);
+
+                if (type === 'IHDR') {
+                    ihdr = parseIHDR(chunkData);
+                } else if (type === 'IDAT') {
+                    idatData.push(chunkData);
+                } else if (type === 'IEND') {
+                    break;
+                }
+
+                offset += length + 12;
+            }
+
+            if (!ihdr) {
+                console.error('IHDR chunk not found');
+                return;
+            }
+
+            // Concatenate and decompress IDAT chunks
+            const concatenatedIDAT = concatenateIDAT(idatData);
+            const decompressed = pako.inflate(concatenatedIDAT);
+
+            // Unfilter and store for SVG conversion
+            const pixels = unfilterData(decompressed, ihdr);
+            drawToCanvasForSVG(pixels, ihdr);
+        }
+
+        function readUInt32(data, offset) {
+            return (
+                (data[offset] << 24) +
+                (data[offset + 1] << 16) +
+                (data[offset + 2] << 8) +
+                data[offset + 3]
+            ) >>> 0;
+        }
+
+        function parseIHDR(chunkData) {
+            return {
+                width: readUInt32(chunkData, 0),
+                height: readUInt32(chunkData, 4),
+                bitDepth: chunkData[8],
+                colorType: chunkData[9],
+                compression: chunkData[10],
+                filter: chunkData[11],
+                interlace: chunkData[12]
+            };
+        }
+
+        function concatenateIDAT(idatChunks) {
+            const totalLength = idatChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+            const result = new Uint8Array(totalLength);
+            let offset = 0;
+            for (const chunk of idatChunks) {
+                result.set(chunk, offset);
+                offset += chunk.length;
+            }
+            return result;
+        }
+
+        function unfilterData(data, ihdr) {
+            const { width, height, colorType, bitDepth } = ihdr;
+            const bytesPerPixel = colorType === 6 ? 4 : 3;
+            const bytesPerLine = width * bytesPerPixel + 1;
+            const result = new Uint8Array(width * height * bytesPerPixel);
+
+            for (let y = 0; y < height; y++) {
+                const lineStart = y * bytesPerLine;
+                const filterType = data[lineStart];
+                for (let x = 0; x < width * bytesPerPixel; x++) {
+                    const pixelIndex = y * width * bytesPerPixel + x;
+                    const raw = data[lineStart + 1 + x];
+                    let unfiltered;
+
+                    if (filterType === FILTER_NONE) {
+                        unfiltered = raw;
+                    } else if (filterType === FILTER_SUB) {
+                        const left = x >= bytesPerPixel ? result[pixelIndex - bytesPerPixel] : 0;
+                        unfiltered = (raw + left) % 256;
+                    } else if (filterType === FILTER_UP) {
+                        const up = y > 0 ? result[pixelIndex - width * bytesPerPixel] : 0;
+                        unfiltered = (raw + up) % 256;
+                    } else if (filterType === FILTER_AVERAGE) {
+                        const left = x >= bytesPerPixel ? result[pixelIndex - bytesPerPixel] : 0;
+                        const up = y > 0 ? result[pixelIndex - width * bytesPerPixel] : 0;
+                        unfiltered = (raw + Math.floor((left + up) / 2)) % 256;
+                    } else if (filterType === FILTER_PAETH) {
+                        const left = x >= bytesPerPixel ? result[pixelIndex - bytesPerPixel] : 0;
+                        const up = y > 0 ? result[pixelIndex - width * bytesPerPixel] : 0;
+                        const upperLeft = x >= bytesPerPixel && y > 0 ? result[pixelIndex - width * bytesPerPixel - bytesPerPixel] : 0;
+                        unfiltered = (raw + paethPredictor(left, up, upperLeft)) % 256;
+                    }
+
+                    result[pixelIndex] = unfiltered;
+                }
+            }
+            return result;
+        }
+
+        function paethPredictor(a, b, c) {
+            const p = a + b - c;
+            const pa = Math.abs(p - a);
+            const pb = Math.abs(p - b);
+            const pc = Math.abs(p - c);
+            if (pa <= pb && pa <= pc) return a;
+            if (pb <= pc) return b;
+            return c;
+        }
+
+        function drawToCanvasForSVG(pixels, ihdr) {
+            window.ihdr = ihdr;
+            window.pixels = pixels;
+        }
+
+        function convertToSVG(img) {
+            const { width, height } = window.ihdr;
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0);
+
+            // Trace PNG to SVG using ImageTracer.js
+            ImageTracer.imageToSVG(
+                canvas.toDataURL(),
+                (svgStr) => {
+                    // Parse SVG and display
+                    const parser = new DOMParser();
+                    const svgDoc = parser.parseFromString(svgStr, 'image/svg+xml');
+                    const svgElement = svgDoc.documentElement;
+
+                    // Display SVG
+                    svgOutput.innerHTML = svgElement.outerHTML;
+
+                    // Display SVG markup in <pre>
+                    svgMarkup.textContent = svgElement.outerHTML;
+
+                    // Add download link
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = 'data:image/svg+xml,' + encodeURIComponent(svgElement.outerHTML);
+                    downloadLink.download = 'output.svg';
+                    downloadLink.textContent = 'Download SVG';
+                    svgOutput.appendChild(downloadLink);
+                },
+                { scale: 1, pathomit: 8, colorsampling: 1, numberofcolors: 16 }
+            );
+        }
+    </script>
+</body>
+</html>
