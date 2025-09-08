@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PNG Deep Metadata + OCR</title>
+  <title>PNG OCR + Metadata Extractor</title>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -52,6 +53,16 @@
       max-height: 300px;
       overflow-y: auto;
     }
+    details {
+      margin-top: 1rem;
+    }
+    summary {
+      cursor: pointer;
+      font-weight: bold;
+      padding: 0.5rem;
+      background: #e9ecef;
+      border-radius: 4px;
+    }
     @media (max-width: 480px) {
       body { padding: 0.5rem; }
       pre { font-size: 0.8rem; }
@@ -60,11 +71,14 @@
 </head>
 <body>
   <div class="container">
-    <h2>PNG Deep Metadata + OCR</h2>
+    <h2>PNG OCR + Metadata Extractor</h2>
     <input type="file" id="fileInput" accept="image/png" />
     <img id="preview" style="display:none;" />
-    <pre id="metadata">Upload a PNG to see chunk metadata...</pre>
     <pre id="output">OCR text will appear here...</pre>
+    <details>
+      <summary>Show PNG Metadata</summary>
+      <pre id="metadata">Upload a PNG to see chunk metadata...</pre>
+    </details>
   </div>
 
   <script>
@@ -97,12 +111,35 @@
       return chunks;
     }
 
-    function decodeTextChunk(data) {
+    function decodeText(data) {
       try {
         return new TextDecoder("utf-8").decode(data);
       } catch {
         return "(binary data)";
       }
+    }
+
+    function extractReadableStrings(chunks) {
+      let out = "";
+      for (const c of chunks) {
+        if (c.type === "tEXt" || c.type === "iTXt") {
+          out += `🔹 ${c.type}: ${decodeText(c.data)}\n`;
+        }
+        if (c.type === "zTXt") {
+          // zTXt format: keyword\0compressionFlag\0compressedText
+          const nullIndex = c.data.indexOf(0);
+          const keyword = decodeText(c.data.slice(0, nullIndex));
+          const compressed = c.data.slice(nullIndex + 2); // skip compression flag + method
+          try {
+            const decompressed = pako.inflate(compressed);
+            const text = decodeText(decompressed);
+            out += `🔹 zTXt [${keyword}]: ${text}\n`;
+          } catch {
+            out += `🔹 zTXt [${keyword}]: (failed to decompress)\n`;
+          }
+        }
+      }
+      return out || "No embedded text found.";
     }
 
     fileInput.addEventListener('change', async (event) => {
@@ -117,24 +154,22 @@
       };
       reader.readAsDataURL(file);
 
-      // Parse chunks
+      // OCR
+      output.textContent = "⏳ Processing OCR...";
+      const { data: { text } } = await Tesseract.recognize(file, 'eng');
+      output.textContent = text || "⚠️ No text found.";
+
+      // Parse chunks + extract readable strings
       const arrayBuffer = await file.arrayBuffer();
       const chunks = parsePNGChunks(arrayBuffer);
 
       let metaOutput = `File: ${file.name}\nSize: ${(file.size/1024).toFixed(2)} KB\n\nChunks:\n`;
       for (const c of chunks) {
-        metaOutput += `- ${c.type} (${c.length} bytes)`;
-        if (["tEXt", "zTXt", "iTXt"].includes(c.type)) {
-          metaOutput += `\n   Content: ${decodeTextChunk(c.data)}`;
-        }
-        metaOutput += "\n";
+        metaOutput += `- ${c.type} (${c.length} bytes)\n`;
       }
-      metadata.textContent = metaOutput;
 
-      // OCR
-      output.textContent = "⏳ Processing OCR...";
-      const { data: { text } } = await Tesseract.recognize(file, 'eng');
-      output.textContent = text || "⚠️ No text found.";
+      metaOutput += `\nReadable Strings:\n${extractReadableStrings(chunks)}`;
+      metadata.textContent = metaOutput;
     });
   </script>
 </body>
