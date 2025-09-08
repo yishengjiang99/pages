@@ -26,13 +26,29 @@
             margin-bottom: 10px;
             box-sizing: border-box;
         }
-        #metadata {
+        #metadata, #legend {
             width: 100%;
             padding: 10px;
             background-color: #f0f0f0;
             border: 1px solid #ccc;
             margin-bottom: 10px;
             font-size: 14px;
+        }
+        #legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-right: 20px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 5px;
+            border: 1px solid #000;
         }
         #pianoRoll {
             width: 100%;
@@ -44,8 +60,15 @@
             #pianoRoll {
                 height: 400px;
             }
-            #metadata {
+            #metadata, #legend {
                 font-size: 12px;
+            }
+            .legend-item {
+                margin-right: 15px;
+            }
+            .legend-color {
+                width: 15px;
+                height: 15px;
             }
         }
     </style>
@@ -54,10 +77,39 @@
     <div id="container">
         <input type="file" id="midiFile" accept=".mid,.midi">
         <div id="metadata"></div>
+        <div id="legend"></div>
         <svg id="pianoRoll"></svg>
     </div>
 
     <script>
+        const GM_INSTRUMENTS = [
+            "Acoustic Grand Piano", "Bright Acoustic Piano", "Electric Grand Piano", "Honky-tonk Piano",
+            "Electric Piano 1", "Electric Piano 2", "Harpsichord", "Clavi", "Celesta", "Glockenspiel",
+            "Music Box", "Vibraphone", "Marimba", "Xylophone", "Tubular Bells", "Dulcimer",
+            "Drawbar Organ", "Percussive Organ", "Rock Organ", "Church Organ", "Reed Organ",
+            "Accordion", "Harmonica", "Tango Accordion", "Acoustic Guitar (nylon)", "Acoustic Guitar (steel)",
+            "Electric Guitar (jazz)", "Electric Guitar (clean)", "Electric Guitar (muted)", "Overdriven Guitar",
+            "Distortion Guitar", "Guitar harmonics", "Acoustic Bass", "Electric Bass (finger)",
+            "Electric Bass (pick)", "Fretless Bass", "Slap Bass 1", "Slap Bass 2", "Synth Bass 1",
+            "Synth Bass 2", "Violin", "Viola", "Cello", "Contrabass", "Tremolo Strings",
+            "Pizzicato Strings", "Orchestral Harp", "Timpani", "String Ensemble 1", "String Ensemble 2",
+            "SynthStrings 1", "SynthStrings 2", "Choir Aahs", "Voice Oohs", "Synth Voice",
+            "Orchestra Hit", "Trumpet", "Trombone", "Tuba", "Muted Trumpet", "French Horn",
+            "Brass Section", "SynthBrass 1", "SynthBrass 2", "Soprano Sax", "Alto Sax",
+            "Tenor Sax", "Baritone Sax", "Oboe", "English Horn", "Bassoon", "Clarinet",
+            "Piccolo", "Flute", "Recorder", "Pan Flute", "Blown Bottle", "Shakuhachi",
+            "Whistle", "Ocarina", "Lead 1 (square)", "Lead 2 (sawtooth)", "Lead 3 (calliope)",
+            "Lead 4 (chiff)", "Lead 5 (charang)", "Lead 6 (voice)", "Lead 7 (fifths)",
+            "Lead 8 (bass + lead)", "Pad 1 (new age)", "Pad 2 (warm)", "Pad 3 (polysynth)",
+            "Pad 4 (choir)", "Pad 5 (bowed)", "Pad 6 (metallic)", "Pad 7 (halo)", "Pad 8 (sweep)",
+            "FX 1 (rain)", "FX 2 (soundtrack)", "FX 3 (crystal)", "FX 4 (atmosphere)",
+            "FX 5 (brightness)", "FX 6 (goblins)", "FX 7 (echoes)", "FX 8 (sci-fi)",
+            "Sitar", "Banjo", "Shamisen", "Koto", "Kalimba", "Bag pipe", "Fiddle", "Shanai",
+            "Tinkle Bell", "Agogo", "Steel Drums", "Woodblock", "Taiko Drum", "Melodic Tom",
+            "Synth Drum", "Reverse Cymbal", "Guitar Fret Noise", "Breath Noise", "Seashore",
+            "Bird Tweet", "Telephone Ring", "Helicopter", "Applause", "Gunshot"
+        ];
+
         let transform = { x: 0, y: 0, scale: 1 };
         let isDragging = false;
         let startPoint = { x: 0, y: 0 };
@@ -67,6 +119,7 @@
         const svg = document.getElementById('pianoRoll');
         const container = document.getElementById('container');
         const metadataDiv = document.getElementById('metadata');
+        const legendDiv = document.getElementById('legend');
 
         function resizeSvg() {
             const width = container.clientWidth;
@@ -96,8 +149,20 @@
             if (!isDragging) return;
             e.preventDefault();
             const point = getEventPoint(e);
-            transform.x = startTransform.x + (point.x - startPoint.x);
-            transform.y = startTransform.y + (point.y - startPoint.y);
+            const width = container.clientWidth;
+            const noteHeight = 5;
+            const height = 128 * noteHeight;
+
+            let newX = startTransform.x + (point.x - startPoint.x);
+            let newY = startTransform.y + (point.y - startPoint.y);
+
+            const minX = -width * (transform.scale - 1);
+            const maxX = 0;
+            const minY = -height * (transform.scale - 1);
+            const maxY = 0;
+
+            transform.x = Math.max(minX, Math.min(newX, maxX));
+            transform.y = Math.max(minY, Math.min(newY, maxY));
             updateView();
         }
 
@@ -123,8 +188,20 @@
                     startPoint = point;
                     startTransform = { ...transform };
                 } else {
-                    transform.x = startTransform.x + (point.x - startPoint.x);
-                    transform.y = startTransform.y + (point.y - startPoint.y);
+                    const width = container.clientWidth;
+                    const noteHeight = 5;
+                    const height = 128 * noteHeight;
+
+                    let newX = startTransform.x + (point.x - startPoint.x);
+                    let newY = startTransform.y + (point.y - startPoint.y);
+
+                    const minX = -width * (transform.scale - 1);
+                    const maxX = 0;
+                    const minY = -height * (transform.scale - 1);
+                    const maxY = 0;
+
+                    transform.x = Math.max(minX, Math.min(newX, maxX));
+                    transform.y = Math.max(minY, Math.min(newY, maxY));
                     updateView();
                 }
             } else if (touches.length === 2) {
@@ -145,11 +222,25 @@
         }
 
         function applyZoom(point, scaleChange) {
+            const width = container.clientWidth;
+            const noteHeight = 5;
+            const height = 128 * noteHeight;
+
             const oldScale = transform.scale;
-            transform.scale = Math.max(0.5, Math.min(transform.scale * scaleChange, 5));
-            const scaleRatio = transform.scale / oldScale;
-            transform.x = point.x - scaleRatio * (point.x - transform.x);
-            transform.y = point.y - scaleRatio * (point.y - transform.y);
+            const newScale = Math.max(0.5, Math.min(transform.scale * scaleChange, 5));
+            const scaleRatio = newScale / oldScale;
+
+            let newX = point.x - scaleRatio * (point.x - transform.x);
+            let newY = point.y - scaleRatio * (point.y - transform.y);
+
+            const minX = -width * (newScale - 1);
+            const maxX = 0;
+            const minY = -height * (newScale - 1);
+            const maxY = 0;
+
+            transform.x = Math.max(minX, Math.min(newX, maxX));
+            transform.y = Math.max(minY, Math.min(newY, maxY));
+            transform.scale = newScale;
             updateView();
         }
 
@@ -186,7 +277,6 @@
             const view = new DataView(arrayBuffer);
             let pos = 0;
 
-            // Read header
             if (String.fromCharCode(data[pos++], data[pos++], data[pos++], data[pos++]) !== 'MThd') {
                 throw new Error('Not a valid MIDI file');
             }
@@ -196,6 +286,8 @@
             const division = view.getUint16(pos); pos += 2;
 
             const tracks = [];
+            const trackInstruments = Array(ntracks).fill().map(() => null); // Store latest program number per track
+
             for (let i = 0; i < ntracks; i++) {
                 if (String.fromCharCode(data[pos++], data[pos++], data[pos++], data[pos++]) !== 'MTrk') {
                     throw new Error('Invalid track header');
@@ -237,12 +329,14 @@
                             channel,
                             track: i
                         });
+                    } else if (type === 0xC) { // Program change
+                        const program = data[pos++];
+                        trackInstruments[i] = program; // Store latest program number
+                        events.push({ time, type: 'program', program, channel });
                     } else if (type === 0xA) {
                         pos += 2;
                     } else if (type === 0xB) {
                         pos += 2;
-                    } else if (type === 0xC) {
-                        pos += 1;
                     } else if (type === 0xD) {
                         pos += 1;
                     } else if (type === 0xE) {
@@ -308,7 +402,7 @@
                 maxTick = Math.max(...noteEvents.map(e => e.time));
             }
 
-            return { division, format, ntracks, tracks, notesByTrack, tempos, maxTick };
+            return { division, format, ntracks, tracks, notesByTrack, tempos, maxTick, trackInstruments };
         }
 
         function tickToSeconds(tick, tempos, ppq) {
@@ -332,10 +426,10 @@
             const svg = document.getElementById('pianoRoll');
             svg.innerHTML = '';
             metadataDiv.innerHTML = '';
+            legendDiv.innerHTML = '';
 
             if (midi.notesByTrack.every(track => track.length === 0)) return;
 
-            // Display metadata
             const duration = tickToSeconds(midi.maxTick, midi.tempos, midi.division);
             metadataDiv.innerHTML = `
                 Format: ${midi.format}<br>
@@ -355,7 +449,6 @@
             const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             svg.appendChild(g);
 
-            // Draw background rectangles for pitch rows
             for (let i = 0; i < 128; i++) {
                 const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
                 const y = i * noteHeight;
@@ -367,17 +460,32 @@
                 g.appendChild(rect);
             }
 
-            // Colors for different tracks
             const trackColors = [
-                'rgba(0, 0, 255, %a)',   // Blue
-                'rgba(255, 0, 0, %a)',   // Red
-                'rgba(0, 128, 0, %a)',   // Green
-                'rgba(255, 165, 0, %a)', // Orange
-                'rgba(128, 0, 128, %a)', // Purple
-                'rgba(0, 128, 128, %a)'  // Teal
+                'rgba(0, 0, 255, %a)',
+                'rgba(255, 0, 0, %a)',
+                'rgba(0, 128, 0, %a)',
+                'rgba(255, 165, 0, %a)',
+                'rgba(128, 0, 128, %a)',
+                'rgba(0, 128, 128, %a)'
             ];
 
-            // Draw note rectangles by track
+            // Draw legend
+            midi.notesByTrack.forEach((trackNotes, trackIndex) => {
+                if (trackNotes.length === 0) return;
+                const program = midi.trackInstruments[trackIndex];
+                const instrumentName = program !== null && program >= 0 && program < GM_INSTRUMENTS.length
+                    ? GM_INSTRUMENTS[program]
+                    : 'Unknown Instrument';
+                const color = trackColors[trackIndex % trackColors.length].replace('%a', '1');
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                item.innerHTML = `
+                    <div class="legend-color" style="background-color: ${color};"></div>
+                    Track ${trackIndex + 1}: ${instrumentName}
+                `;
+                legendDiv.appendChild(item);
+            });
+
             midi.notesByTrack.forEach((trackNotes, trackIndex) => {
                 const color = trackColors[trackIndex % trackColors.length];
                 trackNotes.forEach(note => {
