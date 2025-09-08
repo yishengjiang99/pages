@@ -13,18 +13,18 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            touch-action: none;
         }
         #container {
             width: 100%;
             max-width: 1000px;
             margin: 0 auto;
         }
-        #midiFile {
+        #midiFile, #exportButton {
             width: 100%;
             padding: 10px;
             margin-bottom: 10px;
             box-sizing: border-box;
+            font-size: 14px;
         }
         #metadata, #legend {
             width: 100%;
@@ -50,17 +50,14 @@
             margin-right: 5px;
             border: 1px solid #000;
         }
-        #pianoRoll {
+        #pianoRollImage {
             width: 100%;
-            height: 640px;
+            height: auto;
             border: 1px solid black;
-            touch-action: none;
+            display: none;
         }
         @media (max-width: 600px) {
-            #pianoRoll {
-                height: 400px;
-            }
-            #metadata, #legend {
+            #midiFile, #exportButton, #metadata, #legend {
                 font-size: 12px;
             }
             .legend-item {
@@ -76,9 +73,10 @@
 <body>
     <div id="container">
         <input type="file" id="midiFile" accept=".mid,.midi">
+        <button id="exportButton" disabled>Export as High-Resolution Image</button>
         <div id="metadata"></div>
         <div id="legend"></div>
-        <svg id="pianoRoll"></svg>
+        <img id="pianoRollImage" alt="Piano Roll">
     </div>
 
     <script>
@@ -110,152 +108,29 @@
             "Bird Tweet", "Telephone Ring", "Helicopter", "Applause", "Gunshot"
         ];
 
-        let transform = { x: 0, y: 0, scale: 1 };
-        let isDragging = false;
-        let startPoint = { x: 0, y: 0 };
-        let startTransform = { x: 0, y: 0 };
-        let lastPinchDistance = null;
-
-        const svg = document.getElementById('pianoRoll');
         const container = document.getElementById('container');
         const metadataDiv = document.getElementById('metadata');
         const legendDiv = document.getElementById('legend');
+        const exportButton = document.getElementById('exportButton');
+        const pianoRollImage = document.getElementById('pianoRollImage');
 
-        function resizeSvg() {
-            const width = container.clientWidth;
-            svg.setAttribute('width', width);
+        function resizeCanvas() {
             drawPianoRoll(currentMidi);
         }
 
-        window.addEventListener('resize', resizeSvg);
+        window.addEventListener('resize', resizeCanvas);
 
-        svg.addEventListener('mousedown', startDrag);
-        svg.addEventListener('mousemove', drag);
-        svg.addEventListener('mouseup', endDrag);
-        svg.addEventListener('mouseleave', endDrag);
-        svg.addEventListener('wheel', zoom);
-        svg.addEventListener('touchstart', handleTouch);
-        svg.addEventListener('touchmove', handleTouch);
-        svg.addEventListener('touchend', endDrag);
+        exportButton.addEventListener('click', exportToImage);
 
-        function startDrag(e) {
-            isDragging = true;
-            const point = getEventPoint(e);
-            startPoint = point;
-            startTransform = { ...transform };
-        }
+        function exportToImage() {
+            if (!currentMidi) return;
 
-        function drag(e) {
-            if (!isDragging) return;
-            e.preventDefault();
-            const point = getEventPoint(e);
-            const width = container.clientWidth;
-            const noteHeight = 5;
-            const height = 128 * noteHeight;
-
-            let newX = startTransform.x + (point.x - startPoint.x);
-            let newY = startTransform.y + (point.y - startPoint.y);
-
-            const minX = -width * (transform.scale - 1);
-            const maxX = 0;
-            const minY = -height * (transform.scale - 1);
-            const maxY = 0;
-
-            transform.x = Math.max(minX, Math.min(newX, maxX));
-            transform.y = Math.max(minY, Math.min(newY, maxY));
-            updateView();
-        }
-
-        function endDrag() {
-            isDragging = false;
-            lastPinchDistance = null;
-        }
-
-        function zoom(e) {
-            e.preventDefault();
-            const point = getEventPoint(e);
-            const scaleChange = e.deltaY > 0 ? 0.9 : 1.1;
-            applyZoom(point, scaleChange);
-        }
-
-        function handleTouch(e) {
-            e.preventDefault();
-            const touches = e.touches;
-            if (touches.length === 1) {
-                const point = { x: touches[0].clientX, y: touches[0].clientY };
-                if (!isDragging) {
-                    isDragging = true;
-                    startPoint = point;
-                    startTransform = { ...transform };
-                } else {
-                    const width = container.clientWidth;
-                    const noteHeight = 5;
-                    const height = 128 * noteHeight;
-
-                    let newX = startTransform.x + (point.x - startPoint.x);
-                    let newY = startTransform.y + (point.y - startPoint.y);
-
-                    const minX = -width * (transform.scale - 1);
-                    const maxX = 0;
-                    const minY = -height * (transform.scale - 1);
-                    const maxY = 0;
-
-                    transform.x = Math.max(minX, Math.min(newX, maxX));
-                    transform.y = Math.max(minY, Math.min(newY, maxY));
-                    updateView();
-                }
-            } else if (touches.length === 2) {
-                const dx = touches[0].clientX - touches[1].clientX;
-                const dy = touches[0].clientY - touches[1].clientY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                const midPoint = {
-                    x: (touches[0].clientX + touches[1].clientX) / 2,
-                    y: (touches[0].clientY + touches[1].clientY) / 2
-                };
-
-                if (lastPinchDistance !== null) {
-                    const scaleChange = distance / lastPinchDistance;
-                    applyZoom(midPoint, scaleChange);
-                }
-                lastPinchDistance = distance;
-            }
-        }
-
-        function applyZoom(point, scaleChange) {
-            const width = container.clientWidth;
-            const noteHeight = 5;
-            const height = 128 * noteHeight;
-
-            const oldScale = transform.scale;
-            const newScale = Math.max(0.5, Math.min(transform.scale * scaleChange, 5));
-            const scaleRatio = newScale / oldScale;
-
-            let newX = point.x - scaleRatio * (point.x - transform.x);
-            let newY = point.y - scaleRatio * (point.y - transform.y);
-
-            const minX = -width * (newScale - 1);
-            const maxX = 0;
-            const minY = -height * (newScale - 1);
-            const maxY = 0;
-
-            transform.x = Math.max(minX, Math.min(newX, maxX));
-            transform.y = Math.max(minY, Math.min(newY, maxY));
-            transform.scale = newScale;
-            updateView();
-        }
-
-        function getEventPoint(e) {
-            const rect = svg.getBoundingClientRect();
-            return {
-                x: (e.clientX || e.touches?.[0]?.clientX) - rect.left,
-                y: (e.clientY || e.touches?.[0]?.clientY) - rect.top
-            };
-        }
-
-        function updateView() {
-            svg.querySelector('g').setAttribute('transform',
-                `translate(${transform.x}, ${transform.y}) scale(${transform.scale})`
-            );
+            const image = new Image();
+            image.src = renderToCanvas();
+            const link = document.createElement('a');
+            link.href = image.src;
+            link.download = 'piano_roll.png';
+            link.click();
         }
 
         let currentMidi = null;
@@ -266,8 +141,8 @@
             reader.onload = function(e) {
                 const arrayBuffer = e.target.result;
                 currentMidi = parseMidi(arrayBuffer);
-                transform = { x: 0, y: 0, scale: 1 };
-                resizeSvg();
+                exportButton.disabled = false;
+                resizeCanvas();
             };
             reader.readAsArrayBuffer(file);
         });
@@ -286,7 +161,7 @@
             const division = view.getUint16(pos); pos += 2;
 
             const tracks = [];
-            const trackInstruments = Array(ntracks).fill().map(() => null); // Store latest program number per track
+            const trackInstruments = Array(ntracks).fill().map(() => null);
 
             for (let i = 0; i < ntracks; i++) {
                 if (String.fromCharCode(data[pos++], data[pos++], data[pos++], data[pos++]) !== 'MTrk') {
@@ -329,9 +204,9 @@
                             channel,
                             track: i
                         });
-                    } else if (type === 0xC) { // Program change
+                    } else if (type === 0xC) {
                         const program = data[pos++];
-                        trackInstruments[i] = program; // Store latest program number
+                        trackInstruments[i] = program;
                         events.push({ time, type: 'program', program, channel });
                     } else if (type === 0xA) {
                         pos += 2;
@@ -420,13 +295,63 @@
             return seconds;
         }
 
+        function renderToCanvas() {
+            if (!currentMidi) return;
+
+            const width = container.clientWidth;
+            const noteHeight = 5;
+            const height = 128 * noteHeight;
+            const scaleFactor = 4;
+            const canvas = document.createElement('canvas');
+            canvas.width = width * scaleFactor;
+            canvas.height = height * scaleFactor;
+            canvas.style.display = 'none';
+            const ctx = canvas.getContext('2d');
+
+            ctx.scale(scaleFactor, scaleFactor);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+
+            for (let i = 0; i < 128; i++) {
+                ctx.fillStyle = i % 2 === 0 ? '#e0e0e0' : '#c0c0c0';
+                ctx.fillRect(0, i * noteHeight, width, noteHeight);
+            }
+
+            const maxSec = tickToSeconds(currentMidi.maxTick, currentMidi.tempos, currentMidi.division);
+            const pixelPerSec = maxSec > 0 ? width / maxSec : 0;
+            const trackColors = [
+                'rgba(0, 0, 255, %a)',
+                'rgba(255, 0, 0, %a)',
+                'rgba(0, 128, 0, %a)',
+                'rgba(255, 165, 0, %a)',
+                'rgba(128, 0, 128, %a)',
+                'rgba(0, 128, 128, %a)'
+            ];
+
+            currentMidi.notesByTrack.forEach((trackNotes, trackIndex) => {
+                const color = trackColors[trackIndex % trackColors.length];
+                trackNotes.forEach(note => {
+                    const startSec = tickToSeconds(note.start, currentMidi.tempos, currentMidi.division);
+                    const endSec = tickToSeconds(note.end, currentMidi.tempos, currentMidi.division);
+                    const durationSec = endSec - startSec;
+
+                    ctx.fillStyle = color.replace('%a', note.velocity / 127);
+                    const x = startSec * pixelPerSec;
+                    const rectWidth = durationSec * pixelPerSec;
+                    const y = (127 - note.note) * noteHeight;
+                    ctx.fillRect(x, y, rectWidth, noteHeight);
+                });
+            });
+
+            return canvas.toDataURL('image/png');
+        }
+
         function drawPianoRoll(midi) {
             if (!midi) return;
 
-            const svg = document.getElementById('pianoRoll');
-            svg.innerHTML = '';
             metadataDiv.innerHTML = '';
             legendDiv.innerHTML = '';
+            pianoRollImage.style.display = 'none';
 
             if (midi.notesByTrack.every(track => track.length === 0)) return;
 
@@ -438,38 +363,6 @@
                 Duration: ${duration.toFixed(2)} seconds
             `;
 
-            const width = container.clientWidth;
-            const noteHeight = 5;
-            const svgHeight = 128 * noteHeight;
-            svg.setAttribute('height', svgHeight);
-
-            const maxSec = tickToSeconds(midi.maxTick, midi.tempos, midi.division);
-            const pixelPerSec = maxSec > 0 ? width / maxSec : 0;
-
-            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            svg.appendChild(g);
-
-            for (let i = 0; i < 128; i++) {
-                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                const y = i * noteHeight;
-                rect.setAttribute('x', 0);
-                rect.setAttribute('y', y);
-                rect.setAttribute('width', width);
-                rect.setAttribute('height', noteHeight);
-                rect.setAttribute('fill', i % 2 === 0 ? '#e0e0e0' : '#c0c0c0');
-                g.appendChild(rect);
-            }
-
-            const trackColors = [
-                'rgba(0, 0, 255, %a)',
-                'rgba(255, 0, 0, %a)',
-                'rgba(0, 128, 0, %a)',
-                'rgba(255, 165, 0, %a)',
-                'rgba(128, 0, 128, %a)',
-                'rgba(0, 128, 128, %a)'
-            ];
-
-            // Draw legend
             midi.notesByTrack.forEach((trackNotes, trackIndex) => {
                 if (trackNotes.length === 0) return;
                 const program = midi.trackInstruments[trackIndex];
@@ -486,30 +379,21 @@
                 legendDiv.appendChild(item);
             });
 
-            midi.notesByTrack.forEach((trackNotes, trackIndex) => {
-                const color = trackColors[trackIndex % trackColors.length];
-                trackNotes.forEach(note => {
-                    const startSec = tickToSeconds(note.start, midi.tempos, midi.division);
-                    const endSec = tickToSeconds(note.end, midi.tempos, midi.division);
-                    const durationSec = endSec - startSec;
-
-                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                    const x = startSec * pixelPerSec;
-                    const rectWidth = durationSec * pixelPerSec;
-                    const y = (127 - note.note) * noteHeight;
-                    rect.setAttribute('x', x);
-                    rect.setAttribute('y', y);
-                    rect.setAttribute('width', rectWidth);
-                    rect.setAttribute('height', noteHeight);
-                    rect.setAttribute('fill', color.replace('%a', note.velocity / 127));
-                    g.appendChild(rect);
-                });
-            });
-
-            updateView();
+            const dataUrl = renderToCanvas();
+            pianoRollImage.src = dataUrl;
+            pianoRollImage.style.display = 'block';
         }
 
-        resizeSvg();
+        const trackColors = [
+            'rgba(0, 0, 255, %a)',
+            'rgba(255, 0, 0, %a)',
+            'rgba(0, 128, 0, %a)',
+            'rgba(255, 165, 0, %a)',
+            'rgba(128, 0, 128, %a)',
+            'rgba(0, 128, 128, %a)'
+        ];
+
+        resizeCanvas();
     </script>
 </body>
 </html>
