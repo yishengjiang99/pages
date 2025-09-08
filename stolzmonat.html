@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Profile Image Generator</title>
+<style>
+  body {
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 50px;
+  }
+  canvas {
+    border-radius: 50%;
+    background-color: #f0f0f0;
+  }
+</style>
+</head>
+<body>
+
+<h2>Profile Image Generator</h2>
+<input type="file" id="upload" accept="image/*">
+<br><br>
+<canvas id="canvas" width="300" height="300"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const upload = document.getElementById('upload');
+
+// Border SVG as string
+const borderSvgString = `
+<svg xmlns="http://www.w3.org/2000/svg" width="590" height="622" version="1.1" desc="Created with imagetracer.js version 1.2.6"><path fill="rgb(242,143,23)" stroke="rgb(242,143,23)" stroke-width="1" opacity="1" d="M 0 436 L 589.5 436 L 590 440 L 0.5 440 L 0 436 Z "/><path fill="rgb(254,121,44)" stroke="rgb(254,121,44)" stroke-width="1" opacity="1" d="M 0 351 L 589.5 351 L 590 356 L 0.5 356 L 0 351 Z "/><path fill="rgb(254,121,44)" stroke="rgb(254,121,44)" stroke-width="1" opacity="1" d="M 152.5 428 L 176 428.5 L 152.5 429 L 152.5 428 Z "/><path fill="rgb(254,121,44)" stroke="rgb(254,121,44)" stroke-width="1" opacity="1" d="M 300.5 428 L 324 428.5 L 300.5 429 L 300.5 428 Z "/><path fill="rgb(254,121,44)" stroke="rgb(254,121,44)" stroke-width="1" opacity="1" d="M 349.5 428 L 374 428.5 L 349.5 429 L 349.5 428 Z "/><path fill="rgb(254,121,44)" stroke="rgb(254,121,44)" stroke-width="1" opacity="1" d="M 0 430 L 37.5 431 L 38.5 430 L 77.5 430 L 78.5 431 L 87.5 431 L 88.5 430 L 126.5 430 L 127.5 431 L 137.5 431 L 138.5 430 L 175.5 430 L 176.5 431 L 186.5 431 L 187.5 430 L 225.5 430 L 226.5 431 L 236.5 431 L 237.5 430 L 546.5 430 L 549 431.5 L 546.5 433 L 238.5 433 L 237.5 432 L 225.5 432 L 224.5 433 L 189.5 433 L 188.5 432 L 177.5 432 L 176.5 433 L 139.5 433 L 138.5 432 L 126.5 432 L 125.5 433 L 0 433 L 0 430 Z "/><path fill="rgb(254,121,44)" stroke="rgb(254,121,44)" stroke-width="1" opacity="1" d="M 573.5 430 L 589.5 430 L 590 433 L 574.5 433 L 571 431.5 L 573.5 430 Z "/><path fill="rgb(252,127,35)" stroke="rgb(252,127,35)" stroke-width="1" opacity="1" d="M 0 357 L 589.5 357 L 590 357.5 L 590 363 L 0.5 363 L 0 362.5 L 0 357 Z "/><path fill="rgb(252,127,35)" stroke="rgb(252,127,35)" stroke-width="1" opacity="1" d="M 547.5 420 L 571.5 420 L 573.5 422 L 590 422 L 589.5 426 L 573.5 426 L 572.5 427 L 547.5 427 L 546.5 426 L 375.5 426 L 374.5 427 L 349.5 427 L 348.5 426 L 325.5 426 L 324.5 427 L 299.5 427 L 298.5 426 L 177.5 426 L 176.5 427 L 150.5 427 L 149.5 426 L 0 426 L 0.5 422 L 151.5 422 L 152.5 421 L 174.5 421 L 175.5 422 L 299.5 422 L 300.5 421 L 323.5 421 L 324.5 422 L 349.5 422 L 350.5 421 L 372.5 421 L 373.5 422 L 545.5 422 L 547.5 420 Z "/><path fill="rgb(252,127,35)" stroke="rgb(252,127,35)" stroke-width="1" opacity="1" d="M 0 434 L 589.5 434 L 590 436 L 0.5 436 L 0 434 Z "/><path fill="rgb(37,0,6)" stroke="rgb(37,0,6)" stroke-width="1" opacity="1" d="M 0 0 L 589.5 0 L 590 0.5 L 590 172 L 0.5 172 L 0 171.5 L 0 0 Z "/><path fill="rgb(252,242,36)" stroke="rgb(252,242,36)" stroke-width="1" opacity="1" d="M 589.5 613 L 588.5 615 L 587 614.5 L 589.5 613 Z "/><path fill="rgb(252,242,36)" stroke="rgb(252,242,36)" stroke-width="1" opacity="1" d="M 583.5 615 L 586 615.5 L 583.5 616 L 583.5 615 Z "/><path fill="rgb(225,35,31)" stroke="rgb(225,35,31)" stroke-width="1" opacity="1" d="M 0 262 L 589.5 262 L 590 265 L 549.5 266 L 548.5 265 L 523.5 265 L 522.5 266 L 499.5 266 L 498.5 265 L 472.5 265 L 471.5 266 L 425.5 266 L 424.5 265 L 398.5 265 L 397.5 266 L 300.5 266 L 299.5 265 L 274.5 265 L 273.5 266 L 176.5 266 L 175.5 265 L 150.5 265 L 149.5 266 L 103.5 266 L 102.5 265 L 75.5 265 L 74.5 266 L 52.5 266 L 51.5 265 L 26.5 265 L 25.5 266 L 1.5 266 L 0 262 Z "/><path fill="rgb(225,35,31)" stroke="rgb(225,35,31)" stroke-width="1" opacity="1" d="M 0 346 L 589.5 346 L 590 351 L 0.5 351 L 0 346 Z "/><path fill="rgb(238,26,35)" stroke="rgb(238,26,35)" stroke-width="1" opacity="1" d="M 0 266 L 589.5 266 L 590 269 L 0.5 269 L 0 266 Z "/><path fill="rgb(238,26,35)" stroke="rgb(238,26,35)" stroke-width="1" opacity="1" d="M 0 343 L 589.5 343 L 590 345 L 0.5 345 L 0 343 Z "/><path fill="rgb(238,27,36)" stroke="rgb(238,27,36)" stroke-width="1" opacity="1" d="M 26.5 265 L 52 265.5 L 26.5 266 L 26.5 265 Z "/><path fill="rgb(238,27,36)" stroke="rgb(238,27,36)" stroke-width="1" opacity="1" d="M 75.5 265 L 103 265.5 L 75.5 266 L 75.5 265 Z "/><path fill="rgb(238,27,36)" stroke="rgb(238,27,36)" stroke-width="1" opacity="1" d="M 150.5 265 L 176 265.5 L 150.5 266 L 150.5 265 Z "/><path fill="rgb(238,27,36)" stroke="rgb(238,27,36)" stroke-width="1" opacity="1" d="M 274.5 265 L 300 265.5 L 274.5 266 L 274.5 265 Z "/><path fill="rgb(238,27,36)" stroke="rgb(238,27,36)" stroke-width="1" opacity="1" d="M 398.5 265 L 425 265.5 L 398.5 266 L 398.5 265 Z "/><path fill="rgb(238,27,36)" stroke="rgb(238,27,36)" stroke-width="1" opacity="1" d="M 472.5 265 L 499 265.5 L 472.5 266 L 472.5 265 Z "/><path fill="rgb(238,27,36)" stroke="rgb(238,27,36)" stroke-width="1" opacity="1" d="M 523.5 265 L 549 265.5 L 523.5 266 L 523.5 265 Z "/><path fill="rgb(238,27,36)" stroke="rgb(238,27,36)" stroke-width="1" opacity="1" d="M 572.5 265 L 590 265.5 L 572.5 266 L 572.5 265 Z "/><path fill="rgb(238,27,36)" stroke="rgb(238,27,36)" stroke-width="1" opacity="1" d="M 0 269 L 589.5 269 L 590 269.5 L 590 343 L 0.5 343 L 0 342.5 L 0 269 Z "/><path fill="rgb(238,27,36)" stroke="rgb(238,27,36)" stroke-width="1" opacity="1" d="M 0.5 345 L 590 345.5 L 0.5 346 L 0.5 345 Z "/><path fill="rgb(254,202,12)" stroke="rgb(254,202,12)" stroke-width="1" opacity="1" d="M 0 440 L 589.5 440 L 590 440.5 L 590 528 L 573.5 528 L 572.5 529 L 0 529 L 0 440 Z "/><path fill="rgb(253,240,1)" stroke="rgb(253,240,1)" stroke-width="1" opacity="1" d="M 573.5 528 L 589.5 528 L 590 528.5 L 590 612.5 L 582.5 616 L 0 616 L 0 529.5 L 0.5 529 L 572.5 529 L 573.5 528 Z "/><path fill="rgb(179,14,23)" stroke="rgb(179,14,23)" stroke-width="1" opacity="1" d="M 0.5 261 L 590 261.5 L 0.5 262 L 0.5 261 Z "/><path fill="rgb(246,246,231)" stroke="rgb(246,246,231)" stroke-width="1" opacity="1" d="M 589.5 614 L 590 622 L 0.5 622 L 0 621.5 L 0 616 L 585.5 616 L 589.5 614 Z "/><path fill="rgb(141,4,21)" stroke="rgb(141,4,21)" stroke-width="1" opacity="1" d="M 0 172 L 589.5 172 L 590 172.5 L 590 261 L 0.5 261 L 0 260.5 L 0 172 Z "/><path fill="rgb(254,126,38)" stroke="rgb(254,126,38)" stroke-width="1" opacity="1" d="M 0.5 356 L 590 356.5 L 0.5 357 L 0.5 356 Z "/><path fill="rgb(254,126,38)" stroke="rgb(254,126,38)" stroke-width="1" opacity="1" d="M 0 363 L 589.5 363 L 590 363.5 L 590 422 L 573.5 422 L 571.5 420 L 547.5 420 L 545.5 422 L 373.5 422 L 372.5 421 L 350.5 421 L 349.5 422 L 324.5 422 L 323.5 421 L 300.5 421 L 299.5 422 L 175.5 422 L 174.5 421 L 152.5 421 L 151.5 422 L 0 422 L 0 363 Z "/><path fill="rgb(254,126,38)" stroke="rgb(254,126,38)" stroke-width="1" opacity="1" d="M 0 426 L 149.5 426 L 150.5 427 L 176.5 427 L 177.5 426 L 298.5 426 L 299.5 427 L 324.5 427 L 325.5 426 L 348.5 426 L 349.5 427 L 374.5 427 L 375.5 426 L 546.5 426 L 547.5 427 L 572.5 427 L 573.5 426 L 590 426 L 589.5 430 L 573.5 430 L 571 431.5 L 574.5 433 L 590 433.5 L 0.5 434 L 0.5 433 L 125.5 433 L 126.5 432 L 138.5 432 L 139.5 433 L 176.5 433 L 177.5 432 L 188.5 432 L 189.5 433 L 224.5 433 L 225.5 432 L 237.5 432 L 238.5 433 L 546.5 433 L 549 431.5 L 546.5 430 L 237.5 430 L 236.5 431 L 226.5 431 L 225.5 430 L 187.5 430 L 186.5 431 L 176.5 431 L 175.5 430 L 138.5 430 L 137.5 431 L 127.5 431 L 126.5 430 L 88.5 430 L 87.5 431 L 78.5 431 L 77.5 430 L 38.5 430 L 37.5 431 L 28.5 431 L 27.5 430 L 0 430 L 0 426 Z M 153 428 L 153 429 L 176 429 L 153 428 Z M 301 428 L 301 429 L 324 429 L 301 428 Z M 350 428 L 350 429 L 374 429 L 350 428 Z "/></svg>
+`;
+
+// Convert border SVG to Image
+const borderImg = new Image();
+borderImg.src = 'data:image/svg+xml;base64,' + btoa(borderSvgString);
+
+// Draw initial preview with silhouette
+function drawPreview() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw circular silhouette
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(canvas.width/2, canvas.height/2, canvas.width/2 - 5, 0, Math.PI*2);
+  ctx.closePath();
+  ctx.clip();
+
+  // Draw simple gray silhouette
+  ctx.fillStyle = '#ccc';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+
+  // Draw border on top
+  if (borderImg.complete) {
+    ctx.drawImage(borderImg, 0, 0, canvas.width, canvas.height);
+  } else {
+    borderImg.onload = () => ctx.drawImage(borderImg, 0, 0, canvas.width, canvas.height);
+  }
+}
+
+// Replace preview with uploaded image
+upload.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const img = new Image();
+  img.src = URL.createObjectURL(file);
+
+  img.onload = () => {
+    const size = Math.min(img.width, img.height);
+    const sx = (img.width - size) / 2;
+    const sy = (img.height - size) / 2;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw circular clipped uploaded image
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(canvas.width/2, canvas.height/2, canvas.width/2 - 5, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.clip();
+
+    ctx.drawImage(img, sx, sy, size, size, 0, 0, canvas.width, canvas.height);
+    ctx.restore();
+
+    // Draw border on top
+    ctx.drawImage(borderImg, 0, 0, canvas.width, canvas.height);
+  }
+});
+
+// Initial preview
+drawPreview();
+</script>
+
+</body>
+</html>
