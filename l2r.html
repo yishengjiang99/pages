@@ -34,7 +34,6 @@
             border: 2px solid #333;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            transform: scaleX(-1); /* Flip image horizontally */
         }
 
         @media (max-width: 480px) {
@@ -62,8 +61,50 @@
         imageInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
-                flippedImage.src = URL.createObjectURL(file);
-                flippedImage.style.display = 'block';
+                const img = new Image();
+                img.onload = () => {
+                    // Create a canvas to manipulate pixels
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+
+                    // Draw the original image
+                    ctx.drawImage(img, 0, 0);
+
+                    // Get pixel data
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+                    const width = imageData.width;
+                    const height = imageData.height;
+
+                    // Create new image data for flipped image
+                    const flippedData = ctx.createImageData(width, height);
+                    const flipped = flippedData.data;
+
+                    // Swap pixels horizontally
+                    for (let y = 0; y < height; y++) {
+                        for (let x = 0; x < width; x++) {
+                            const srcIndex = (y * width + x) * 4;
+                            const destIndex = (y * width + (width - 1 - x)) * 4;
+                            flipped[destIndex] = data[srcIndex];     // Red
+                            flipped[destIndex + 1] = data[srcIndex + 1]; // Green
+                            flipped[destIndex + 2] = data[srcIndex + 2]; // Blue
+                            flipped[destIndex + 3] = data[srcIndex + 3]; // Alpha
+                        }
+                    }
+
+                    // Put flipped pixel data back on canvas
+                    ctx.putImageData(flippedData, 0, 0);
+
+                    // Set the flipped image to the img tag
+                    flippedImage.src = canvas.toDataURL('image/png');
+                    flippedImage.style.display = 'block';
+
+                    // Clean up
+                    URL.revokeObjectURL(img.src);
+                };
+                img.src = URL.createObjectURL(file);
             }
         });
     </script>
