@@ -16,8 +16,7 @@ button, input[type="file"] { padding:0.4rem 0.7rem; font-size:0.95rem; }
 
 <div class="controls">
   <input id="fileInput" type="file" accept=".mid,.midi">
-  <button id="startBtn">Init Audio</button>
-  <button id="playBtn">Play</button>
+  <button id="startBtn">Init Audio & Play</button>
   <button id="pauseBtn">Pause</button>
   <button id="stopBtn">Stop</button>
 </div>
@@ -93,10 +92,10 @@ self.onmessage=function(e){
     const parsed=parseMidi(data.buffer); midiEvents=parsed.events;
     const bpm=Math.round(60000000/parsed.tempo);
     self.postMessage({type:'loaded',count:midiEvents.length,bpm});
-  } else if(data.command==='worklet-port'){ workletPort=(e.ports&&e.ports[0])||null; }
-  else if(data.command==='start'){
+  } else if(data.command==='start'){
+    if(e.ports && e.ports[0]) workletPort = e.ports[0];
     if(!intervalId) intervalId=setInterval(()=>{ counter+=0.1; self.postMessage({type:'tick',value:counter.toFixed(1)}); },100);
-    if(!workletPort) return;
+    if(!workletPort || midiEvents.length===0) return;
     const msPerTick = tempo/division/1000;
     scheduledTimeouts.forEach(id=>clearTimeout(id)); scheduledTimeouts=[]; playing=true;
 
@@ -194,35 +193,36 @@ document.getElementById('fileInput').addEventListener('change', async ev=>{
 
 let audioCtx=null, workletNode=null;
 
-document.getElementById('startBtn').onclick=async()=>{
+document.getElementById('startBtn').onclick = async () => {
   if(audioCtx) return;
-  audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-  const url=URL.createObjectURL(new Blob([workletCode],{type:'application/javascript'}));
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const url = URL.createObjectURL(new Blob([workletCode], { type: 'application/javascript' }));
   await audioCtx.audioWorklet.addModule(url);
-  workletNode=new AudioWorkletNode(audioCtx,'midi-synth-processor',{numberOfOutputs:1,outputChannelCount:[2]});
+
+  workletNode = new AudioWorkletNode(audioCtx, 'midi-synth-processor', { numberOfOutputs: 1, outputChannelCount: [2] });
   workletNode.connect(audioCtx.destination);
 
-  workletNode.port.onmessage=(e)=>{
-    const d=e.data;
-    if(d.type==='ready'){
-      log('Worklet ready — sending port to worker');
-      worker.postMessage({command:'worklet-port'}, [workletNode.port]);
-    } else if(d.type==='rms'){
-      rmsEl.textContent='RMS: '+d.value.toFixed(4);
-      voicesEl.textContent='Active voices: '+d.voices;
-    } else if(d.type==='event'){
-      eventsEl.textContent+=JSON.stringify(d.event)+'\n';
-      eventsEl.scrollTop=eventsEl.scrollHeight;
+  workletNode.port.onmessage = (e) => {
+    const d = e.data;
+    if(d.type === 'ready'){
+      log('Worklet ready — sending port and start command to worker');
+      // Send port together with start command
+      worker.postMessage({ command: 'start' }, [workletNode.port]);
+    } else if(d.type === 'rms'){
+      rmsEl.textContent = 'RMS: ' + d.value.toFixed(4);
+      voicesEl.textContent = 'Active voices: ' + d.voices;
+    } else if(d.type === 'event'){
+      eventsEl.textContent += JSON.stringify(d.event) + '\n';
+      eventsEl.scrollTop = eventsEl.scrollHeight;
     }
   };
 
-  if(audioCtx.state==='suspended') await audioCtx.resume();
+  if(audioCtx.state === 'suspended') await audioCtx.resume();
   log('Audio initialized');
 };
 
-document.getElementById('playBtn').onclick=()=>worker.postMessage({command:'start'});
-document.getElementById('pauseBtn').onclick=()=>worker.postMessage({command:'pause'});
-document.getElementById('stopBtn').onclick=()=>worker.postMessage({command:'stop'});
+document.getElementById('pauseBtn').onclick = () => worker.postMessage({ command: 'pause' });
+document.getElementById('stopBtn').onclick = () => worker.postMessage({ command: 'stop' });
 </script>
 
 </body>
