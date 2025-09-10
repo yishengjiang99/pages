@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reverse Image with File Picker</title>
+    <style>
+        .container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        #myImage {
+            max-width: 500px;
+            margin-top: 10px;
+        }
+        .flipped {
+            transform: scaleX(-1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Image Flipper</h2>
+        <input type="file" id="imagePicker" accept="image/*">
+        <br>
+        <img id="myImage" src="" alt="Selected Image" style="display: none;">
+        <br>
+        <button onclick="flipImage()" style="display: none;" id="flipButton">Flip Image</button>
+    </div>
+
+    <script>
+        const imagePicker = document.getElementById('imagePicker');
+        const myImage = document.getElementById('myImage');
+        const flipButton = document.getElementById('flipButton');
+
+        // Handle file selection
+        imagePicker.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    myImage.src = e.target.result;
+                    myImage.style.display = 'block';
+                    flipButton.style.display = 'block';
+                };
+                reader.readAsDataURL(file​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
