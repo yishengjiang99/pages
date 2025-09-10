@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>MIDI Worker + AudioWorklet Synth + Metronome</title>
+<title>MIDI Worker + AudioWorklet Synth + Metronome + RMS</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
 body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 1.5rem; }
@@ -11,11 +11,12 @@ h1 { margin: 0 0 1rem 0; font-size: 1.1rem; }
 #time { font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; }
 pre { border:1px solid #ddd; padding:0.75rem; background:#fafafa; font-family: monospace; font-size:0.9rem; overflow:auto; max-height:200px; }
 #log { margin-bottom: 1rem; }
+#rms { font-weight:bold; margin-bottom:1rem; }
 button, input[type="file"] { padding:0.4rem 0.7rem; font-size:0.95rem; }
 </style>
 </head>
 <body>
-<h1>MIDI → Worker → AudioWorklet Synth + Metronome</h1>
+<h1>MIDI → Worker → AudioWorklet Synth + Metronome + RMS</h1>
 
 <div class="controls">
   <input id="fileInput" type="file" accept=".mid,.midi" />
@@ -26,6 +27,7 @@ button, input[type="file"] { padding:0.4rem 0.7rem; font-size:0.95rem; }
 </div>
 
 <div id="time">0.0</div>
+<div id="rms">RMS: 0.0</div>
 <pre id="log">Log:</pre>
 <pre id="events">MIDI Events:</pre>
 
@@ -33,13 +35,12 @@ button, input[type="file"] { padding:0.4rem 0.7rem; font-size:0.95rem; }
 // ================= Worker code (blob) =================
 const workerCode = `
 let midiEvents = [];
-let division = 480; // PPQN
-let tempo = 500000; // default 120 BPM in µs/qn
+let division = 480;
+let tempo = 500000;
 let workletPort = null;
 let scheduledTimeouts = [];
 let playing = false;
 
-// metronome
 let intervalId = null;
 let counter = 0;
 
@@ -63,14 +64,14 @@ function parseMidi(arrayBuffer) {
   const header = readStr(4);
   if(header!=='MThd'){ self.postMessage({type:'error',message:'Not a MIDI file'}); return {events:[],division:480,tempo:500000}; }
   const hdrLen = readU32();
-  readU16(); // format
+  readU16();
   const ntrks = readU16();
   division = readU16();
   posObj.pos = 8 + hdrLen;
 
   const allEvents = [];
   for(let t=0;t<ntrks;t++){
-    readStr(4); // chunkId
+    readStr(4);
     const chunkLen = readU32();
     const trackEnd = posObj.pos + chunkLen;
     let absoluteTicks = 0;
@@ -132,7 +133,7 @@ self.onmessage = function(e){
       intervalId=setInterval(()=>{ counter+=0.1; self.postMessage({type:'tick',value:counter.toFixed(1)}); },100);
     }
     if(midiEvents.length===0) return;
-    const msPerTick = tempo / division / 1000; // µs/qn ÷ PPQN ÷ 1000 => ms/tick
+    const msPerTick = tempo / division / 1000;
 
     scheduledTimeouts.forEach(id=>clearTimeout(id));
     scheduledTimeouts=[];
@@ -193,6 +194,7 @@ class MidiSynthProcessor extends AudioWorkletProcessor{
   process(_,outputs){
     const out=outputs[0];
     const frames=out[0].length;
+    let sumSquares=0;
     for(let i=0;i<frames;i++){
       let mix=0;
       for(let vi=this.voices.length-1;vi>=0;vi--){
@@ -202,8 +204,11 @@ class MidiSynthProcessor extends AudioWorkletProcessor{
         v.phase+=v.inc;
         if(v.release){v.gain*=0.995;if(v.gain<0.001)this.voices.splice(vi,1);}
       }
+      sumSquares+=mix*mix;
       for(let ch=0;ch<out.length;ch++) out[ch][i]=mix;
     }
+    const rms=Math.sqrt(sumSquares/frames);
+    this.port.postMessage({type:'rms',value:rms});
     return true;
   }
 }
@@ -214,6 +219,7 @@ registerProcessor('midi-synth-processor',MidiSynthProcessor);
 const logEl=document.getElementById('log');
 const eventsEl=document.getElementById('events');
 const timeEl=document.getElementById('time');
+const rmsEl=document.getElementById('rms');
 function log(msg){ logEl.textContent+='\n'+msg; logEl.scrollTop=logEl.scrollHeight; }
 function addEvent(ev){ eventsEl.textContent+='\n'+JSON.stringify(ev); eventsEl.scrollTop=eventsEl.scrollHeight; }
 
@@ -245,6 +251,11 @@ document.getElementById('startBtn').onclick=async()=>{
   await audioCtx.audioWorklet.addModule(url);
   workletNode=new AudioWorkletNode(audioCtx,'midi-synth-processor',{numberOfOutputs:1,outputChannelCount:[2]});
   workletNode.connect(audioCtx.destination);
+
+  workletNode.port.onmessage = (e) => {
+    if(e.data.type==='rms') rmsEl.textContent = 'RMS: '+e.data.value.toFixed(4);
+  };
+
   worker.postMessage({command:'worklet-port'},[workletNode.port]);
   if(audioCtx.state==='suspended') await audioCtx.resume();
   log('Audio initialized');
