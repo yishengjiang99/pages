@@ -2,39 +2,46 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>MIDI Worker + AudioWorklet Synth (fixed)</title>
+  <title>MIDI Worker + AudioWorklet Synth + Metronome</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <style>
     body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 1.5rem; }
     h1 { margin: 0 0 1rem 0; font-size: 1.1rem; }
     .controls { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
-    #log { white-space: pre-wrap; border:1px solid #ddd; padding:0.75rem; height:220px; overflow:auto; background:#fafafa; font-family: monospace; font-size:0.9rem; }
+    #time { font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem; }
+    #log, #events { white-space: pre-wrap; border:1px solid #ddd; padding:0.75rem; height:180px; overflow:auto; background:#fafafa; font-family: monospace; font-size:0.9rem; }
+    #log { margin-bottom: 1rem; }
     button, input[type="file"] { padding:0.4rem 0.7rem; font-size:0.95rem; }
   </style>
 </head>
 <body>
-  <h1>MIDI → Worker → AudioWorklet Synth (no port.start())</h1>
+  <h1>MIDI → Worker → AudioWorklet Synth + Metronome</h1>
 
   <div class="controls">
     <input id="fileInput" type="file" accept=".mid,.midi" />
-    <button id="startBtn">Start (create AudioContext)</button>
+    <button id="startBtn">Init Audio</button>
     <button id="playBtn">Play</button>
     <button id="pauseBtn">Pause</button>
     <button id="stopBtn">Stop</button>
   </div>
 
+  <div id="time">0.0</div>
   <div id="log">Log:</div>
+  <div id="events">MIDI Events:</div>
 
   <script>
     /* ================= Worker code (blob) ================= */
-    const workerCode = \`
-      // MIDI parsing + scheduler worker
+    const workerCode = `
       let midiEvents = [];
       let division = 480;
-      let tempo = 500000; // microseconds per quarter-note
+      let tempo = 500000;
       let workletPort = null;
       let scheduledTimeouts = [];
       let playing = false;
+
+      // metronome
+      let intervalId = null;
+      let counter = 0;
 
       function readVarLen(dv, posObj) {
         let value = 0;
@@ -54,16 +61,8 @@
           for (let i = 0; i < len; i++) s += String.fromCharCode(dv.getUint8(posObj.pos++));
           return s;
         }
-        function readU32() {
-          const v = dv.getUint32(posObj.pos);
-          posObj.pos += 4;
-          return v;
-        }
-        function readU16() {
-          const v = dv.getUint16(posObj.pos);
-          posObj.pos += 2;
-          return v;
-        }
+        function readU32() { const v = dv.getUint32(posObj.pos); posObj.pos += 4; return v; }
+        function readU16() { const v = dv.getUint16(posObj.pos); posObj.pos += 2; return v; }
 
         const header = readStr(4);
         if (header !== 'MThd') {
@@ -71,14 +70,14 @@
           return { events: [], division: 480, tempo: 500000 };
         }
         const hdrLen = readU32();
-        const format = readU16();
+        readU16(); // format
         const ntrks = readU16();
         division = readU16();
         posObj.pos = 8 + hdrLen;
 
         const allEvents = [];
         for (let t = 0; t < ntrks; t++) {
-          const chunkId = readStr(4);
+          readStr(4); // chunkId
           const chunkLen = readU32();
           const trackEnd = posObj.pos + chunkLen;
           let absoluteTicks = 0;
@@ -87,23 +86,22 @@
           while (posObj.pos < trackEnd) {
             const delta = readVarLen(dv, posObj);
             absoluteTicks += delta;
-
             let b = dv.getUint8(posObj.pos++);
-            if (b === 0xFF) { // meta
+            if (b === 0xFF) {
               const metaType = dv.getUint8(posObj.pos++);
               const len = readVarLen(dv, posObj);
-              if (metaType === 0x51 && len === 3) { // tempo
-                const us = (dv.getUint8(posObj.pos) << 16) | (dv.getUint8(posObj.pos+1) << 8) | dv.getUint8(posObj.pos+2);
-                tempo = us;
+              if (metaType === 0x51 && len === 3) {
+                tempo = (dv.getUint8(posObj.pos) << 16) |
+                        (dv.getUint8(posObj.pos+1) << 8) |
+                         dv.getUint8(posObj.pos+2);
               }
               posObj.pos += len;
-            } else if (b === 0xF0 || b === 0xF7) { // sysEx
+            } else if (b === 0xF0 || b === 0xF7) {
               const len = readVarLen(dv, posObj);
               posObj.pos += len;
             } else {
               let status = b;
               if ((b & 0x80) === 0) {
-                // running status: b is data byte, revert pos and use runningStatus
                 posObj.pos--;
                 status = runningStatus;
               } else {
@@ -111,7 +109,7 @@
               }
               const eventType = status & 0xF0;
               const channel = status & 0x0F;
-              if (eventType === 0x90) { // note on
+              if (eventType === 0x90) {
                 const note = dv.getUint8(posObj.pos++);
                 const vel = dv.getUint8(posObj.pos++);
                 if (vel !== 0) {
@@ -119,7 +117,7 @@
                 } else {
                   allEvents.push({ timeTicks: absoluteTicks, type: 'noteOff', note, velocity: 0, channel });
                 }
-              } else if (eventType === 0x80) { // note off
+              } else if (eventType === 0x80) {
                 const note = dv.getUint8(posObj.pos++);
                 const vel = dv.getUint8(posObj.pos++);
                 allEvents.push({ timeTicks: absoluteTicks, type: 'noteOff', note, velocity: vel, channel });
@@ -129,8 +127,8 @@
                 posObj.pos += 2;
               }
             }
-          } // end track loop
-        } // tracks
+          }
+        }
         allEvents.sort((a,b) => a.timeTicks - b.timeTicks);
         return { events: allEvents, division, tempo };
       }
@@ -142,64 +140,50 @@
           midiEvents = parsed.events;
           self.postMessage({ type: 'loaded', count: midiEvents.length, division, tempo });
         } else if (data.command === 'worklet-port') {
-          // received a transferred MessagePort (worklet node port)
-          // it will be available on e.ports[0]
           workletPort = (e.ports && e.ports[0]) || null;
-          if (workletPort) {
-            // the port does not need .start() here — just keep reference and use postMessage
-            self.postMessage({ type: 'worklet-connected' });
-          } else {
-            self.postMessage({ type: 'error', message: 'No port received' });
-          }
+          self.postMessage({ type: 'worklet-connected' });
         } else if (data.command === 'start') {
-          if (!midiEvents || midiEvents.length === 0) {
-            self.postMessage({ type: 'error', message: 'No events loaded' });
-            return;
+          if (!intervalId) {
+            intervalId = setInterval(() => {
+              counter += 0.1;
+              self.postMessage({ type: 'tick', value: counter.toFixed(1) });
+            }, 100);
           }
-          // compute ms per tick
-          const msPerTick = (tempo / division) / 1000; // tempo in microseconds/qn
-          // clear any previous timeouts
+          if (midiEvents.length === 0) return;
+          const msPerTick = (tempo / division) / 1000;
           scheduledTimeouts.forEach(id => clearTimeout(id));
           scheduledTimeouts = [];
           playing = true;
-          const startTime = Date.now();
           for (let ev of midiEvents) {
-            const delayMs = Math.max(0, Math.round(ev.timeTicks * msPerTick));
+            const delayMs = Math.round(ev.timeTicks * msPerTick);
             const id = setTimeout(() => {
               if (!playing) return;
-              // post to main thread
-              self.postMessage({ type: 'event', event: ev, timeOffsetMs: Date.now() - startTime });
-              // forward to worklet (if connected)
-              if (workletPort) {
-                try {
-                  workletPort.postMessage({ type: 'event', event: ev });
-                } catch (err) {
-                  // ignore post errors
-                }
-              }
+              self.postMessage({ type: 'event', event: ev });
+              if (workletPort) workletPort.postMessage({ type: 'event', event: ev });
             }, delayMs);
             scheduledTimeouts.push(id);
           }
           self.postMessage({ type: 'started' });
         } else if (data.command === 'pause') {
           playing = false;
+          clearInterval(intervalId); intervalId=null;
           scheduledTimeouts.forEach(id => clearTimeout(id));
           scheduledTimeouts = [];
           self.postMessage({ type: 'paused' });
         } else if (data.command === 'stop') {
           playing = false;
+          clearInterval(intervalId); intervalId=null;
+          counter=0;
+          self.postMessage({ type: 'tick', value: counter.toFixed(1) });
           scheduledTimeouts.forEach(id => clearTimeout(id));
           scheduledTimeouts = [];
           self.postMessage({ type: 'stopped' });
-          if (workletPort) {
-            try { workletPort.postMessage({ type: 'allNotesOff' }); } catch (_) {}
-          }
         }
       };
-    \`;
+    `;
 
     /* ================= Worklet processor code (blob) ================= */
-    const workletCode = \`
+    const workletCode = `
       class MidiSynthProcessor extends AudioWorkletProcessor {
         constructor() {
           super();
@@ -209,10 +193,7 @@
           for (let i = 0; i < this.tableSize; i++) {
             this.waveTable[i] = Math.sin((i / this.tableSize) * 2 * Math.PI);
           }
-          this.voices = []; // {note, freq, phase, inc, gain, release, channel}
-          this.trackPhasers = {}; // channel -> {phase, rate, depth}
-          this.defaultPhaser = { rate: 0.5, depth: 0.002 };
-
+          this.voices = [];
           this.port.onmessage = (e) => {
             const d = e.data;
             if (d.type === 'event') {
@@ -221,199 +202,75 @@
                 const freq = 440 * Math.pow(2, (ev.note - 69) / 12);
                 const inc = freq * this.tableSize / this.sampleRate;
                 this.voices.push({
-                  note: ev.note,
-                  freq,
-                  phase: Math.random() * this.tableSize,
-                  inc,
-                  gain: (ev.velocity / 127) * 0.25,
-                  release: false,
-                  channel: ev.channel
+                  note: ev.note, phase: 0, inc,
+                  gain: (ev.velocity/127)*0.25, release:false
                 });
-                if (!this.trackPhasers[ev.channel]) {
-                  this.trackPhasers[ev.channel] = { phase: 0, rate: this.defaultPhaser.rate, depth: this.defaultPhaser.depth };
-                }
               } else if (ev.type === 'noteOff') {
-                for (let v of this.voices) {
-                  if (v.note === ev.note && v.channel === ev.channel) v.release = true;
-                }
-              } else if (d.type === 'allNotesOff') {
-                this.voices = [];
+                for (let v of this.voices) if (v.note===ev.note) v.release=true;
               }
-            } else if (d.type === 'allNotesOff') {
-              this.voices = [];
             }
           };
         }
-
-        process(inputs, outputs/*, parameters*/) {
+        process(_, outputs) {
           const out = outputs[0];
           const frames = out[0].length;
-          const channelCount = out.length;
-
-          for (let i = 0; i < frames; i++) {
-            let mix = 0.0;
-
-            // advance phaser LFOs
-            for (let chKey in this.trackPhasers) {
-              const p = this.trackPhasers[chKey];
-              p.phase += (p.rate / this.sampleRate);
-              if (p.phase > 1) p.phase -= 1;
+          for (let i=0;i<frames;i++) {
+            let mix=0;
+            for (let vi=this.voices.length-1;vi>=0;vi--) {
+              const v=this.voices[vi];
+              const idx=Math.floor(v.phase)%this.tableSize;
+              mix+=this.waveTable[idx]*v.gain;
+              v.phase+=v.inc;
+              if(v.release){v.gain*=0.995;if(v.gain<0.001)this.voices.splice(vi,1);}
             }
-
-            for (let vi = this.voices.length - 1; vi >= 0; vi--) {
-              const v = this.voices[vi];
-              const ph = this.trackPhasers[v.channel] || { phase: 0, rate: this.defaultPhaser.rate, depth: this.defaultPhaser.depth };
-              const lfo = Math.sin(2 * Math.PI * ph.phase);
-              const indexOffset = lfo * ph.depth * this.tableSize;
-
-              const idx = v.phase + indexOffset;
-              const idxFloor = Math.floor(idx) % this.tableSize;
-              const idx1 = (idxFloor + 1) % this.tableSize;
-              const frac = idx - Math.floor(idx);
-              const s = (1 - frac) * this.waveTable[idxFloor] + frac * this.waveTable[idx1];
-
-              mix += s * v.gain;
-
-              v.phase += v.inc;
-              if (v.phase >= this.tableSize) v.phase -= this.tableSize;
-
-              if (v.release) {
-                v.gain *= 0.995;
-                if (v.gain < 0.0005) this.voices.splice(vi, 1);
-              }
-            }
-
-            for (let ch = 0; ch < channelCount; ch++) {
-              out[ch][i] = mix;
-            }
+            for (let ch=0;ch<out.length;ch++) out[ch][i]=mix;
           }
-
           return true;
         }
       }
-
       registerProcessor('midi-synth-processor', MidiSynthProcessor);
-    \`;
+    `;
 
     /* ================= main thread setup ================= */
     const logEl = document.getElementById('log');
-    const fileInput = document.getElementById('fileInput');
-    function log(msg) { logEl.textContent += '\\n' + msg; logEl.scrollTop = logEl.scrollHeight; }
+    const eventsEl = document.getElementById('events');
+    const timeEl = document.getElementById('time');
+    function log(msg) { logEl.textContent += '\\n'+msg; logEl.scrollTop=logEl.scrollHeight; }
+    function addEvent(ev) { eventsEl.textContent += '\\n'+JSON.stringify(ev); eventsEl.scrollTop=eventsEl.scrollHeight; }
 
-    // Create worker
-    const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+    const workerBlob = new Blob([workerCode], {type:'application/javascript'});
     const worker = new Worker(URL.createObjectURL(workerBlob));
 
-    worker.onmessage = (e) => {
-      const d = e.data;
-      if (d.type === 'loaded') {
-        log('Worker: loaded MIDI events: ' + d.count + '  (division=' + d.division + ', tempo=' + d.tempo + ')');
-      } else if (d.type === 'event') {
-        log('Worker -> main event: ' + JSON.stringify(d.event) + ' (offsetMs:' + (d.timeOffsetMs||0) + ')');
-      } else if (d.type === 'started' || d.type === 'paused' || d.type === 'stopped' || d.type === 'worklet-connected') {
-        log('Worker: ' + d.type);
-      } else if (d.type === 'error') {
-        log('Worker error: ' + d.message);
-      }
+    worker.onmessage = (e)=>{
+      const d=e.data;
+      if(d.type==='tick'){ timeEl.textContent=d.value; }
+      else if(d.type==='event'){ addEvent(d.event); }
+      else if(d.type==='loaded'){ log('Loaded '+d.count+' events'); }
+      else { log('Worker: '+JSON.stringify(d)); }
     };
 
-    fileInput.addEventListener('change', async (ev) => {
-      const f = ev.target.files && ev.target.files[0];
-      if (!f) return;
-      const ab = await f.arrayBuffer();
-      worker.postMessage({ command: 'load', buffer: ab }, [ab]);
-      log('Main: MIDI file transferred to worker');
+    document.getElementById('fileInput').addEventListener('change', async ev=>{
+      const f=ev.target.files[0]; if(!f)return;
+      const ab=await f.arrayBuffer();
+      worker.postMessage({command:'load',buffer:ab},[ab]);
+      log('Sent MIDI file to worker');
     });
 
-    let audioCtx = null;
-    let workletNode = null;
-
-    document.getElementById('startBtn').addEventListener('click', async () => {
-      if (audioCtx) {
-        log('AudioContext already initialized');
-        return;
-      }
-      try {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const blob = new Blob([workletCode], { type: 'application/javascript' });
-        const url = URL.createObjectURL(blob);
-        await audioCtx.audioWorklet.addModule(url);
-        workletNode = new AudioWorkletNode(audioCtx, 'midi-synth-processor', { numberOfOutputs: 1, outputChannelCount: [2] });
-        workletNode.connect(audioCtx.destination);
-        log('Main: AudioContext & worklet created');
-
-        // Transfer the worklet node's message port to the worker so the worker can post events directly to the processor.
-        // IMPORTANT: do NOT call port.start() here (not needed and may not exist).
-        const portToTransfer = workletNode.port;
-        worker.postMessage({ command: 'worklet-port' }, [portToTransfer]);
-        log('Main: transferred worklet MessagePort to worker');
-
-        // Resume audio context on user gesture
-        if (audioCtx.state === 'suspended') await audioCtx.resume();
-      } catch (err) {
-        log('Error creating AudioContext/worklet: ' + err);
-      }
-    });
-
-    document.getElementById('playBtn').addEventListener('click', async () => {
-      if (!audioCtx) { log('Click "Start" first'); return; }
-      if (audioCtx.state === 'suspended') await audioCtx.resume();
-      worker.postMessage({ command: 'start' });
-      log('Main: sent start to worker');
-    });
-
-    document.getElementById('pauseBtn').addEventListener('click', () => {
-      worker.postMessage({ command: 'pause' });
-      log('Main: sent pause to worker');
-    });
-
-    document.getElementById('stopBtn').addEventListener('click', () => {
-      worker.postMessage({ command: 'stop' });
-      log('Main: sent stop to worker');
-    });
-    // Add global error handler
-window.onerror = function(message, source, lineno, colno, error) {
-    // Create error message element
-    const errorDiv = document.createElement('div');
-    errorDiv.style.color = 'red';
-    errorDiv.style.padding = '10px';
-    errorDiv.style.margin = '5px';
-    errorDiv.style.border = '1px solid red';
-    
-    // Format error message
-    const errorMessage = `
-        Error: ${message}<br>
-        Source: ${source}<br>
-        Line: ${lineno}<br>
-        Column: ${colno}<br>
-        ${error?.stack ? 'Stack: ' + error.stack : ''}
-    `;
-    
-    // Append to document body
-    errorDiv.innerHTML = errorMessage;
-    document.body.appendChild(errorDiv);
-    
-    // Return false to prevent default browser error handling
-    return false;
-};
-
-// Optional: Also handle unhandled promise rejections
-window.addEventListener('unhandledrejection', function(event) {
-    const errorDiv = document.createElement('div');
-    errorDiv.style.color = 'red';
-    errorDiv.style.padding = '10px';
-    errorDiv.style.margin = '5px';
-    errorDiv.style.border = '1px solid red';
-    
-    const errorMessage = `
-        Unhandled Promise Rejection: ${event.reason}<br>
-        ${event.reason?.stack ? 'Stack: ' + event.reason.stack : ''}
-    `;
-    
-    errorDiv.innerHTML = errorMessage;
-    document.body.appendChild(errorDiv);
-});
+    let audioCtx=null, workletNode=null;
+    document.getElementById('startBtn').onclick=async()=>{
+      if(audioCtx)return;
+      audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+      const url=URL.createObjectURL(new Blob([workletCode],{type:'application/javascript'}));
+      await audioCtx.audioWorklet.addModule(url);
+      workletNode=new AudioWorkletNode(audioCtx,'midi-synth-processor',{numberOfOutputs:1,outputChannelCount:[2]});
+      workletNode.connect(audioCtx.destination);
+      worker.postMessage({command:'worklet-port'},[workletNode.port]);
+      if(audioCtx.state==='suspended') await audioCtx.resume();
+      log('Audio initialized');
+    };
+    document.getElementById('playBtn').onclick=()=>worker.postMessage({command:'start'});
+    document.getElementById('pauseBtn').onclick=()=>worker.postMessage({command:'pause'});
+    document.getElementById('stopBtn').onclick=()=>worker.postMessage({command:'stop'});
   </script>
-  v2
 </body>
 </html>
