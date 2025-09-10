@@ -3,44 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reverse Image with File Picker</title>
+    <title>Image Flipper</title>
     <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+
         .container {
+            width: 90%;
+            max-width: 600px;
+            padding: 20px;
             text-align: center;
-            margin-top: 20px;
         }
-        #myImage {
-            max-width: 500px;
-            margin-top: 10px;
+
+        input[type="file"] {
+            margin: 20px 0;
+            padding: 10px;
+            font-size: 16px;
         }
-        .flipped {
-            transform: scaleX(-1);
+
+        #flippedImage {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transform: scaleX(-1); /* Flip image horizontally */
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px;
+            }
+
+            input[type="file"] {
+                font-size: 14px;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Image Flipper</h2>
-        <input type="file" id="imagePicker" accept="image/*">
-        <br>
-        <img id="myImage" src="" alt="Selected Image" style="display: none;">
-        <br>
-        <button onclick="flipImage()" style="display: none;" id="flipButton">Flip Image</button>
+        <h1>Image Flipper</h1>
+        <input type="file" id="imageInput" accept="image/*">
+        <img id="flippedImage" src="" alt="Flipped Image" style="display: none;">
     </div>
 
     <script>
-        const imagePicker = document.getElementById('imagePicker');
-        const myImage = document.getElementById('myImage');
-        const flipButton = document.getElementById('flipButton');
+        const imageInput = document.getElementById('imageInput');
+        const flippedImage = document.getElementById('flippedImage');
 
-        // Handle file selection
-        imagePicker.addEventListener('change', function(event) {
-            const file = event.target.files[0];
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    myImage.src = e.target.result;
-                    myImage.style.display = 'block';
-                    flipButton.style.display = 'block';
-                };
-                reader.readAsDataURL(file​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
+                flippedImage.src = URL.createObjectURL(file);
+                flippedImage.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
