@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<title>MIDI Worklet + RMS + Voices</title>
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8">
+<title>MIDI Worker + AudioWorklet + RMS + Voices</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; padding: 1.5rem; }
 .controls { display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem; }
@@ -15,7 +15,7 @@ button, input[type="file"] { padding:0.4rem 0.7rem; font-size:0.95rem; }
 <body>
 
 <div class="controls">
-  <input id="fileInput" type="file" accept=".mid,.midi"/>
+  <input id="fileInput" type="file" accept=".mid,.midi">
   <button id="startBtn">Init Audio</button>
   <button id="playBtn">Play</button>
   <button id="pauseBtn">Pause</button>
@@ -29,7 +29,7 @@ button, input[type="file"] { padding:0.4rem 0.7rem; font-size:0.95rem; }
 <pre id="events">MIDI Events:</pre>
 
 <script>
-// ================= Worker code =================
+// ---------------- Worker code ----------------
 const workerCode = `
 let midiEvents = [];
 let division = 480;
@@ -51,28 +51,29 @@ function readVarLen(dv,posObj){
 }
 
 function parseMidi(arrayBuffer){
-  const dv = new DataView(arrayBuffer);
-  const posObj = {pos:0};
-  function readStr(len){ let s=""; for(let i=0;i<len;i++) s+=String.fromCharCode(dv.getUint8(posObj.pos++)); return s;}
-  function readU32(){ const v=dv.getUint32(posObj.pos); posObj.pos+=4; return v;}
-  function readU16(){ const v=dv.getUint16(posObj.pos); posObj.pos+=2; return v;}
+  const dv=new DataView(arrayBuffer);
+  const posObj={pos:0};
+  function readStr(len){ let s=""; for(let i=0;i<len;i++) s+=String.fromCharCode(dv.getUint8(posObj.pos++)); return s; }
+  function readU32(){ const v=dv.getUint32(posObj.pos); posObj.pos+=4; return v; }
+  function readU16(){ const v=dv.getUint16(posObj.pos); posObj.pos+=2; return v; }
   const header = readStr(4);
   if(header!=='MThd'){ self.postMessage({type:'error',message:'Not MIDI'}); return {events:[],division:480,tempo:500000}; }
-  const hdrLen=readU32(); readU16(); const ntrks=readU16(); division=readU16(); posObj.pos=8+hdrLen;
-  const allEvents=[];
+  const hdrLen = readU32(); readU16(); const ntrks = readU16(); division = readU16(); posObj.pos = 8+hdrLen;
+
+  const allEvents = [];
   for(let t=0;t<ntrks;t++){
     readStr(4); const chunkLen=readU32(); const trackEnd=posObj.pos+chunkLen;
-    let absoluteTicks=0; let runningStatus=null;
+    let absoluteTicks=0, runningStatus=null;
     while(posObj.pos<trackEnd){
-      const delta = readVarLen(dv,posObj); absoluteTicks+=delta;
+      const delta=readVarLen(dv,posObj); absoluteTicks+=delta;
       let b=dv.getUint8(posObj.pos++);
       if(b===0xFF){ const metaType=dv.getUint8(posObj.pos++); const len=readVarLen(dv,posObj);
-        if(metaType===0x51 && len===3){ tempo=(dv.getUint8(posObj.pos)<<16)|(dv.getUint8(posObj.pos+1)<<8)|dv.getUint8(posObj.pos+2);}
+        if(metaType===0x51 && len===3){ tempo=(dv.getUint8(posObj.pos)<<16)|(dv.getUint8(posObj.pos+1)<<8)|dv.getUint8(posObj.pos+2); }
         posObj.pos+=len;
-      } else if(b===0xF0||b===0xF7){ const len=readVarLen(dv,posObj); posObj.pos+=len;}
+      } else if(b===0xF0||b===0xF7){ const len=readVarLen(dv,posObj); posObj.pos+=len; }
       else {
         let status=b;
-        if((b&0x80)===0){ posObj.pos--; status=runningStatus;} else runningStatus=status;
+        if((b&0x80)===0){ posObj.pos--; status=runningStatus; } else runningStatus=status;
         const eventType=status&0xF0;
         const channel=status&0x0F;
         if(eventType===0x90){ const note=dv.getUint8(posObj.pos++); const vel=dv.getUint8(posObj.pos++);
@@ -96,11 +97,11 @@ self.onmessage=function(e){
     self.postMessage({type:'loaded',count:midiEvents.length,division,tempo:parsed.tempo,bpm});
   } else if(data.command==='worklet-port'){ workletPort=(e.ports&&e.ports[0])||null; self.postMessage({type:'worklet-connected'});}
   else if(data.command==='start'){
-    if(!intervalId) intervalId=setInterval(()=>{counter+=0.1; self.postMessage({type:'tick',value:counter.toFixed(1)});},100);
+    if(!intervalId) intervalId=setInterval(()=>{ counter+=0.1; self.postMessage({type:'tick',value:counter.toFixed(1)}); },100);
     if(midiEvents.length===0) return;
-    const msPerTick=tempo/division/1000;
-    scheduledTimeouts.forEach(id=>clearTimeout(id)); scheduledTimeouts=[];
-    playing=true;
+    const msPerTick = tempo/division/1000;
+    scheduledTimeouts.forEach(id=>clearTimeout(id)); scheduledTimeouts=[]; playing=true;
+
     for(let ev of midiEvents){
       const delayMs=ev.timeTicks*msPerTick;
       const id=setTimeout(()=>{
@@ -116,33 +117,38 @@ self.onmessage=function(e){
 };
 `;
 
-// ================= Worklet Processor =================
+// ---------------- Worklet code ----------------
 const workletCode = `
 class MidiSynthProcessor extends AudioWorkletProcessor{
   constructor(){
     super();
+    this.voices=[];
     this.tableSize=4096;
     this.waveTable=new Float32Array(this.tableSize);
     for(let i=0;i<this.tableSize;i++) this.waveTable[i]=Math.sin((i/this.tableSize)*2*Math.PI);
-    this.voices=[];
+
+    // 1. Post ready to main thread
+    this.port.postMessage({type:'ready'});
+
+    // 2. Listen for MIDI events
     this.port.onmessage=(e)=>{
       const d=e.data;
       if(d.type==='event'){
-        const ev=d.event;
-        if(ev.type==='noteOn'){
-          const freq=440*Math.pow(2,(ev.note-69)/12);
-          const inc=freq*this.tableSize/sampleRate;
-          this.voices.push({note:ev.note,phase:0,inc,gain:(ev.velocity/127)*0.25,release:false});
-        } else if(ev.type==='noteOff'){
-          for(let v of this.voices) if(v.note===ev.note) v.release=true;
+        if(d.event.type==='noteOn'){
+          const freq = 440 * Math.pow(2,(d.event.note-69)/12);
+          const inc = freq * this.tableSize / sampleRate;
+          this.voices.push({note:d.event.note,phase:0,inc,gain:(d.event.velocity/127)*0.25,release:false});
+        } else if(d.event.type==='noteOff'){
+          for(let v of this.voices) if(v.note===d.event.note) v.release=true;
         }
       }
     };
   }
+
   process(_,outputs){
     const out=outputs[0];
-    const frames=out[0].length;
     let sumSquares=0;
+    const frames=out[0].length;
     for(let i=0;i<frames;i++){
       let mix=0;
       for(let vi=this.voices.length-1;vi>=0;vi--){
@@ -150,21 +156,20 @@ class MidiSynthProcessor extends AudioWorkletProcessor{
         const idx=Math.floor(v.phase)%this.tableSize;
         mix+=this.waveTable[idx]*v.gain;
         v.phase+=v.inc;
-        if(v.release){ v.gain*=0.995; if(v.gain<0.001) this.voices.splice(vi,1);}
+        if(v.release){ v.gain*=0.995; if(v.gain<0.001) this.voices.splice(vi,1); }
       }
       sumSquares+=mix*mix;
-      for(let ch=0; ch<out.length; ch++) out[ch][i]=mix;
+      for(let ch=0;ch<out.length;ch++) out[ch][i]=mix;
     }
     const rms=Math.sqrt(sumSquares/frames);
-    const activeVoices=this.voices.length;
-    this.port.postMessage({type:'rms',value:rms,voices:activeVoices});
+    this.port.postMessage({type:'rms',value:rms,voices:this.voices.length});
     return true;
   }
 }
 registerProcessor('midi-synth-processor',MidiSynthProcessor);
 `;
 
-// ================= Main Thread =================
+// ---------------- Main Thread ----------------
 const logEl=document.getElementById('log');
 const eventsEl=document.getElementById('events');
 const timeEl=document.getElementById('time');
@@ -193,6 +198,7 @@ document.getElementById('fileInput').addEventListener('change', async ev=>{
 });
 
 let audioCtx=null, workletNode=null;
+
 document.getElementById('startBtn').onclick=async()=>{
   if(audioCtx) return;
   audioCtx=new (window.AudioContext||window.webkitAudioContext)();
@@ -201,14 +207,18 @@ document.getElementById('startBtn').onclick=async()=>{
   workletNode=new AudioWorkletNode(audioCtx,'midi-synth-processor',{numberOfOutputs:1,outputChannelCount:[2]});
   workletNode.connect(audioCtx.destination);
 
+  // Only after worklet posts "ready", send its port to worker
   workletNode.port.onmessage=(e)=>{
-    if(e.data.type==='rms'){
-      rmsEl.textContent='RMS: '+e.data.value.toFixed(4);
-      voicesEl.textContent='Active voices: '+e.data.voices;
+    const d=e.data;
+    if(d.type==='ready'){
+      log('Worklet ready — sending port to worker');
+      worker.postMessage({command:'worklet-port'}, [workletNode.port]);
+    } else if(d.type==='rms'){
+      rmsEl.textContent='RMS: '+d.value.toFixed(4);
+      voicesEl.textContent='Active voices: '+d.voices;
     }
   };
 
-  worker.postMessage({command:'worklet-port'},[workletNode.port]);
   if(audioCtx.state==='suspended') await audioCtx.resume();
   log('Audio initialized');
 };
