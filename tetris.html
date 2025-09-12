@@ -1,670 +1,362 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-    <title>Mobile Tetris</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            min-height: 100vh;
-            background-color: #000;
-            font-family: Arial, sans-serif;
-            overflow: hidden;
-            padding-top: 10px;
-        }
-        #gameContainer {
-            text-align: center;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        #startBtn {
-            background-color: #fff;
-            color: #000;
-            border: none;
-            padding: 15px 30px;
-            font-size: 18px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-bottom: 10px;
-        }
-        #startBtn:hover {
-            background-color: #ccc;
-        }
-        #score {
-            color: #fff;
-            font-size: 24px;
-            margin-bottom: 10px;
-            display: none;
-        }
-        canvas {
-            border: 2px solid #fff;
-            background-color: #111;
-            touch-action: none; /* Prevent default touch behaviors */
-            display: none;
-        }
-        footer {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            background: #000;
-            color: #fff;
-            z-index: 100;
-        }
-        #errors {
-            margin: 0;
-            padding: 5px;
-            font-size: 12px;
-            max-height: 100px;
-            overflow-y: auto;
-            white-space: pre-wrap;
-        }
-
-        /* Game-over overlay */
-        #overlay {
-            position: fixed;
-            inset: 0;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0,0,0,0.85);
-            color: #fff;
-            z-index: 1000;
-            flex-direction: column;
-        }
-        #overlay h2 {
-            margin: 0 0 10px 0;
-            font-size: 24px;
-        }
-        #overlay button {
-            margin-top: 12px;
-            padding: 10px 16px;
-            font-size: 16px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-        }
-
-        @media (orientation: landscape) {
-            body::before {
-                content: "Please rotate your device to portrait mode";
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100vw;
-                height: 100vh;
-                background: rgba(0,0,0,0.9);
-                color: white;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 20px;
-                z-index: 1000;
-            }
-            #gameContainer {
-                display: none;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Mobile Tetris</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      background-color: #000;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+      padding-top: 10px;
+    }
+    #gameContainer {
+      text-align: center;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #startBtn {
+      background-color: #fff;
+      color: #000;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-bottom: 10px;
+    }
+    #startBtn:hover { background-color: #ccc; }
+    #score {
+      color: #fff;
+      font-size: 24px;
+      margin-bottom: 10px;
+      display: none;
+    }
+    canvas {
+      border: 2px solid #fff;
+      background-color: #111;
+      touch-action: none;
+      display: none;
+    }
+    footer {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      background: #000;
+      color: #fff;
+      z-index: 100;
+    }
+    #errors {
+      margin: 0;
+      padding: 5px;
+      font-size: 12px;
+      max-height: 100px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    @media (orientation: landscape) {
+      body::before {
+        content: "Please rotate your device to portrait mode";
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0,0,0,0.9);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        z-index: 1000;
+      }
+      #gameContainer { display: none; }
+    }
+  </style>
 </head>
 <body>
-    <div id="gameContainer">
-        <button id="startBtn">Start Game</button>
-        <div id="score">Score: 0</div>
-        <canvas id="tetris" aria-label="Tetris game board"></canvas>
-    </div>
+  <div id="gameContainer">
+    <button id="startBtn">Start Game</button>
+    <div id="score">Score: 0</div>
+    <canvas id="tetris"></canvas>
+  </div>
+  <footer>
+    <pre id="errors"></pre>
+  </footer>
 
-    <div id="overlay">
-        <h2 id="overlayText">Game Over</h2>
-        <div id="overlayScore">Score: 0</div>
-        <button id="restartBtn">Restart</button>
-    </div>
+  <script>
+    // Error handling
+    window.addEventListener('error', e => {
+      const pre = document.getElementById('errors');
+      if (pre) pre.textContent += (e.error ? e.error.stack : e.message) + '\n';
+      return false;
+    });
+    window.addEventListener('unhandledrejection', e => {
+      const pre = document.getElementById('errors');
+      if (pre) pre.textContent += 'Promise rejection: ' + (e.reason || 'Unknown') + '\n';
+    });
 
-    <footer>
-        <pre id="errors"></pre>
-    </footer>
+    class TetrisGame {
+      constructor(audioContext) {
+        this.canvas = document.getElementById('tetris');
+        this.ctx = this.canvas.getContext('2d');
+        this.scoreElement = document.getElementById('score');
+        this.score = 0;
 
-    <script>
-        // Error handling - show stack/message in footer pre
-        window.addEventListener('error', function(e) {
-            const pre = document.getElementById('errors');
-            if (pre) {
-                pre.textContent += (e.error ? e.error.stack : e.message) + '\n';
-            }
-            return false;
-        });
-        window.addEventListener('unhandledrejection', function(e) {
-            const pre = document.getElementById('errors');
-            if (pre) {
-                pre.textContent += 'Promise rejection: ' + (e.reason || 'Unknown') + '\n';
-            }
-        });
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
 
-        class TetrisGame {
-            constructor(audioContext) {
-                this.canvas = document.getElementById('tetris');
-                this.ctx = this.canvas.getContext('2d');
-                this.scoreElement = document.getElementById('score');
-                this.overlay = document.getElementById('overlay');
-                this.overlayText = document.getElementById('overlayText');
-                this.overlayScore = document.getElementById('overlayScore');
-                this.restartBtn = document.getElementById('restartBtn');
+        this.board = this.createBoard();
+        this.currentPiece = this.getNewPiece();
+        this.nextPiece = this.getNewPiece();
+        this.dropTime = 0;
+        this.dropInterval = 1000;
+        this.lastTime = performance.now();
+        this.audioContext = audioContext;
+        this.isGameOver = false;
 
-                this.audioContext = audioContext;
+        // Pointer input
+        this.pointerActive = false;
+        this.pointerStartX = 0;
+        this.pointerStartY = 0;
 
-                // game state
-                this.cols = 10;
-                this.rows = 20;
-                this.blockSize = 24; // default, will be recalculated
-                this.dropInterval = 1000; // ms per drop
-                this.dropTime = 0;
-                this.lastTime = performance.now();
-                this.isGameOver = false;
+        this.canvas.addEventListener('pointerdown', e => this.handlePointerDown(e));
+        this.canvas.addEventListener('pointermove', e => this.handlePointerMove(e));
+        this.canvas.addEventListener('pointerup', e => this.handlePointerUp(e));
+        this.canvas.addEventListener('pointercancel', e => this.handlePointerUp(e));
 
-                // Score and UI
-                this.score = 0;
-                this.updateScoreUI();
+        // Desktop fallback: click to rotate
+        this.canvas.addEventListener('click', e => { if (!this.pointerActive) this.rotatePiece(); });
 
-                // Resize first to compute blockSize, canvas size
-                this.resizeCanvas();
-                this.boundResize = () => this.resizeCanvas();
-                window.addEventListener('resize', this.boundResize);
+        this.gameLoop = this.gameLoop.bind(this);
+        requestAnimationFrame(this.gameLoop);
+      }
 
-                // Board & pieces
-                this.board = this.createBoard();
-                this.currentPiece = this.getNewPiece();
-                this.nextPiece = this.getNewPiece();
+      resizeCanvas() {
+        const padding = 60;
+        this.blockSize = Math.min(window.innerWidth * 0.95 / 10, (window.innerHeight - padding) / 20);
+        this.canvas.width = 10 * this.blockSize;
+        this.canvas.height = 20 * this.blockSize;
+        this.cols = 10;
+        this.rows = 20;
+      }
 
-                // Input handlers (touch and click)
-                this.boundTouchStart = (e) => this.handleTouchStart(e);
-                this.boundTouchEnd = (e) => this.handleTouchEnd(e);
-                this.boundClick = (e) => this.handleRotate(e);
+      createBoard() {
+        return Array.from({ length: this.rows }, () => Array(this.cols).fill(0));
+      }
 
-                this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
-                this.canvas.addEventListener('touchend', this.boundTouchEnd, { passive: false });
-                this.canvas.addEventListener('click', this.boundClick); // desktop fallback
+      getNewPiece() {
+        const pieces = 'I O T S Z J L'.split(' ');
+        const type = pieces[Math.floor(Math.random() * pieces.length)];
+        return {
+          type,
+          shape: this.getShape(type),
+          row: 0,
+          col: Math.floor(this.cols / 2) - 1,
+          color: this.getColor(type)
+        };
+      }
 
-                // Restart overlay
-                this.restartBtn.addEventListener('click', () => this.restart());
+      getShape(type) {
+        const shapes = {
+          I: [[[1,1,1,1]]],
+          O: [[[1,1],[1,1]]],
+          T: [[[0,1,0],[1,1,1]], [[1,0],[1,1],[1,0]], [[1,1,1],[0,1,0]], [[0,1],[1,1],[0,1]]],
+          S: [[[0,1,1],[1,1,0]], [[1,0],[1,1],[0,1]]],
+          Z: [[[1,1,0],[0,1,1]], [[0,1],[1,1],[1,0]]],
+          J: [[[1,0,0],[1,1,1]], [[1,1],[1,0],[1,0]], [[1,1,1],[0,0,1]], [[0,1],[0,1],[1,1]]],
+          L: [[[0,0,1],[1,1,1]], [[1,0],[1,0],[1,1]], [[1,1,1],[1,0,0]], [[1,1],[0,1],[0,1]]]
+        };
+        return shapes[type][0];
+      }
 
-                // Game loop
-                this.gameLoop = this.gameLoop.bind(this);
-                requestAnimationFrame(this.gameLoop);
-            }
+      getColor(type) {
+        const colors = {
+          I: '#00f0f0', O: '#f0f000', T: '#a000f0',
+          S: '#00f000', Z: '#f00000', J: '#0000f0', L: '#f0a000'
+        };
+        return colors[type];
+      }
 
-            // calculate blockSize relative to viewport while keeping the board cells consistent
-            resizeCanvas() {
-                const padding = 100; // space for score / UI
-                const maxWidth = window.innerWidth * 0.95;
-                const maxHeight = (window.innerHeight - padding);
-                this.blockSize = Math.floor(Math.min(maxWidth / this.cols, maxHeight / this.rows));
-                if (this.blockSize < 8) this.blockSize = 8; // minimal reasonable size
-                this.canvas.width = this.cols * this.blockSize;
-                this.canvas.height = this.rows * this.blockSize;
-                // when resizing we simply redraw; board logical state stays the same
-                this.drawBoard();
-            }
+      drawBlock(x, y, color) {
+        this.ctx.fillStyle = color;
+        this.ctx.fillRect(x * this.blockSize, y * this.blockSize, this.blockSize, this.blockSize);
+        this.ctx.strokeStyle = '#000';
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(x * this.blockSize, y * this.blockSize, this.blockSize, this.blockSize);
+      }
 
-            createBoard() {
-                return Array.from({ length: this.rows }, () => Array(this.cols).fill(0));
-            }
-
-            // pieces: each entry is an array of rotation states (matrices)
-            getShapeRotations(type) {
-                const R = (m) => m; // helper alias (keeps code readable)
-                const shapes = {
-                    I: [
-                        R([[0,0,0,0],
-                           [1,1,1,1],
-                           [0,0,0,0],
-                           [0,0,0,0]]),
-                        R([[0,0,1,0],
-                           [0,0,1,0],
-                           [0,0,1,0],
-                           [0,0,1,0]])
-                    ],
-                    O: [
-                        R([[1,1],
-                           [1,1]])
-                    ],
-                    T: [
-                        R([[0,1,0],
-                           [1,1,1],
-                           [0,0,0]]),
-                        R([[0,1,0],
-                           [0,1,1],
-                           [0,1,0]]),
-                        R([[0,0,0],
-                           [1,1,1],
-                           [0,1,0]]),
-                        R([[0,1,0],
-                           [1,1,0],
-                           [0,1,0]])
-                    ],
-                    S: [
-                        R([[0,1,1],
-                           [1,1,0],
-                           [0,0,0]]),
-                        R([[0,1,0],
-                           [0,1,1],
-                           [0,0,1]])
-                    ],
-                    Z: [
-                        R([[1,1,0],
-                           [0,1,1],
-                           [0,0,0]]),
-                        R([[0,0,1],
-                           [0,1,1],
-                           [0,1,0]])
-                    ],
-                    J: [
-                        R([[1,0,0],
-                           [1,1,1],
-                           [0,0,0]]),
-                        R([[0,1,1],
-                           [0,1,0],
-                           [0,1,0]]),
-                        R([[0,0,0],
-                           [1,1,1],
-                           [0,0,1]]),
-                        R([[0,1,0],
-                           [0,1,0],
-                           [1,1,0]])
-                    ],
-                    L: [
-                        R([[0,0,1],
-                           [1,1,1],
-                           [0,0,0]]),
-                        R([[0,1,0],
-                           [0,1,0],
-                           [0,1,1]]),
-                        R([[0,0,0],
-                           [1,1,1],
-                           [1,0,0]]),
-                        R([[1,1,0],
-                           [0,1,0],
-                           [0,1,0]])
-                    ]
-                };
-                return shapes[type];
-            }
-
-            getColor(type) {
-                const colors = {
-                    I: '#00f0f0', O: '#f0f000', T: '#a000f0',
-                    S: '#00f000', Z: '#f00000', J: '#0000f0', L: '#f0a000'
-                };
-                return colors[type] || '#ffffff';
-            }
-
-            getNewPiece() {
-                const pieces = ['I','O','T','S','Z','J','L'];
-                const type = pieces[Math.floor(Math.random() * pieces.length)];
-                const rotations = this.getShapeRotations(type);
-                const rotationIndex = 0;
-                // center horizontally: for odd-width matrices, col offset should account for width
-                const shape = rotations[rotationIndex];
-                const spawnCol = Math.floor((this.cols - shape[0].length) / 2);
-                return {
-                    type,
-                    rotations,
-                    rotationIndex,
-                    shape,
-                    row: -this.topEmptyRows(shape), // start slightly above visible area to allow spawn
-                    col: spawnCol,
-                    color: this.getColor(type)
-                };
-            }
-
-            // helper to compute top empty rows so pieces spawn slightly above visible board
-            topEmptyRows(matrix) {
-                for (let r = 0; r < matrix.length; r++) {
-                    if (matrix[r].some(v => v)) return r;
-                }
-                return 0;
-            }
-
-            drawBlock(x, y, color) {
-                // Only draw if inside canvas region
-                if (y < 0) return;
-                this.ctx.fillStyle = color;
-                this.ctx.fillRect(x * this.blockSize, y * this.blockSize, this.blockSize, this.blockSize);
-                this.ctx.strokeStyle = '#000';
-                this.ctx.lineWidth = 1;
-                this.ctx.strokeRect(x * this.blockSize, y * this.blockSize, this.blockSize, this.blockSize);
-            }
-
-            drawBoard() {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                // Draw placed blocks
-                for (let row = 0; row < this.rows; row++) {
-                    for (let col = 0; col < this.cols; col++) {
-                        if (this.board[row][col]) {
-                            this.drawBlock(col, row, this.board[row][col]);
-                        }
-                    }
-                }
-                // Draw current piece
-                this.drawPiece(this.currentPiece);
-            }
-
-            drawPiece(piece) {
-                if (!piece || !piece.shape) return;
-                piece.shape.forEach((row, dy) => {
-                    row.forEach((value, dx) => {
-                        if (value) {
-                            const x = piece.col + dx;
-                            const y = piece.row + dy;
-                            // skip drawing if outside left/right
-                            if (x < 0 || x >= this.cols) return;
-                            this.drawBlock(x, y, piece.color);
-                        }
-                    });
-                });
-            }
-
-            validMove(piece, rowOffset = 0, colOffset = 0, shape = null) {
-                const testShape = shape || piece.shape;
-                for (let dy = 0; dy < testShape.length; dy++) {
-                    for (let dx = 0; dx < testShape[dy].length; dx++) {
-                        if (testShape[dy][dx]) {
-                            const newRow = piece.row + dy + rowOffset;
-                            const newCol = piece.col + dx + colOffset;
-                            // out of bounds or colliding with board (if inside visible rows)
-                            if (newCol < 0 || newCol >= this.cols) return false;
-                            if (newRow >= this.rows) return false;
-                            if (newRow >= 0 && this.board[newRow][newCol]) return false;
-                        }
-                    }
-                }
-                return true;
-            }
-
-            placePiece() {
-                this.currentPiece.shape.forEach((row, dy) => {
-                    row.forEach((value, dx) => {
-                        if (value) {
-                            const y = this.currentPiece.row + dy;
-                            const x = this.currentPiece.col + dx;
-                            if (y >= 0 && y < this.rows && x >= 0 && x < this.cols) {
-                                this.board[y][x] = this.currentPiece.color;
-                            }
-                        }
-                    });
-                });
-                this.clearLines();
-                this.currentPiece = this.nextPiece;
-                this.nextPiece = this.getNewPiece();
-
-                // If the new piece is invalid at spawn, game over
-                if (!this.validMove(this.currentPiece)) {
-                    this.gameOver();
-                } else {
-                    this.playSound(200, 0.08); // place sound
-                }
-            }
-
-            clearLines() {
-                let linesCleared = 0;
-                for (let row = this.rows - 1; row >= 0; row--) {
-                    if (this.board[row].every(cell => cell !== 0)) {
-                        this.board.splice(row, 1);
-                        this.board.unshift(Array(this.cols).fill(0));
-                        linesCleared++;
-                        row++; // check this index again (since rows shifted)
-                    }
-                }
-                if (linesCleared > 0) {
-                    this.score += linesCleared * 100;
-                    this.updateScoreUI();
-                    this.dropInterval = Math.max(100, this.dropInterval - 50 * linesCleared);
-                    this.playSound(400 + linesCleared * 200, 0.18); // clear sound
-                }
-            }
-
-            // rotate with simple wall-kick: try center, then left, then right
-            rotatePiece() {
-                const p = this.currentPiece;
-                const nextIndex = (p.rotationIndex + 1) % p.rotations.length;
-                const rotated = p.rotations[nextIndex];
-
-                // try no offset
-                if (this.validMove(p, 0, 0, rotated)) {
-                    p.rotationIndex = nextIndex;
-                    p.shape = rotated;
-                    this.playSound(600, 0.05);
-                    return;
-                }
-                // try small kicks: left, right, up
-                const kicks = [{c:-1,r:0},{c:1,r:0},{c:-2,r:0},{c:2,r:0},{c:0,r:-1}];
-                for (const k of kicks) {
-                    if (this.validMove(p, k.r, k.c, rotated)) {
-                        p.col += k.c;
-                        p.row += k.r;
-                        p.rotationIndex = nextIndex;
-                        p.shape = rotated;
-                        this.playSound(600, 0.05);
-                        return;
-                    }
-                }
-                // no valid rotation found, do nothing
-            }
-
-            moveDown() {
-                if (this.validMove(this.currentPiece, 1, 0)) {
-                    this.currentPiece.row++;
-                    this.playSound(80, 0.02); // move sound (subtle)
-                } else {
-                    this.placePiece();
-                }
-            }
-
-            moveLeft() {
-                if (this.validMove(this.currentPiece, 0, -1)) {
-                    this.currentPiece.col--;
-                    this.playSound(150, 0.02);
-                }
-            }
-
-            moveRight() {
-                if (this.validMove(this.currentPiece, 0, 1)) {
-                    this.currentPiece.col++;
-                    this.playSound(150, 0.02);
-                }
-            }
-
-            gameOver() {
-                this.isGameOver = true;
-                try {
-                    this.playSound(150, 0.5); // Game over sound
-                } catch (err) {
-                    // ignore audio failures
-                }
-                this.showOverlay(`Game Over`, this.score);
-            }
-
-            showOverlay(text, score) {
-                this.overlayText.textContent = text;
-                this.overlayScore.textContent = `Score: ${score}`;
-                this.overlay.style.display = 'flex';
-            }
-
-            hideOverlay() {
-                this.overlay.style.display = 'none';
-            }
-
-            restart() {
-                // reset state
-                this.isGameOver = false;
-                this.dropInterval = 1000;
-                this.dropTime = 0;
-                this.lastTime = performance.now();
-                this.board = this.createBoard();
-                this.score = 0;
-                this.updateScoreUI();
-                this.currentPiece = this.getNewPiece();
-                this.nextPiece = this.getNewPiece();
-                this.hideOverlay();
-                requestAnimationFrame(this.gameLoop);
-            }
-
-            updateScoreUI() {
-                if (this.scoreElement) {
-                    this.scoreElement.textContent = `Score: ${this.score}`;
-                }
-            }
-
-            playSound(frequency = 440, duration = 0.05) {
-                if (!this.audioContext) return;
-                try {
-                    if (this.audioContext.state === 'suspended') {
-                        // attempt to resume; wrap in try/catch because some browsers throw when called outside user gesture
-                        this.audioContext.resume().catch(()=>{/* ignore */});
-                    }
-                } catch (err) {
-                    // ignore audio resume errors
-                }
-                try {
-                    const now = this.audioContext.currentTime;
-                    const oscillator = this.audioContext.createOscillator();
-                    const gainNode = this.audioContext.createGain();
-                    oscillator.connect(gainNode);
-                    gainNode.connect(this.audioContext.destination);
-                    oscillator.frequency.value = frequency;
-                    oscillator.type = 'square';
-                    gainNode.gain.setValueAtTime(0.1, now);
-                    // smooth volume out to avoid clicks
-                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + Math.max(0.01, duration));
-                    oscillator.start(now);
-                    oscillator.stop(now + Math.max(0.01, duration));
-                } catch (err) {
-                    // audio may fail on some browsers; ignore
-                }
-            }
-
-            // Touch handling: single-touch only, ignore multi-touch gestures
-            handleTouchStart(e) {
-                e.preventDefault();
-                if (e.touches.length > 1) return;
-                this.touchStartX = e.touches[0].clientX;
-                this.touchStartY = e.touches[0].clientY;
-            }
-
-            handleTouchEnd(e) {
-                e.preventDefault();
-                if (!this.touchStartX || this.isGameOver) {
-                    this.touchStartX = null;
-                    this.touchStartY = null;
-                    return;
-                }
-                // changedTouches used for touchend
-                const touch = e.changedTouches[0];
-                const touchEndX = touch.clientX;
-                const touchEndY = touch.clientY;
-                const deltaX = touchEndX - this.touchStartX;
-                const deltaY = touchEndY - this.touchStartY;
-                const minSwipe = Math.max(24, this.blockSize * 0.6); // scale swipe threshold to block size
-
-                // horizontal swipe prioritized
-                if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipe) {
-                    if (deltaX > 0) {
-                        this.moveRight();
-                    } else {
-                        this.moveLeft();
-                    }
-                } else if (Math.abs(deltaY) > minSwipe) {
-                    if (deltaY > 0) {
-                        this.moveDown();
-                    } else {
-                        // upward swipe could be hard drop — optional; we'll rotate for small upwards
-                        this.rotatePiece();
-                    }
-                } else {
-                    // tap (small movement) -> rotate
-                    this.rotatePiece();
-                }
-
-                this.touchStartX = null;
-                this.touchStartY = null;
-            }
-
-            handleRotate(e) {
-                // Desktop fallback: click to rotate
-                e.preventDefault();
-                this.rotatePiece();
-            }
-
-            gameLoop(currentTime = 0) {
-                if (this.isGameOver) return;
-
-                const deltaTime = currentTime - this.lastTime;
-                this.lastTime = currentTime;
-                this.dropTime += deltaTime;
-
-                if (this.dropTime > this.dropInterval) {
-                    this.moveDown();
-                    this.dropTime = 0;
-                }
-
-                this.drawBoard();
-                requestAnimationFrame(this.gameLoop);
-            }
-
-            destroy() {
-                // Remove listeners if needed
-                window.removeEventListener('resize', this.boundResize);
-                this.canvas.removeEventListener('touchstart', this.boundTouchStart);
-                this.canvas.removeEventListener('touchend', this.boundTouchEnd);
-                this.canvas.removeEventListener('click', this.boundClick);
-                this.restartBtn.removeEventListener('click', this.restart);
-            }
+      drawBoard() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        for (let row = 0; row < this.rows; row++) {
+          for (let col = 0; col < this.cols; col++) {
+            if (this.board[row][col]) this.drawBlock(col, row, this.board[row][col]);
+          }
         }
+        this.drawPiece(this.currentPiece);
+      }
 
-        // Keep a reference so we can restart properly if needed
-        let gameInstance = null;
-
-        // Start button handler
-        document.getElementById('startBtn').addEventListener('click', async () => {
-            // Create/resume audio context from user gesture
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            try {
-                await audioContext.resume();
-            } catch (err) {
-                // ignore resume errors; playSound will try again later
-            }
-
-            // hide start UI and show game UI
-            document.getElementById('startBtn').style.display = 'none';
-            const scoreEl = document.getElementById('score');
-            scoreEl.style.display = 'block';
-            const canvasEl = document.getElementById('tetris');
-            canvasEl.style.display = 'block';
-
-            // If there was an existing instance, destroy it (safety)
-            if (gameInstance && typeof gameInstance.destroy === 'function') {
-                gameInstance.destroy();
-            }
-            // create a fresh game instance
-            gameInstance = new TetrisGame(audioContext);
+      drawPiece(piece) {
+        piece.shape.forEach((row, dy) => {
+          row.forEach((value, dx) => {
+            if (value) this.drawBlock(piece.col + dx, piece.row + dy, piece.color);
+          });
         });
+      }
 
-        // Optional: allow pressing "Restart" even before game started by exposing overlay restart
-        document.getElementById('restartBtn').addEventListener('click', () => {
-            if (gameInstance) {
-                gameInstance.restart();
-            } else {
-                // simulate start
-                document.getElementById('startBtn').click();
+      validMove(piece, rowOffset = 0, colOffset = 0, shape = null) {
+        const testShape = shape || piece.shape;
+        for (let dy = 0; dy < testShape.length; dy++) {
+          for (let dx = 0; dx < testShape[dy].length; dx++) {
+            if (testShape[dy][dx]) {
+              const newRow = piece.row + dy + rowOffset;
+              const newCol = piece.col + dx + colOffset;
+              if (newRow >= this.rows || newCol < 0 || newCol >= this.cols || (newRow >= 0 && this.board[newRow][newCol])) {
+                return false;
+              }
             }
+          }
+        }
+        return true;
+      }
+
+      placePiece() {
+        this.currentPiece.shape.forEach((row, dy) => {
+          row.forEach((value, dx) => {
+            if (value) {
+              const y = this.currentPiece.row + dy;
+              const x = this.currentPiece.col + dx;
+              if (y >= 0) this.board[y][x] = this.currentPiece.color;
+            }
+          });
         });
-    </script>
+        this.clearLines();
+        this.currentPiece = this.nextPiece;
+        this.nextPiece = this.getNewPiece();
+        if (!this.validMove(this.currentPiece)) this.gameOver();
+        this.playSound(200, 0.1);
+      }
+
+      clearLines() {
+        let linesCleared = 0;
+        for (let row = this.rows - 1; row >= 0; row--) {
+          if (this.board[row].every(cell => cell !== 0)) {
+            this.board.splice(row, 1);
+            this.board.unshift(Array(this.cols).fill(0));
+            linesCleared++;
+            row++;
+          }
+        }
+        if (linesCleared > 0) {
+          this.score += linesCleared * 100;
+          this.scoreElement.textContent = `Score: ${this.score}`;
+          this.dropInterval = Math.max(100, this.dropInterval - 50 * linesCleared);
+          this.playSound(400 + linesCleared * 200, 0.2);
+        }
+      }
+
+      rotatePiece() {
+        const rotated = this.currentPiece.shape[0].map((_, i) => this.currentPiece.shape.map(r => r[i]).reverse());
+        if (this.validMove(this.currentPiece, 0, 0, rotated)) {
+          this.currentPiece.shape = rotated;
+          this.playSound(600, 0.05);
+        }
+      }
+
+      moveDown() {
+        if (this.validMove(this.currentPiece, 1)) {
+          this.currentPiece.row++;
+          this.playSound(100, 0.03);
+        } else this.placePiece();
+      }
+
+      moveHorizontal(steps) {
+        if (steps === 0) return;
+        let moved = 0;
+        while (moved !== steps) {
+          if (steps > 0 && this.validMove(this.currentPiece, 0, 1)) {
+            this.currentPiece.col++;
+            moved++;
+          } else if (steps < 0 && this.validMove(this.currentPiece, 0, -1)) {
+            this.currentPiece.col--;
+            moved--;
+          } else break;
+        }
+        if (moved !== 0) this.playSound(150, 0.03);
+      }
+
+      gameOver() {
+        this.isGameOver = true;
+        this.playSound(100, 0.5);
+        alert(`Game Over! Score: ${this.score}`);
+      }
+
+      playSound(f, d) {
+        if (this.audioContext.state === 'suspended') this.audioContext.resume();
+        const osc = this.audioContext.createOscillator();
+        const gain = this.audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(this.audioContext.destination);
+        osc.frequency.value = f;
+        osc.type = 'square';
+        gain.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + d);
+        osc.start(this.audioContext.currentTime);
+        osc.stop(this.audioContext.currentTime + d);
+      }
+
+      handlePointerDown(e) {
+        e.preventDefault();
+        this.pointerActive = true;
+        this.pointerStartX = e.clientX;
+        this.pointerStartY = e.clientY;
+      }
+
+      handlePointerMove(e) {
+        if (!this.pointerActive || this.isGameOver) return;
+        const deltaX = (e.clientX - this.pointerStartX) * 0.9;
+        const steps = Math.round(deltaX / this.blockSize);
+        this.moveHorizontal(steps);
+        this.pointerStartX = e.clientX; // reset origin to avoid huge jumps
+      }
+
+      handlePointerUp(e) {
+        this.pointerActive = false;
+      }
+
+      gameLoop(currentTime = 0) {
+        if (this.isGameOver) return;
+        const deltaTime = currentTime - this.lastTime;
+        this.lastTime = currentTime;
+        this.dropTime += deltaTime;
+        if (this.dropTime > this.dropInterval) {
+          this.moveDown();
+          this.dropTime = 0;
+        }
+        this.drawBoard();
+        requestAnimationFrame(this.gameLoop);
+      }
+    }
+
+    document.getElementById('startBtn').addEventListener('click', async () => {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      await audioContext.resume();
+      document.getElementById('startBtn').style.display = 'none';
+      document.getElementById('score').style.display = 'block';
+      document.getElementById('tetris').style.display = 'block';
+      new TetrisGame(audioContext);
+    });
+  </script>
 </body>
 </html>
