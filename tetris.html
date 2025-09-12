@@ -12,7 +12,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      min-height: 100vh;
+      height: 100vh; /* full viewport */
       background-color: #000;
       font-family: Arial, sans-serif;
       overflow: hidden;
@@ -25,7 +25,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
     }
     #instructions {
       font-size: 14px;
@@ -57,16 +57,20 @@
       display: none;
     }
     #playArea {
+      flex: 1;
       display: flex;
-      align-items: flex-start;
+      align-items: center;
       justify-content: center;
       gap: 10px;
+      max-height: 100%;
     }
     #tetris {
       border: 2px solid #fff;
       background-color: #111;
       touch-action: none;
       display: none;
+      max-height: 100%;
+      max-width: 100%;
     }
     #nextPreview {
       border: 1px solid #fff;
@@ -123,7 +127,7 @@
     <div id="score">Score: 0</div>
     <div id="playArea">
       <canvas id="tetris"></canvas>
-      <canvas id="nextPreview" width="80" height="80"></canvas>
+      <canvas id="nextPreview"></canvas>
     </div>
   </div>
   <footer><pre id="errors"></pre></footer>
@@ -146,6 +150,9 @@
         this.previewCtx = this.previewCanvas.getContext('2d');
         this.scoreElement = document.getElementById('score');
         this.score = 0;
+
+        this.cols = 10;
+        this.rows = 20;
 
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
@@ -175,12 +182,21 @@
       }
 
       resizeCanvas() {
-        const padding = 60;
-        this.blockSize = Math.min(window.innerWidth * 0.95 / 10, (window.innerHeight - padding) / 20);
-        this.canvas.width = 10 * this.blockSize;
-        this.canvas.height = 20 * this.blockSize;
-        this.cols = 10;
-        this.rows = 20;
+        const footerHeight = document.querySelector('footer')?.offsetHeight || 0;
+        const headerSpace = 140; // space for score + preview + margins
+        const availableHeight = window.innerHeight - footerHeight - headerSpace;
+
+        const blockSizeByHeight = availableHeight / this.rows;
+        const blockSizeByWidth  = window.innerWidth * 0.95 / this.cols;
+        this.blockSize = Math.floor(Math.min(blockSizeByHeight, blockSizeByWidth));
+
+        this.canvas.width  = this.cols * this.blockSize;
+        this.canvas.height = this.rows * this.blockSize;
+
+        // scale preview canvas relative to block size
+        const previewSize = this.blockSize * 4;
+        this.previewCanvas.width = previewSize;
+        this.previewCanvas.height = previewSize;
       }
 
       createBoard() {
