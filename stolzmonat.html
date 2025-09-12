@@ -3,17 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Profile Image Generator with Tricolor Border</title>
+<title>Profile Image Generator with Tricolor Border & Gestures</title>
 <style>
   body {
     font-family: sans-serif;
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 50px;
+    margin-top: 30px;
   }
   canvas {
-    display: none; /* hide canvas */
+    display: none; /* hidden */
   }
   #preview {
     border-radius: 50%;
@@ -21,6 +21,7 @@
     width: 300px;   /* display size */
     height: 300px;  /* display size */
     object-fit: cover;
+    touch-action: none; /* important for custom gestures */
   }
   input[type="range"] {
     width: 300px;
@@ -42,7 +43,6 @@
 <input type="range" id="borderWidthSlider" min="0.5" max="2" step="0.01" value="1.3">
 <button id="downloadBtn">Download Image</button>
 
-<!-- Hidden high-res canvas -->
 <canvas id="canvas" width="1000" height="1000"></canvas>
 
 <script>
@@ -56,10 +56,21 @@ const preview = document.getElementById('preview');
 let uploadedImg = null;
 let borderScale = parseFloat(borderWidthSlider.value);
 
-// Function to build the SVG border dynamically based on scale
+// Transform state for image
+let offsetX = 0;
+let offsetY = 0;
+let imgScale = 1.0;
+
+// Gesture state
+let isDragging = false;
+let lastX, lastY;
+let pinchStartDist = null;
+let pinchStartScale = 1.0;
+
+// Make border SVG dynamically
 function makeBorderSvg(scale) {
   const outerRadius = 480;
-  const innerRadius = 480 - (80 * scale); // dynamic thickness
+  const innerRadius = 480 - (80 * scale);
   return `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
     <defs>
@@ -76,8 +87,6 @@ function makeBorderSvg(scale) {
   </svg>
   `;
 }
-
-// Generate Image object from SVG string
 function svgToImage(svgString) {
   const img = new Image();
   img.src = 'data:image/svg+xml;base64,' + btoa(svgString);
@@ -88,57 +97,127 @@ function svgToImage(svgString) {
 function drawCanvas() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Build border SVG dynamically
   const borderSvgString = makeBorderSvg(borderScale);
   const borderImg = svgToImage(borderSvgString);
 
   borderImg.onload = () => {
-    // Draw border first (bottom layer)
+    // Border bottom layer
     ctx.drawImage(borderImg, 0, 0, canvas.width, canvas.height);
 
-    // Draw circular clipped content on top
+    // Clip for photo
     ctx.save();
-    const radius = 400 - (40 * (borderScale - 1)); // match with inner cutout logic
+    const radius = 400 - (40 * (borderScale - 1));
     ctx.beginPath();
     ctx.arc(canvas.width/2, canvas.height/2, radius, 0, Math.PI * 2);
     ctx.closePath();
     ctx.clip();
 
     if (uploadedImg) {
-      const size = Math.min(uploadedImg.width, uploadedImg.height);
-      const sx = (uploadedImg.width - size) / 2;
-      const sy = (uploadedImg.height - size) / 2;
-      ctx.drawImage(uploadedImg, sx, sy, size, size, 0, 0, canvas.width, canvas.height);
+      // Apply transform
+      const baseSize = Math.min(uploadedImg.width, uploadedImg.height);
+      const drawSize = baseSize * imgScale;
+
+      const sx = (uploadedImg.width - baseSize) / 2;
+      const sy = (uploadedImg.height - baseSize) / 2;
+
+      ctx.drawImage(
+        uploadedImg,
+        sx, sy, baseSize, baseSize,
+        offsetX + (canvas.width - drawSize) / 2,
+        offsetY + (canvas.height - drawSize) / 2,
+        drawSize, drawSize
+      );
     } else {
-      // Draw silhouette
       ctx.fillStyle = '#ccc';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
     ctx.restore();
 
-    // Update preview <img> from canvas (scaled down)
+    // Update preview <img>
     preview.src = canvas.toDataURL('image/png');
   };
 }
+
+// --- Gesture handlers ---
+function distance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx*dx + dy*dy);
+}
+
+preview.addEventListener('mousedown', (e) => {
+  isDragging = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+});
+window.addEventListener('mouseup', () => { isDragging = false; });
+window.addEventListener('mousemove', (e) => {
+  if (!isDragging) return;
+  offsetX += e.clientX - lastX;
+  offsetY += e.clientY - lastY;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  drawCanvas();
+});
+
+// Touch drag & pinch
+preview.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 1) {
+    isDragging = true;
+    lastX = e.touches[0].clientX;
+    lastY = e.touches[0].clientY;
+  } else if (e.touches.length === 2) {
+    isDragging = false;
+    pinchStartDist = distance(e.touches);
+    pinchStartScale = imgScale;
+  }
+}, {passive: false});
+
+preview.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (e.touches.length === 1 && isDragging) {
+    const dx = e.touches[0].clientX - lastX;
+    const dy = e.touches[0].clientY - lastY;
+    offsetX += dx;
+    offsetY += dy;
+    lastX = e.touches[0].clientX;
+    lastY = e.touches[0].clientY;
+    drawCanvas();
+  } else if (e.touches.length === 2 && pinchStartDist) {
+    const newDist = distance(e.touches);
+    const scaleFactor = newDist / pinchStartDist;
+    imgScale = pinchStartScale * scaleFactor;
+    drawCanvas();
+  }
+}, {passive: false});
+
+preview.addEventListener('touchend', (e) => {
+  if (e.touches.length < 2) pinchStartDist = null;
+  if (e.touches.length === 0) isDragging = false;
+});
 
 // File upload
 upload.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
-
   uploadedImg = new Image();
   uploadedImg.src = URL.createObjectURL(file);
-  uploadedImg.onload = drawCanvas;
+  uploadedImg.onload = () => {
+    offsetX = 0;
+    offsetY = 0;
+    imgScale = 1.0;
+    drawCanvas();
+  };
 });
 
-// Border thickness slider
+// Border slider
 borderWidthSlider.addEventListener('input', (e) => {
   borderScale = parseFloat(e.target.value);
   drawCanvas();
 });
 
-// Download button
+// Download
 downloadBtn.addEventListener('click', () => {
   const link = document.createElement('a');
   link.download = 'profile-image.png';
@@ -146,9 +225,8 @@ downloadBtn.addEventListener('click', () => {
   link.click();
 });
 
-// Initial preview
+// Initial render
 drawCanvas();
 </script>
-
 </body>
 </html>
