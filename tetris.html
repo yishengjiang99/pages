@@ -274,11 +274,16 @@
         }
       }
 
-      moveDown() {
-        if (this.validMove(this.currentPiece, 1)) {
-          this.currentPiece.row++;
-          this.playSound(100, 0.03);
-        } else this.placePiece();
+      moveDown(steps = 1) {
+        for (let i = 0; i < steps; i++) {
+          if (this.validMove(this.currentPiece, 1)) {
+            this.currentPiece.row++;
+            this.playSound(100, 0.02);
+          } else {
+            this.placePiece();
+            break;
+          }
+        }
       }
 
       moveHorizontal(steps) {
@@ -293,7 +298,7 @@
             moved--;
           } else break;
         }
-        if (moved !== 0) this.playSound(150, 0.03);
+        if (moved !== 0) this.playSound(150, 0.02);
       }
 
       gameOver() {
@@ -325,10 +330,21 @@
 
       handlePointerMove(e) {
         if (!this.pointerActive || this.isGameOver) return;
+
         const deltaX = (e.clientX - this.pointerStartX) * 0.9;
-        const steps = Math.round(deltaX / this.blockSize);
-        this.moveHorizontal(steps);
-        this.pointerStartX = e.clientX; // reset origin to avoid huge jumps
+        const deltaY = (e.clientY - this.pointerStartY) * 0.9;
+
+        const stepsX = Math.round(deltaX / this.blockSize);
+        const stepsY = Math.round(deltaY / this.blockSize);
+
+        if (stepsX !== 0) {
+          this.moveHorizontal(stepsX);
+          this.pointerStartX = e.clientX;
+        }
+        if (stepsY > 0) { // Only downward drag
+          this.moveDown(stepsY);
+          this.pointerStartY = e.clientY;
+        }
       }
 
       handlePointerUp(e) {
