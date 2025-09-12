@@ -11,13 +11,14 @@
       user-select: none;           /* disable text selection */
       touch-action: none;          /* prevent gestures and scrolling */
       overscroll-behavior: none;   /* prevent pull-to-refresh */
+      height: 100%;
+      width: 100%;
     }
     body {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      height: 100vh;
       background-color: #000;
       font-family: Arial, sans-serif;
       color: white;
@@ -141,45 +142,37 @@
       drawPiece(p,ctx=this.ctx,size=this.blockSize){ p.shape.forEach((row,dy)=>row.forEach((v,dx)=>{if(v)this.drawBlock(p.col+dx,p.row+dy,p.color,ctx,size)})); }
       drawPreview(){ this.previewCtx.clearRect(0,0,this.previewCanvas.width,this.previewCanvas.height); const size=this.previewCanvas.width/4; this.nextPiece.shape.forEach((row,dy)=>row.forEach((v,dx)=>{if(v)this.drawBlock(dx,dy,this.nextPiece.color,this.previewCtx,size)})); }
 
-      validMove(p,rowOffset=0,colOffset=0,shape=null){ const s=shape||p.shape; for(let dy=0;dy<s.length;dy++)for(let dx=0;dx<s[dy].length;dx++)if(s[dy][dx]){ const r=p.row+dy+rowOffset,c=p.col+dx+colOffset; if(r>=this.rows||c<0||c>=this.cols||(r>=0&&this.board[r][c])) return false;} return true; }
+      validMove(p,rowOffset=0,colOffset=0,shape=null){ const s=shape||p.shape; for(let r=0;r<s.length;r++){ for(let c=0;c<s[r].length;c++){ if(s[r][c]){ let newR=p.row+r+rowOffset, newC=p.col+c+colOffset; if(newR<0||newR>=this.rows||newC<0||newC>=this.cols) return false; if(this.board[newR][newC]) return false; }}} return true;}
 
-      placePiece(){ this.currentPiece.shape.forEach((row,dy)=>row.forEach((v,dx)=>{if(v){const y=this.currentPiece.row+dy,x=this.currentPiece.col+dx;if(y>=0)this.board[y][x]=this.currentPiece.color;}})); this.clearLines(); this.currentPiece=this.nextPiece; this.nextPiece=this.getNewPiece(); if(!this.validMove(this.currentPiece)) this.gameOver(); this.playSound(200,0.1); }
-      clearLines(){ let lines=0; for(let r=this.rows-1;r>=0;r--){ if(this.board[r].every(c=>c!==0)){this.board.splice(r,1);this.board.unshift(Array(this.cols).fill(0)); lines++; r++;} } if(lines){ this.score+=lines*100; this.scoreElement.textContent=`Score: ${this.score}`; this.dropInterval=Math.max(100,this.dropInterval-50*lines); this.playSound(400+lines*200,0.2);} }
+      moveDown(steps=1){ for(let i=0;i<steps;i++){ if(this.validMove(this.currentPiece,1)){ this.currentPiece.row++; this.playSound(100,0.02); if(this.landingTimer){ clearTimeout(this.landingTimer); this.landingTimer=null; } } else { if(!this.landingTimer){ this.landingTimer=setTimeout(()=>{ this.placePiece(); this.landingTimer=null; },500);} break; } } }
+      moveHorizontal(steps){ let moved=0; while(moved!==steps){ if(steps>0 && this.validMove(this.currentPiece,0,1)){ this.currentPiece.col++; moved++; } else if(steps<0 && this.validMove(this.currentPiece,0,-1)){ this.currentPiece.col--; moved--; } else break; } if(moved){ this.playSound(150,0.02); if(this.landingTimer){ clearTimeout(this.landingTimer); this.landingTimer=null; } } }
+      hardDrop(){ while(this.validMove(this.currentPiece,1)){ this.currentPiece.row++; } this.placePiece(); }
 
-      rotatePiece(){ const rot=this.currentPiece.shape[0].map((_,i)=>this.currentPiece.shape.map(r=>r[i]).reverse()); if(this.validMove(this.currentPiece,0,0,rot)){this.currentPiece.shape=rot;this.playSound(600,0.05);} }
+      rotatePiece(){ const s=this.currentPiece.shape; const rotated=s[0].map((_,i)=>s.map(r=>r[i])).reverse(); if(this.validMove(this.currentPiece,0,0,rotated)){ this.currentPiece.shape=rotated; this.playSound(200,0.02); if(this.landingTimer){ clearTimeout(this.landingTimer); this.landingTimer=null; } } }
 
-      moveDown(steps=1){ for(let i=0;i<steps;i++){ if(this.validMove(this.currentPiece,1)){ this.currentPiece.row++; this.playSound(100,0.02); if(this.landingTimer){clearTimeout(this.landingTimer);this.landingTimer=null;} } else { if(!this.landingTimer){ this.landingTimer=setTimeout(()=>{this.placePiece();this.landingTimer=null;},500); } break; } } }
+      placePiece(){ this.currentPiece.shape.forEach((row,dy)=>row.forEach((v,dx)=>{ if(v) this.board[this.currentPiece.row+dy][this.currentPiece.col+dx]=this.currentPiece.color; })); this.clearLines(); this.currentPiece=this.nextPiece; this.nextPiece=this.getNewPiece(); if(!this.validMove(this.currentPiece)) this.gameOver(); }
+      clearLines(){ let lines=0; outer: for(let r=this.rows-1;r>=0;r--){ if(this.board[r].every(v=>v)){ this.board.splice(r,1); this.board.unshift(Array(this.cols).fill(0)); lines++; r++; } } if(lines){ this.score+=lines*100; this.scoreElement.textContent="Score: "+this.score; this.playSound(400,0.05); } }
 
-      moveHorizontal(steps){ let moved=0; while(moved!==steps){ if(steps>0&&this.validMove(this.currentPiece,0,1)){this.currentPiece.col++;moved++;} else if(steps<0&&this.validMove(this.currentPiece,0,-1)){this.currentPiece.col--;moved--;} else break;} if(moved)this.playSound(150,0.02); }
-      hardDrop(){ while(this.validMove(this.currentPiece,1)) this.currentPiece.row++; this.placePiece(); this.playSound(800,0.1); }
-
-      gameOver(){ this.isGameOver=true; this.playSound(100,0.5); alert(`Game Over! Score: ${this.score}`); }
-      playSound(f,d){ try{ if(this.audioContext.state==='suspended') this.audioContext.resume(); const osc=this.audioContext.createOscillator(),g=this.audioContext.createGain(); osc.connect(g); g.connect(this.audioContext.destination); osc.frequency.value=f; osc.type='square'; g.gain.setValueAtTime(0.1,this.audioContext.currentTime); g.gain.exponentialRampToValueAtTime(0.01,this.audioContext.currentTime+d); osc.start(this.audioContext.currentTime); osc.stop(this.audioContext.currentTime+d);} catch(e){ document.getElementById('silentMode').style.display='block';} }
+      gameOver(){ this.isGameOver=true; alert("Game Over! Score: "+this.score); }
 
       handlePointerDown(e){ this.pointerActive=true; this.pointerStartX=e.clientX; this.pointerStartY=e.clientY; }
-      handlePointerMove(e){
-        if(!this.pointerActive||this.isGameOver) return;
-        const dx=(e.clientX-this.pointerStartX)*0.9, dy=(e.clientY-this.pointerStartY)*0.9;
-        const stepsX=Math.round(dx/this.blockSize);
-        const stepsY=Math.round(dy/this.blockSize);
-        if(stepsX){ this.moveHorizontal(stepsX); this.pointerStartX=e.clientX; }
-        if(stepsY>0){ this.moveDown(stepsY); this.pointerStartY=e.clientY; }  // only allow soft drop
-      }
+      handlePointerMove(e){ if(!this.pointerActive) return; const dx=e.clientX-this.pointerStartX; const dy=e.clientY-this.pointerStartY; const threshold=this.blockSize*0.9; if(Math.abs(dx)>threshold){ this.moveHorizontal(dx>0?1:-1); this.pointerStartX=e.clientX; } if(dy>threshold){ this.moveDown(); this.pointerStartY=e.clientY; } }
       handlePointerUp(){ this.pointerActive=false; }
 
-      gameLoop(t=0){ if(this.isGameOver)return; const dt=t-this.lastTime; this.lastTime=t; this.dropTime+=dt; if(this.dropTime>this.dropInterval){ this.moveDown(); this.dropTime=0; } this.drawBoard(); requestAnimationFrame(this.gameLoop); }
+      gameLoop(time){ if(this.isGameOver) return; const delta=time-this.lastTime; this.lastTime=time; this.dropTime+=delta; if(this.dropTime>this.dropInterval){ this.moveDown(); this.dropTime=0; } this.drawBoard(); requestAnimationFrame(this.gameLoop); }
+
+      playSound(freq,duration){ if(!this.audioContext) return; const o=this.audioContext.createOscillator(); const g=this.audioContext.createGain(); o.connect(g); g.connect(this.audioContext.destination); o.frequency.value=freq; o.type="square"; o.start(); o.stop(this.audioContext.currentTime+duration); }
     }
 
-    document.getElementById('startBtn').addEventListener('click',async()=>{
-      const audioContext=new (window.AudioContext||window.webkitAudioContext)();
-      try{await audioContext.resume();}catch(e){document.getElementById('silentMode').style.display='block';}
-      document.getElementById('instructions').style.display='none';
-      document.getElementById('startBtn').style.display='none';
-      document.getElementById('score').style.display='block';
-      document.getElementById('tetris').style.display='block';
-      document.getElementById('nextPreview').style.display='block';
-      document.getElementById('rotateBtn').style.display='block';
-      new TetrisGame(audioContext);
+    document.getElementById('startBtn').addEventListener('click',()=>{
+      let audioCtx; try{ audioCtx=new (window.AudioContext||window.webkitAudioContext)(); if(audioCtx.state==="suspended") audioCtx.resume(); } catch{ document.getElementById('silentMode').style.display="block"; }
+      document.getElementById('startBtn').style.display="none";
+      document.getElementById('instructions').style.display="none";
+      document.getElementById('score').style.display="block";
+      document.getElementById('tetris').style.display="block";
+      document.getElementById('nextPreview').style.display="block";
+      document.getElementById('rotateBtn').style.display="block";
+      new TetrisGame(audioCtx);
     });
   </script>
 </body>
