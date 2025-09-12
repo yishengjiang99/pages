@@ -49,21 +49,26 @@
 <img id="preview" alt="Profile preview">
 
 <div class="controls">
+
+  <!-- Mode selector -->
   <div class="row">
     <label><input type="radio" name="mode" value="tint" checked> Tinted</label>
     <label><input type="radio" name="mode" value="ring"> Ring Clip</label>
   </div>
 
+  <!-- Border slider (only relevant in Ring mode) -->
   <div class="row">
     <label for="borderWidthSlider">Border Thickness</label>
   </div>
   <input id="borderWidthSlider" type="range" min="0.5" max="2" step="0.01" value="1.3">
 
+  <!-- Tint opacity slider -->
   <div class="row">
     <label for="tintOpacity">Tint opacity</label>
     <input id="tintOpacity" type="range" min="0" max="1" step="0.01" value="0.4">
   </div>
 
+  <!-- Buttons -->
   <div class="row">
     <button id="downloadBtn">Download Image</button>
     <button id="resetBtn">Reset Position</button>
