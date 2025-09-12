@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
     <title>Mobile Tetris</title>
     <style>
         body {
@@ -67,6 +67,32 @@
             overflow-y: auto;
             white-space: pre-wrap;
         }
+
+        /* Game-over overlay */
+        #overlay {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.85);
+            color: #fff;
+            z-index: 1000;
+            flex-direction: column;
+        }
+        #overlay h2 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+        }
+        #overlay button {
+            margin-top: 12px;
+            padding: 10px 16px;
+            font-size: 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+        }
+
         @media (orientation: landscape) {
             body::before {
                 content: "Please rotate your device to portrait mode";
@@ -93,14 +119,21 @@
     <div id="gameContainer">
         <button id="startBtn">Start Game</button>
         <div id="score">Score: 0</div>
-        <canvas id="tetris"></canvas>
+        <canvas id="tetris" aria-label="Tetris game board"></canvas>
     </div>
+
+    <div id="overlay">
+        <h2 id="overlayText">Game Over</h2>
+        <div id="overlayScore">Score: 0</div>
+        <button id="restartBtn">Restart</button>
+    </div>
+
     <footer>
         <pre id="errors"></pre>
     </footer>
 
     <script>
-        // Error handling
+        // Error handling - show stack/message in footer pre
         window.addEventListener('error', function(e) {
             const pre = document.getElementById('errors');
             if (pre) {
@@ -120,66 +153,148 @@
                 this.canvas = document.getElementById('tetris');
                 this.ctx = this.canvas.getContext('2d');
                 this.scoreElement = document.getElementById('score');
+                this.overlay = document.getElementById('overlay');
+                this.overlayText = document.getElementById('overlayText');
+                this.overlayScore = document.getElementById('overlayScore');
+                this.restartBtn = document.getElementById('restartBtn');
+
+                this.audioContext = audioContext;
+
+                // game state
+                this.cols = 10;
+                this.rows = 20;
+                this.blockSize = 24; // default, will be recalculated
+                this.dropInterval = 1000; // ms per drop
+                this.dropTime = 0;
+                this.lastTime = performance.now();
+                this.isGameOver = false;
+
+                // Score and UI
                 this.score = 0;
+                this.updateScoreUI();
 
-                // Resize first to set cols, rows, blockSize
+                // Resize first to compute blockSize, canvas size
                 this.resizeCanvas();
-                window.addEventListener('resize', () => this.resizeCanvas());
+                this.boundResize = () => this.resizeCanvas();
+                window.addEventListener('resize', this.boundResize);
 
+                // Board & pieces
                 this.board = this.createBoard();
                 this.currentPiece = this.getNewPiece();
                 this.nextPiece = this.getNewPiece();
-                this.dropTime = 0;
-                this.dropInterval = 1000; // ms per drop
-                this.lastTime = performance.now();
-                this.audioContext = audioContext;
-                this.isGameOver = false;
 
-                // Input handlers
-                this.canvas.addEventListener('touchstart', (e) => this.handleTouchStart(e), { passive: false });
-                this.canvas.addEventListener('touchend', (e) => this.handleTouchEnd(e), { passive: false });
-                this.canvas.addEventListener('click', (e) => this.handleRotate(e)); // Fallback for desktop
+                // Input handlers (touch and click)
+                this.boundTouchStart = (e) => this.handleTouchStart(e);
+                this.boundTouchEnd = (e) => this.handleTouchEnd(e);
+                this.boundClick = (e) => this.handleRotate(e);
 
+                this.canvas.addEventListener('touchstart', this.boundTouchStart, { passive: false });
+                this.canvas.addEventListener('touchend', this.boundTouchEnd, { passive: false });
+                this.canvas.addEventListener('click', this.boundClick); // desktop fallback
+
+                // Restart overlay
+                this.restartBtn.addEventListener('click', () => this.restart());
+
+                // Game loop
                 this.gameLoop = this.gameLoop.bind(this);
                 requestAnimationFrame(this.gameLoop);
             }
 
+            // calculate blockSize relative to viewport while keeping the board cells consistent
             resizeCanvas() {
-                const padding = 60; // Account for score, borders, etc.
-                this.blockSize = Math.min(window.innerWidth * 0.95 / 10, (window.innerHeight - padding) / 20);
-                this.canvas.width = 10 * this.blockSize;
-                this.canvas.height = 20 * this.blockSize;
-                this.cols = 10;
-                this.rows = 20;
+                const padding = 100; // space for score / UI
+                const maxWidth = window.innerWidth * 0.95;
+                const maxHeight = (window.innerHeight - padding);
+                this.blockSize = Math.floor(Math.min(maxWidth / this.cols, maxHeight / this.rows));
+                if (this.blockSize < 8) this.blockSize = 8; // minimal reasonable size
+                this.canvas.width = this.cols * this.blockSize;
+                this.canvas.height = this.rows * this.blockSize;
+                // when resizing we simply redraw; board logical state stays the same
+                this.drawBoard();
             }
 
             createBoard() {
                 return Array.from({ length: this.rows }, () => Array(this.cols).fill(0));
             }
 
-            getNewPiece() {
-                const pieces = 'I O T S Z J L'.split(' ');
-                const type = pieces[Math.floor(Math.random() * pieces.length)];
-                return {
-                    type,
-                    shape: this.getShape(type),
-                    row: 0,
-                    col: Math.floor(this.cols / 2) - 1,
-                    color: this.getColor(type)
-                };
-            }
-
-            getShape(type) {
+            // pieces: each entry is an array of rotation states (matrices)
+            getShapeRotations(type) {
+                const R = (m) => m; // helper alias (keeps code readable)
                 const shapes = {
-                    I: [[[1,1,1,1]]],
-                    O: [[[1,1],[1,1]]],
-                    T: [[[0,1,0],[1,1,1]], [[1,0],[1,1],[1,0]], [[1,1,1],[0,1,0]], [[0,1],[1,1],[0,1]]],
-                    S: [[[0,1,1],[1,1,0]], [[1,0],[1,1],[0,1]]],
-                    Z: [[[1,1,0],[0,1,1]], [[0,1],[1,1],[1,0]]],
-                    J: [[[1,0,0],[1,1,1]], [[1,1],[1,0],[1,0]], [[1,1,1],[0,0,1]], [[0,1],[0,1],[1,1]]],
-                    L: [[[0,0,1],[1,1,1]], [[1,0],[1,0],[1,1]], [[1,1,1],[1,0,0]], [[1,1],[0,1],[0,1]]]
+                    I: [
+                        R([[0,0,0,0],
+                           [1,1,1,1],
+                           [0,0,0,0],
+                           [0,0,0,0]]),
+                        R([[0,0,1,0],
+                           [0,0,1,0],
+                           [0,0,1,0],
+                           [0,0,1,0]])
+                    ],
+                    O: [
+                        R([[1,1],
+                           [1,1]])
+                    ],
+                    T: [
+                        R([[0,1,0],
+                           [1,1,1],
+                           [0,0,0]]),
+                        R([[0,1,0],
+                           [0,1,1],
+                           [0,1,0]]),
+                        R([[0,0,0],
+                           [1,1,1],
+                           [0,1,0]]),
+                        R([[0,1,0],
+                           [1,1,0],
+                           [0,1,0]])
+                    ],
+                    S: [
+                        R([[0,1,1],
+                           [1,1,0],
+                           [0,0,0]]),
+                        R([[0,1,0],
+                           [0,1,1],
+                           [0,0,1]])
+                    ],
+                    Z: [
+                        R([[1,1,0],
+                           [0,1,1],
+                           [0,0,0]]),
+                        R([[0,0,1],
+                           [0,1,1],
+                           [0,1,0]])
+                    ],
+                    J: [
+                        R([[1,0,0],
+                           [1,1,1],
+                           [0,0,0]]),
+                        R([[0,1,1],
+                           [0,1,0],
+                           [0,1,0]]),
+                        R([[0,0,0],
+                           [1,1,1],
+                           [0,0,1]]),
+                        R([[0,1,0],
+                           [0,1,0],
+                           [1,1,0]])
+                    ],
+                    L: [
+                        R([[0,0,1],
+                           [1,1,1],
+                           [0,0,0]]),
+                        R([[0,1,0],
+                           [0,1,0],
+                           [0,1,1]]),
+                        R([[0,0,0],
+                           [1,1,1],
+                           [1,0,0]]),
+                        R([[1,1,0],
+                           [0,1,0],
+                           [0,1,0]])
+                    ]
                 };
-                return shapes[type][0]; // Start with first rotation
+                return shapes[type];
             }
 
             getColor(type) {
@@ -187,10 +302,39 @@
                     I: '#00f0f0', O: '#f0f000', T: '#a000f0',
                     S: '#00f000', Z: '#f00000', J: '#0000f0', L: '#f0a000'
                 };
-                return colors[type];
+                return colors[type] || '#ffffff';
+            }
+
+            getNewPiece() {
+                const pieces = ['I','O','T','S','Z','J','L'];
+                const type = pieces[Math.floor(Math.random() * pieces.length)];
+                const rotations = this.getShapeRotations(type);
+                const rotationIndex = 0;
+                // center horizontally: for odd-width matrices, col offset should account for width
+                const shape = rotations[rotationIndex];
+                const spawnCol = Math.floor((this.cols - shape[0].length) / 2);
+                return {
+                    type,
+                    rotations,
+                    rotationIndex,
+                    shape,
+                    row: -this.topEmptyRows(shape), // start slightly above visible area to allow spawn
+                    col: spawnCol,
+                    color: this.getColor(type)
+                };
+            }
+
+            // helper to compute top empty rows so pieces spawn slightly above visible board
+            topEmptyRows(matrix) {
+                for (let r = 0; r < matrix.length; r++) {
+                    if (matrix[r].some(v => v)) return r;
+                }
+                return 0;
             }
 
             drawBlock(x, y, color) {
+                // Only draw if inside canvas region
+                if (y < 0) return;
                 this.ctx.fillStyle = color;
                 this.ctx.fillRect(x * this.blockSize, y * this.blockSize, this.blockSize, this.blockSize);
                 this.ctx.strokeStyle = '#000';
@@ -213,11 +357,14 @@
             }
 
             drawPiece(piece) {
+                if (!piece || !piece.shape) return;
                 piece.shape.forEach((row, dy) => {
                     row.forEach((value, dx) => {
                         if (value) {
                             const x = piece.col + dx;
                             const y = piece.row + dy;
+                            // skip drawing if outside left/right
+                            if (x < 0 || x >= this.cols) return;
                             this.drawBlock(x, y, piece.color);
                         }
                     });
@@ -231,9 +378,10 @@
                         if (testShape[dy][dx]) {
                             const newRow = piece.row + dy + rowOffset;
                             const newCol = piece.col + dx + colOffset;
-                            if (newRow >= this.rows || newCol < 0 || newCol >= this.cols || (newRow >= 0 && this.board[newRow][newCol])) {
-                                return false;
-                            }
+                            // out of bounds or colliding with board (if inside visible rows)
+                            if (newCol < 0 || newCol >= this.cols) return false;
+                            if (newRow >= this.rows) return false;
+                            if (newRow >= 0 && this.board[newRow][newCol]) return false;
                         }
                     }
                 }
@@ -246,7 +394,7 @@
                         if (value) {
                             const y = this.currentPiece.row + dy;
                             const x = this.currentPiece.col + dx;
-                            if (y >= 0) {
+                            if (y >= 0 && y < this.rows && x >= 0 && x < this.cols) {
                                 this.board[y][x] = this.currentPiece.color;
                             }
                         }
@@ -255,10 +403,13 @@
                 this.clearLines();
                 this.currentPiece = this.nextPiece;
                 this.nextPiece = this.getNewPiece();
+
+                // If the new piece is invalid at spawn, game over
                 if (!this.validMove(this.currentPiece)) {
                     this.gameOver();
+                } else {
+                    this.playSound(200, 0.08); // place sound
                 }
-                this.playSound(200, 0.1); // Place sound
             }
 
             clearLines() {
@@ -268,31 +419,49 @@
                         this.board.splice(row, 1);
                         this.board.unshift(Array(this.cols).fill(0));
                         linesCleared++;
-                        row++; // Check same row again
+                        row++; // check this index again (since rows shifted)
                     }
                 }
                 if (linesCleared > 0) {
                     this.score += linesCleared * 100;
-                    this.scoreElement.textContent = `Score: ${this.score}`;
+                    this.updateScoreUI();
                     this.dropInterval = Math.max(100, this.dropInterval - 50 * linesCleared);
-                    this.playSound(400 + linesCleared * 200, 0.2); // Clear sound
+                    this.playSound(400 + linesCleared * 200, 0.18); // clear sound
                 }
             }
 
+            // rotate with simple wall-kick: try center, then left, then right
             rotatePiece() {
-                const rotated = this.currentPiece.shape[0].map((_, index) =>
-                    this.currentPiece.shape.map(row => row[index]).reverse()
-                );
-                if (this.validMove(this.currentPiece, 0, 0, rotated)) {
-                    this.currentPiece.shape = rotated;
-                    this.playSound(600, 0.05); // Rotate sound
+                const p = this.currentPiece;
+                const nextIndex = (p.rotationIndex + 1) % p.rotations.length;
+                const rotated = p.rotations[nextIndex];
+
+                // try no offset
+                if (this.validMove(p, 0, 0, rotated)) {
+                    p.rotationIndex = nextIndex;
+                    p.shape = rotated;
+                    this.playSound(600, 0.05);
+                    return;
                 }
+                // try small kicks: left, right, up
+                const kicks = [{c:-1,r:0},{c:1,r:0},{c:-2,r:0},{c:2,r:0},{c:0,r:-1}];
+                for (const k of kicks) {
+                    if (this.validMove(p, k.r, k.c, rotated)) {
+                        p.col += k.c;
+                        p.row += k.r;
+                        p.rotationIndex = nextIndex;
+                        p.shape = rotated;
+                        this.playSound(600, 0.05);
+                        return;
+                    }
+                }
+                // no valid rotation found, do nothing
             }
 
             moveDown() {
-                if (this.validMove(this.currentPiece, 1)) {
+                if (this.validMove(this.currentPiece, 1, 0)) {
                     this.currentPiece.row++;
-                    this.playSound(100, 0.03); // Move sound
+                    this.playSound(80, 0.02); // move sound (subtle)
                 } else {
                     this.placePiece();
                 }
@@ -301,54 +470,110 @@
             moveLeft() {
                 if (this.validMove(this.currentPiece, 0, -1)) {
                     this.currentPiece.col--;
-                    this.playSound(150, 0.03);
+                    this.playSound(150, 0.02);
                 }
             }
 
             moveRight() {
                 if (this.validMove(this.currentPiece, 0, 1)) {
                     this.currentPiece.col++;
-                    this.playSound(150, 0.03);
+                    this.playSound(150, 0.02);
                 }
             }
 
             gameOver() {
                 this.isGameOver = true;
-                this.playSound(100, 0.5); // Game over sound
-                alert(`Game Over! Score: ${this.score}`);
-            }
-
-            playSound(frequency, duration) {
-                if (this.audioContext.state === 'suspended') {
-                    this.audioContext.resume();
+                try {
+                    this.playSound(150, 0.5); // Game over sound
+                } catch (err) {
+                    // ignore audio failures
                 }
-                const oscillator = this.audioContext.createOscillator();
-                const gainNode = this.audioContext.createGain();
-                oscillator.connect(gainNode);
-                gainNode.connect(this.audioContext.destination);
-                oscillator.frequency.value = frequency;
-                oscillator.type = 'square';
-                gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + duration);
-                oscillator.start(this.audioContext.currentTime);
-                oscillator.stop(this.audioContext.currentTime + duration);
+                this.showOverlay(`Game Over`, this.score);
             }
 
+            showOverlay(text, score) {
+                this.overlayText.textContent = text;
+                this.overlayScore.textContent = `Score: ${score}`;
+                this.overlay.style.display = 'flex';
+            }
+
+            hideOverlay() {
+                this.overlay.style.display = 'none';
+            }
+
+            restart() {
+                // reset state
+                this.isGameOver = false;
+                this.dropInterval = 1000;
+                this.dropTime = 0;
+                this.lastTime = performance.now();
+                this.board = this.createBoard();
+                this.score = 0;
+                this.updateScoreUI();
+                this.currentPiece = this.getNewPiece();
+                this.nextPiece = this.getNewPiece();
+                this.hideOverlay();
+                requestAnimationFrame(this.gameLoop);
+            }
+
+            updateScoreUI() {
+                if (this.scoreElement) {
+                    this.scoreElement.textContent = `Score: ${this.score}`;
+                }
+            }
+
+            playSound(frequency = 440, duration = 0.05) {
+                if (!this.audioContext) return;
+                try {
+                    if (this.audioContext.state === 'suspended') {
+                        // attempt to resume; wrap in try/catch because some browsers throw when called outside user gesture
+                        this.audioContext.resume().catch(()=>{/* ignore */});
+                    }
+                } catch (err) {
+                    // ignore audio resume errors
+                }
+                try {
+                    const now = this.audioContext.currentTime;
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    oscillator.frequency.value = frequency;
+                    oscillator.type = 'square';
+                    gainNode.gain.setValueAtTime(0.1, now);
+                    // smooth volume out to avoid clicks
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, now + Math.max(0.01, duration));
+                    oscillator.start(now);
+                    oscillator.stop(now + Math.max(0.01, duration));
+                } catch (err) {
+                    // audio may fail on some browsers; ignore
+                }
+            }
+
+            // Touch handling: single-touch only, ignore multi-touch gestures
             handleTouchStart(e) {
                 e.preventDefault();
+                if (e.touches.length > 1) return;
                 this.touchStartX = e.touches[0].clientX;
                 this.touchStartY = e.touches[0].clientY;
             }
 
             handleTouchEnd(e) {
                 e.preventDefault();
-                if (!this.touchStartX || this.isGameOver) return;
-                const touchEndX = e.changedTouches[0].clientX;
-                const touchEndY = e.changedTouches[0].clientY;
+                if (!this.touchStartX || this.isGameOver) {
+                    this.touchStartX = null;
+                    this.touchStartY = null;
+                    return;
+                }
+                // changedTouches used for touchend
+                const touch = e.changedTouches[0];
+                const touchEndX = touch.clientX;
+                const touchEndY = touch.clientY;
                 const deltaX = touchEndX - this.touchStartX;
                 const deltaY = touchEndY - this.touchStartY;
-                const minSwipe = 50; // Minimum swipe distance
+                const minSwipe = Math.max(24, this.blockSize * 0.6); // scale swipe threshold to block size
 
+                // horizontal swipe prioritized
                 if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipe) {
                     if (deltaX > 0) {
                         this.moveRight();
@@ -358,10 +583,12 @@
                 } else if (Math.abs(deltaY) > minSwipe) {
                     if (deltaY > 0) {
                         this.moveDown();
+                    } else {
+                        // upward swipe could be hard drop — optional; we'll rotate for small upwards
+                        this.rotatePiece();
                     }
-                }
-                // If small movement or tap, rotate
-                if (Math.abs(deltaX) < minSwipe && Math.abs(deltaY) < minSwipe) {
+                } else {
+                    // tap (small movement) -> rotate
                     this.rotatePiece();
                 }
 
@@ -390,18 +617,54 @@
                 this.drawBoard();
                 requestAnimationFrame(this.gameLoop);
             }
+
+            destroy() {
+                // Remove listeners if needed
+                window.removeEventListener('resize', this.boundResize);
+                this.canvas.removeEventListener('touchstart', this.boundTouchStart);
+                this.canvas.removeEventListener('touchend', this.boundTouchEnd);
+                this.canvas.removeEventListener('click', this.boundClick);
+                this.restartBtn.removeEventListener('click', this.restart);
+            }
         }
+
+        // Keep a reference so we can restart properly if needed
+        let gameInstance = null;
 
         // Start button handler
         document.getElementById('startBtn').addEventListener('click', async () => {
+            // Create/resume audio context from user gesture
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            await audioContext.resume();
+            try {
+                await audioContext.resume();
+            } catch (err) {
+                // ignore resume errors; playSound will try again later
+            }
+
+            // hide start UI and show game UI
             document.getElementById('startBtn').style.display = 'none';
-            document.getElementById('score').style.display = 'block';
-            document.getElementById('tetris').style.display = 'block';
-            new TetrisGame(audioContext);
+            const scoreEl = document.getElementById('score');
+            scoreEl.style.display = 'block';
+            const canvasEl = document.getElementById('tetris');
+            canvasEl.style.display = 'block';
+
+            // If there was an existing instance, destroy it (safety)
+            if (gameInstance && typeof gameInstance.destroy === 'function') {
+                gameInstance.destroy();
+            }
+            // create a fresh game instance
+            gameInstance = new TetrisGame(audioContext);
+        });
+
+        // Optional: allow pressing "Restart" even before game started by exposing overlay restart
+        document.getElementById('restartBtn').addEventListener('click', () => {
+            if (gameInstance) {
+                gameInstance.restart();
+            } else {
+                // simulate start
+                document.getElementById('startBtn').click();
+            }
         });
     </script>
 </body>
 </html>
-```​​​​​​​​​​​​​​​​​​​
