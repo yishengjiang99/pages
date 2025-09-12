@@ -5,9 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Mobile Tetris</title>
   <style>
-    body {
+    html, body {
       margin: 0;
       padding: 0;
+      user-select: none;           /* disable text selection */
+      touch-action: none;          /* prevent gestures and scrolling */
+      overscroll-behavior: none;   /* prevent pull-to-refresh */
+    }
+    body {
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -15,9 +20,9 @@
       height: 100vh;
       background-color: #000;
       font-family: Arial, sans-serif;
+      color: white;
       overflow: hidden;
       padding-top: 10px;
-      color: white;
     }
     #gameContainer {
       text-align: center;
@@ -27,104 +32,20 @@
       align-items: center;
       justify-content: flex-start;
     }
-    #instructions {
-      font-size: 14px;
-      margin-bottom: 10px;
-      max-width: 300px;
-      line-height: 1.4em;
-      color: #ccc;
-    }
-    #silentMode {
-      font-size: 12px;
-      margin-bottom: 10px;
-      color: #f55;
-      display: none;
-    }
-    #startBtn {
-      background-color: #fff;
-      color: #000;
-      border: none;
-      padding: 15px 30px;
-      font-size: 18px;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-bottom: 10px;
-    }
-    #score {
-      font-size: 20px;
-      margin-bottom: 10px;
-      display: none;
-    }
-    #playArea {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      max-height: 100%;
-    }
-    #rightPanel {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-    }
-    #tetris {
-      border: 2px solid #fff;
-      background-color: #111;
-      touch-action: none;
-      display: none;
-      max-height: 100%;
-      max-width: 100%;
-    }
-    #nextPreview {
-      border: 1px solid #fff;
-      background: #222;
-      display: none;
-    }
-    #rotateBtn {
-      background: #fff;
-      color: #000;
-      border: none;
-      padding: 10px 15px;
-      font-size: 16px;
-      border-radius: 5px;
-      cursor: pointer;
-      display: none;
-    }
-    footer {
-      position: fixed;
-      bottom: 0;
-      width: 100%;
-      background: #000;
-      color: #fff;
-      z-index: 100;
-    }
-    #errors {
-      margin: 0;
-      padding: 5px;
-      font-size: 12px;
-      max-height: 100px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-    }
+    #instructions { font-size: 14px; margin-bottom: 10px; color: #ccc; }
+    #silentMode { font-size: 12px; margin-bottom: 10px; color: #f55; display: none; }
+    #startBtn { background-color:#fff;color:#000;border:none;padding:15px 30px;font-size:18px;border-radius:5px;cursor:pointer;margin-bottom:10px; }
+    #score { font-size:20px;margin-bottom:10px;display:none; }
+    #playArea { display:flex;align-items:center;justify-content:center;gap:10px; max-height:100%; }
+    #rightPanel { display:flex;flex-direction:column;align-items:center;gap:10px; }
+    #tetris { border:2px solid #fff;background:#111;display:none;max-width:100%;max-height:100%; }
+    #nextPreview { border:1px solid #fff;background:#222;display:none; }
+    #rotateBtn { background:#fff;color:#000;border:none;padding:15px 20px;font-size:18px;border-radius:5px;cursor:pointer;display:none; }
+    footer { position:fixed;bottom:0;width:100%;background:#000;color:#fff;z-index:100; }
+    #errors { margin:0;padding:5px;font-size:12px;max-height:100px;overflow-y:auto;white-space:pre-wrap; }
     @media (orientation: landscape) {
-      body::before {
-        content: "Please rotate your device to portrait mode";
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0,0,0,0.9);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
-        z-index: 1000;
-      }
-      #gameContainer { display: none; }
+      body::before { content: "Please rotate your device to portrait mode"; position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.9);color:white;display:flex;align-items:center;justify-content:center;font-size:20px;z-index:1000; }
+      #gameContainer { display:none; }
     }
   </style>
 </head>
@@ -133,7 +54,6 @@
     <div id="instructions">
       ◀▶ Drag or Arrow keys to move<br>
       ▼ Drag down or ArrowDown to soft drop<br>
-      ▲ Drag up or ArrowUp for hard drop<br>
       Tap rotate button to spin piece<br>
       Clear lines to score points
     </div>
@@ -151,56 +71,40 @@
   <footer><pre id="errors"></pre></footer>
 
   <script>
-    // Error logging
-    window.addEventListener('error', e => {
-      document.getElementById('errors').textContent += (e.error ? e.error.stack : e.message) + '\n';
-      return false;
-    });
-    window.addEventListener('unhandledrejection', e => {
-      document.getElementById('errors').textContent += 'Promise rejection: ' + (e.reason || 'Unknown') + '\n';
-    });
+    window.addEventListener('error', e => { document.getElementById('errors').textContent += (e.error ? e.error.stack : e.message)+'\n'; return false; });
+    window.addEventListener('unhandledrejection', e => { document.getElementById('errors').textContent += 'Promise rejection: '+(e.reason||'Unknown')+'\n'; });
 
     class TetrisGame {
-      constructor(audioContext) {
-        this.canvas = document.getElementById('tetris');
-        this.ctx = this.canvas.getContext('2d');
-        this.previewCanvas = document.getElementById('nextPreview');
-        this.previewCtx = this.previewCanvas.getContext('2d');
-        this.scoreElement = document.getElementById('score');
-        this.score = 0;
-
-        this.cols = 10;
-        this.rows = 20;
-
+      constructor(audioContext){
+        this.canvas=document.getElementById('tetris');
+        this.ctx=this.canvas.getContext('2d');
+        this.previewCanvas=document.getElementById('nextPreview');
+        this.previewCtx=this.previewCanvas.getContext('2d');
+        this.scoreElement=document.getElementById('score');
+        this.score=0;
+        this.cols=10; this.rows=20;
         this.resizeCanvas();
-        window.addEventListener('resize', () => this.resizeCanvas());
-
-        this.board = this.createBoard();
-        this.currentPiece = this.getNewPiece();
-        this.nextPiece = this.getNewPiece();
-        this.dropTime = 0;
-        this.dropInterval = 1000;
-        this.lastTime = performance.now();
-        this.audioContext = audioContext;
-        this.isGameOver = false;
-        this.landingTimer = null;
+        window.addEventListener('resize',()=>this.resizeCanvas());
+        this.board=this.createBoard();
+        this.currentPiece=this.getNewPiece();
+        this.nextPiece=this.getNewPiece();
+        this.dropTime=0; this.dropInterval=1000; this.lastTime=performance.now();
+        this.audioContext=audioContext; this.isGameOver=false; this.landingTimer=null;
 
         // Pointer controls
-        this.pointerActive = false;
-        this.pointerStartX = 0;
-        this.pointerStartY = 0;
-        this.canvas.addEventListener('pointerdown', e => this.handlePointerDown(e));
-        this.canvas.addEventListener('pointermove', e => this.handlePointerMove(e));
-        this.canvas.addEventListener('pointerup', e => this.handlePointerUp(e));
-        this.canvas.addEventListener('pointercancel', e => this.handlePointerUp(e));
+        this.pointerActive=false; this.pointerStartX=0; this.pointerStartY=0;
+        this.canvas.addEventListener('pointerdown',e=>this.handlePointerDown(e));
+        this.canvas.addEventListener('pointermove',e=>this.handlePointerMove(e));
+        this.canvas.addEventListener('pointerup',()=>this.handlePointerUp());
+        this.canvas.addEventListener('pointercancel',()=>this.handlePointerUp());
 
         // Rotate button
-        document.getElementById('rotateBtn').addEventListener('click', () => this.rotatePiece());
+        document.getElementById('rotateBtn').addEventListener('click',()=>this.rotatePiece());
 
-        // Keyboard controls
-        window.addEventListener('keydown', e => {
-          if (this.isGameOver) return;
-          switch (e.key) {
+        // Keyboard
+        window.addEventListener('keydown',e=>{
+          if(this.isGameOver) return;
+          switch(e.key){
             case "ArrowLeft": this.moveHorizontal(-1); break;
             case "ArrowRight": this.moveHorizontal(1); break;
             case "ArrowDown": this.moveDown(); break;
@@ -208,177 +112,62 @@
           }
         });
 
-        this.gameLoop = this.gameLoop.bind(this);
+        this.gameLoop=this.gameLoop.bind(this);
         requestAnimationFrame(this.gameLoop);
       }
 
-      resizeCanvas() {
-        const footerHeight = document.querySelector('footer')?.offsetHeight || 0;
-        const headerSpace = 140;
-        const availableHeight = window.innerHeight - footerHeight - headerSpace;
-
-        const blockSizeByHeight = availableHeight / this.rows;
-        const blockSizeByWidth  = window.innerWidth * 0.75 / this.cols; // leave space for preview
-        this.blockSize = Math.floor(Math.min(blockSizeByHeight, blockSizeByWidth));
-
-        this.canvas.width  = this.cols * this.blockSize;
-        this.canvas.height = this.rows * this.blockSize;
-
-        const previewSize = this.blockSize * 4;
-        this.previewCanvas.width = previewSize;
-        this.previewCanvas.height = previewSize;
+      resizeCanvas(){
+        const footerHeight=document.querySelector('footer')?.offsetHeight||0;
+        const headerSpace=140;
+        const availableHeight=window.innerHeight-footerHeight-headerSpace;
+        const blockSizeByHeight=availableHeight/this.rows;
+        const blockSizeByWidth=window.innerWidth*0.75/this.cols;
+        this.blockSize=Math.floor(Math.min(blockSizeByHeight,blockSizeByWidth));
+        this.canvas.width=this.cols*this.blockSize;
+        this.canvas.height=this.rows*this.blockSize;
+        const previewSize=this.blockSize*4;
+        this.previewCanvas.width=previewSize;
+        this.previewCanvas.height=previewSize;
       }
 
-      createBoard() {
-        return Array.from({ length: this.rows }, () => Array(this.cols).fill(0));
-      }
+      createBoard(){ return Array.from({length:this.rows},()=>Array(this.cols).fill(0)); }
+      getNewPiece(){ const pieces='I O T S Z J L'.split(' '); const type=pieces[Math.floor(Math.random()*pieces.length)]; return {type,shape:this.getShape(type),row:0,col:3,color:this.getColor(type)};}
+      getShape(type){ const shapes={I:[[[1,1,1,1]]],O:[[[1,1],[1,1]]],T:[[[0,1,0],[1,1,1]]],S:[[[0,1,1],[1,1,0]]],Z:[[[1,1,0],[0,1,1]]],J:[[[1,0,0],[1,1,1]]],L:[[[0,0,1],[1,1,1]]]};
+        return shapes[type][0]; }
+      getColor(type){ return {I:'#00f0f0',O:'#f0f000',T:'#a000f0',S:'#00f000',Z:'#f00000',J:'#0000f0',L:'#f0a000'}[type]; }
 
-      getNewPiece() {
-        const pieces = 'I O T S Z J L'.split(' ');
-        const type = pieces[Math.floor(Math.random() * pieces.length)];
-        return { type, shape: this.getShape(type), row: 0, col: 3, color: this.getColor(type) };
-      }
+      drawBlock(x,y,color,ctx=this.ctx,size=this.blockSize){ ctx.fillStyle=color; ctx.fillRect(x*size,y*size,size,size); ctx.strokeStyle='#000'; ctx.strokeRect(x*size,y*size,size,size);}
+      drawBoard(){ this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height); for(let r=0;r<this.rows;r++)for(let c=0;c<this.cols;c++)if(this.board[r][c])this.drawBlock(c,r,this.board[r][c]); this.drawPiece(this.currentPiece); this.drawPreview(); }
+      drawPiece(p,ctx=this.ctx,size=this.blockSize){ p.shape.forEach((row,dy)=>row.forEach((v,dx)=>{if(v)this.drawBlock(p.col+dx,p.row+dy,p.color,ctx,size)})); }
+      drawPreview(){ this.previewCtx.clearRect(0,0,this.previewCanvas.width,this.previewCanvas.height); const size=this.previewCanvas.width/4; this.nextPiece.shape.forEach((row,dy)=>row.forEach((v,dx)=>{if(v)this.drawBlock(dx,dy,this.nextPiece.color,this.previewCtx,size)})); }
 
-      getShape(type) {
-        const shapes = {
-          I: [[[1,1,1,1]]],
-          O: [[[1,1],[1,1]]],
-          T: [[[0,1,0],[1,1,1]], [[1,0],[1,1],[1,0]], [[1,1,1],[0,1,0]], [[0,1],[1,1],[0,1]]],
-          S: [[[0,1,1],[1,1,0]], [[1,0],[1,1],[0,1]]],
-          Z: [[[1,1,0],[0,1,1]], [[0,1],[1,1],[1,0]]],
-          J: [[[1,0,0],[1,1,1]], [[1,1],[1,0],[1,0]], [[1,1,1],[0,0,1]], [[0,1],[0,1],[1,1]]],
-          L: [[[0,0,1],[1,1,1]], [[1,0],[1,0],[1,1]], [[1,1,1],[1,0,0]], [[1,1],[0,1],[0,1]]]
-        };
-        return shapes[type][0];
-      }
+      validMove(p,rowOffset=0,colOffset=0,shape=null){ const s=shape||p.shape; for(let dy=0;dy<s.length;dy++)for(let dx=0;dx<s[dy].length;dx++)if(s[dy][dx]){ const r=p.row+dy+rowOffset,c=p.col+dx+colOffset; if(r>=this.rows||c<0||c>=this.cols||(r>=0&&this.board[r][c])) return false;} return true; }
 
-      getColor(type) {
-        return {I:'#00f0f0',O:'#f0f000',T:'#a000f0',S:'#00f000',Z:'#f00000',J:'#0000f0',L:'#f0a000'}[type];
-      }
+      placePiece(){ this.currentPiece.shape.forEach((row,dy)=>row.forEach((v,dx)=>{if(v){const y=this.currentPiece.row+dy,x=this.currentPiece.col+dx;if(y>=0)this.board[y][x]=this.currentPiece.color;}})); this.clearLines(); this.currentPiece=this.nextPiece; this.nextPiece=this.getNewPiece(); if(!this.validMove(this.currentPiece)) this.gameOver(); this.playSound(200,0.1); }
+      clearLines(){ let lines=0; for(let r=this.rows-1;r>=0;r--){ if(this.board[r].every(c=>c!==0)){this.board.splice(r,1);this.board.unshift(Array(this.cols).fill(0)); lines++; r++;} } if(lines){ this.score+=lines*100; this.scoreElement.textContent=`Score: ${this.score}`; this.dropInterval=Math.max(100,this.dropInterval-50*lines); this.playSound(400+lines*200,0.2);} }
 
-      drawBlock(x,y,color,ctx=this.ctx,size=this.blockSize) {
-        ctx.fillStyle=color;
-        ctx.fillRect(x*size,y*size,size,size);
-        ctx.strokeStyle='#000';
-        ctx.strokeRect(x*size,y*size,size,size);
-      }
+      rotatePiece(){ const rot=this.currentPiece.shape[0].map((_,i)=>this.currentPiece.shape.map(r=>r[i]).reverse()); if(this.validMove(this.currentPiece,0,0,rot)){this.currentPiece.shape=rot;this.playSound(600,0.05);} }
 
-      drawBoard() {
-        this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
-        for(let r=0;r<this.rows;r++) for(let c=0;c<this.cols;c++) if(this.board[r][c]) this.drawBlock(c,r,this.board[r][c]);
-        this.drawPiece(this.currentPiece);
-        this.drawPreview();
-      }
+      moveDown(steps=1){ for(let i=0;i<steps;i++){ if(this.validMove(this.currentPiece,1)){ this.currentPiece.row++; this.playSound(100,0.02); if(this.landingTimer){clearTimeout(this.landingTimer);this.landingTimer=null;} } else { if(!this.landingTimer){ this.landingTimer=setTimeout(()=>{this.placePiece();this.landingTimer=null;},500); } break; } } }
 
-      drawPiece(p,ctx=this.ctx,size=this.blockSize) {
-        p.shape.forEach((row,dy)=>row.forEach((v,dx)=>{if(v)this.drawBlock(p.col+dx,p.row+dy,p.color,ctx,size)}));
-      }
+      moveHorizontal(steps){ let moved=0; while(moved!==steps){ if(steps>0&&this.validMove(this.currentPiece,0,1)){this.currentPiece.col++;moved++;} else if(steps<0&&this.validMove(this.currentPiece,0,-1)){this.currentPiece.col--;moved--;} else break;} if(moved)this.playSound(150,0.02); }
+      hardDrop(){ while(this.validMove(this.currentPiece,1)) this.currentPiece.row++; this.placePiece(); this.playSound(800,0.1); }
 
-      drawPreview() {
-        this.previewCtx.clearRect(0,0,this.previewCanvas.width,this.previewCanvas.height);
-        const size=this.previewCanvas.width/4;
-        this.nextPiece.shape.forEach((row,dy)=>row.forEach((v,dx)=>{if(v)this.drawBlock(dx,dy,this.nextPiece.color,this.previewCtx,size)}));
-      }
+      gameOver(){ this.isGameOver=true; this.playSound(100,0.5); alert(`Game Over! Score: ${this.score}`); }
+      playSound(f,d){ try{ if(this.audioContext.state==='suspended') this.audioContext.resume(); const osc=this.audioContext.createOscillator(),g=this.audioContext.createGain(); osc.connect(g); g.connect(this.audioContext.destination); osc.frequency.value=f; osc.type='square'; g.gain.setValueAtTime(0.1,this.audioContext.currentTime); g.gain.exponentialRampToValueAtTime(0.01,this.audioContext.currentTime+d); osc.start(this.audioContext.currentTime); osc.stop(this.audioContext.currentTime+d);} catch(e){ document.getElementById('silentMode').style.display='block';} }
 
-      validMove(p,rowOffset=0,colOffset=0,shape=null) {
-        const s=shape||p.shape;
-        for(let dy=0;dy<s.length;dy++) for(let dx=0;dx<s[dy].length;dx++) if(s[dy][dx]) {
-          const r=p.row+dy+rowOffset,c=p.col+dx+colOffset;
-          if(r>=this.rows||c<0||c>=this.cols||(r>=0&&this.board[r][c])) return false;
-        }
-        return true;
-      }
-
-      placePiece() {
-        this.currentPiece.shape.forEach((row,dy)=>row.forEach((v,dx)=>{if(v){const y=this.currentPiece.row+dy,x=this.currentPiece.col+dx;if(y>=0)this.board[y][x]=this.currentPiece.color;}}));
-        this.clearLines();
-        this.currentPiece=this.nextPiece;
-        this.nextPiece=this.getNewPiece();
-        if(!this.validMove(this.currentPiece)) this.gameOver();
-        this.playSound(200,0.1);
-      }
-
-      clearLines() {
-        let lines=0;
-        for(let r=this.rows-1;r>=0;r--) {
-          if(this.board[r].every(c=>c!==0)){this.board.splice(r,1);this.board.unshift(Array(this.cols).fill(0));lines++;r++;}
-        }
-        if(lines){this.score+=lines*100;this.scoreElement.textContent=`Score: ${this.score}`;this.dropInterval=Math.max(100,this.dropInterval-50*lines);this.playSound(400+lines*200,0.2);}
-      }
-
-      rotatePiece() {
-        const rot=this.currentPiece.shape[0].map((_,i)=>this.currentPiece.shape.map(r=>r[i]).reverse());
-        if(this.validMove(this.currentPiece,0,0,rot)){this.currentPiece.shape=rot;this.playSound(600,0.05);}
-      }
-
-      moveDown(steps=1) {
-        for(let i=0;i<steps;i++) {
-          if(this.validMove(this.currentPiece,1)) {
-            this.currentPiece.row++;
-            this.playSound(100,0.02);
-            if (this.landingTimer) { clearTimeout(this.landingTimer); this.landingTimer = null; }
-          } else {
-            if(!this.landingTimer){ // trigger only when blocked
-              this.landingTimer=setTimeout(()=>{this.placePiece();this.landingTimer=null;},500);
-            }
-            break;
-          }
-        }
-      }
-
-      moveHorizontal(steps) {
-        let moved=0;
-        while(moved!==steps) {
-          if(steps>0&&this.validMove(this.currentPiece,0,1)){this.currentPiece.col++;moved++;}
-          else if(steps<0&&this.validMove(this.currentPiece,0,-1)){this.currentPiece.col--;moved--;}
-          else break;
-        }
-        if(moved)this.playSound(150,0.02);
-      }
-
-      hardDrop() {
-        while(this.validMove(this.currentPiece,1)) this.currentPiece.row++;
-        this.placePiece();
-        this.playSound(800,0.1);
-      }
-
-      gameOver() {
-        this.isGameOver=true;
-        this.playSound(100,0.5);
-        alert(`Game Over! Score: ${this.score}`);
-      }
-
-      playSound(f,d) {
-        try {
-          if(this.audioContext.state==='suspended') this.audioContext.resume();
-          const osc=this.audioContext.createOscillator(),g=this.audioContext.createGain();
-          osc.connect(g);g.connect(this.audioContext.destination);
-          osc.frequency.value=f;osc.type='square';
-          g.gain.setValueAtTime(0.1,this.audioContext.currentTime);
-          g.gain.exponentialRampToValueAtTime(0.01,this.audioContext.currentTime+d);
-          osc.start(this.audioContext.currentTime);osc.stop(this.audioContext.currentTime+d);
-        } catch(e) {
-          document.getElementById('silentMode').style.display='block';
-        }
-      }
-
-      handlePointerDown(e){this.pointerActive=true;this.pointerStartX=e.clientX;this.pointerStartY=e.clientY;}
+      handlePointerDown(e){ this.pointerActive=true; this.pointerStartX=e.clientX; this.pointerStartY=e.clientY; }
       handlePointerMove(e){
-        if(!this.pointerActive||this.isGameOver)return;
-        const dx=(e.clientX-this.pointerStartX)*0.9,dy=(e.clientY-this.pointerStartY)*0.9;
-        const stepsX=Math.round(dx/this.blockSize),stepsY=Math.round(dy/this.blockSize);
-        if(stepsX){this.moveHorizontal(stepsX);this.pointerStartX=e.clientX;}
-        if(stepsY>0){this.moveDown(stepsY);this.pointerStartY=e.clientY;}
-        if(stepsY<0){this.hardDrop();this.pointerActive=false;}
+        if(!this.pointerActive||this.isGameOver) return;
+        const dx=(e.clientX-this.pointerStartX)*0.9, dy=(e.clientY-this.pointerStartY)*0.9;
+        const stepsX=Math.round(dx/this.blockSize);
+        const stepsY=Math.round(dy/this.blockSize);
+        if(stepsX){ this.moveHorizontal(stepsX); this.pointerStartX=e.clientX; }
+        if(stepsY>0){ this.moveDown(stepsY); this.pointerStartY=e.clientY; }  // only allow soft drop
       }
-      handlePointerUp(){this.pointerActive=false;}
+      handlePointerUp(){ this.pointerActive=false; }
 
-      gameLoop(t=0){
-        if(this.isGameOver)return;
-        const dt=t-this.lastTime;this.lastTime=t;this.dropTime+=dt;
-        if(this.dropTime>this.dropInterval){this.moveDown();this.dropTime=0;}
-        this.drawBoard();requestAnimationFrame(this.gameLoop);
-      }
+      gameLoop(t=0){ if(this.isGameOver)return; const dt=t-this.lastTime; this.lastTime=t; this.dropTime+=dt; if(this.dropTime>this.dropInterval){ this.moveDown(); this.dropTime=0; } this.drawBoard(); requestAnimationFrame(this.gameLoop); }
     }
 
     document.getElementById('startBtn').addEventListener('click',async()=>{
