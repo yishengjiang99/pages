@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sound Localization with FFT</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background: #f0f0f0; }
+        canvas { border: 1px solid #000; background: #fff; }
+        button { padding: 10px 20px; font-size: 16px; margin: 10px; }
+        #info { margin: 20px; }
+    </style>
+    <!-- Optional: Uncomment to use fft.js library -->
+    <!-- <script src="https://unpkg.com/fft.js@0.0.4/lib/fft.js"></script> -->
+</head>
+<body>
+    <h1>Sound Source Localization with FFT</h1>
+    <p>Click "Start Listening" to use your AirPods microphones. Make noise to see the estimated source position.</p>
+    <button id="startBtn">Start Listening</button>
+    <button id="stopBtn" disabled>Stop Listening</button>
+    <div id="info">Angle: 0° | ITD: 0 ms</div>
+    <canvas id="canvas" width="600" height="400"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const info = document.getElementById('info');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+
+        let audioContext;
+        let microphone;
+        let scriptProcessor;
+        let animationId;
+        let isListening = false;
+        let estimatedAngle = 0;
+
+        // Canvas setup
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const headRadius = 50;
+        const maxDistance = 200;
+        const maxITD = 0.00064; // ~0.64 ms for 180°
+        const sampleRate = 44100;
+
+        // Simple FFT implementation (for standalone use)
+        function fft(signal, n) {
+            if (n <= 1) return signal;
+            const result = new Array(n).fill(0).map(() => ({ re: 0, im: 0 }));
+            for (let i = 0; i < n; i++) {
+                result[i].re = signal[i] || 0;
+                result[i].im = 0;
+            }
+            // Bit-reversal permutation
+            for (let i = 0; i < n; i++) {
+                let rev = 0;
+                for (let j = 0; j < Math.log2(n); j++) {
+                    rev = (rev << 1) | ((i >> j) & 1);
+                }
+                if (i < rev) {
+                    [result[i], result[rev]] = [result[rev], result[i]];
+                }
+            }
+            // Butterfly operations
+            for (let len = 2; len <= n; len <<= 1) {
+                const wlen = Math.PI / (len >> 1);
+                for (let start = 0; start < n; start += len) {
+                    for (let i = 0; i < len / 2; i++) {
+                        const w = { re: Math.cos(wlen * i), im: Math.sin(wlen * i) };
+                        const even = result[start + i];
+                        const odd = result[start + i + len / 2];
+                        const t = { re: odd.re * w.re - odd.im * w.im, im: odd.re * w.im + odd.im * w.re };
+                        result[start + i + len / 2] = { re: even.re - t.re, im: even.im - t.im };
+                        result[start + i] = { re: even.re + t.re, im: even.im + t.im };
+                    }
+                }
+            }
+            return result;
+        }
+
+        // Inverse FFT
+        function ifft(signal, n) {
+            for (let i = 0; i < n; i++) {
+                signal[i].im = -signal[i].im; // Conjugate
+            }
+            const result = fft(signal, n);
+            for (let i = 0; i < n; i++) {
+                result[i].re /= n;
+                result[i].im = -result[i].im / n; // Conjugate and scale
+            }
+            return result;
+        }
+
+        // Cross-correlation using FFT
+        function crossCorrelateFFT(left, right, maxLag) {
+            const n = Math.pow(2, Math.ceil(Math.log2(left.length * 2))); // Zero-pad to next power of 2
+            const leftPadded = new Array(n).fill(0);
+            const rightPadded = new Array(n).fill(0);
+            for (let i = 0; i < left.length; i++) {
+                leftPadded[i] = left[i];
+                rightPadded[i] = right[i];
+            }
+
+            // FFT of both signals
+            const leftFFT = fft(leftPadded, n);
+            const rightFFT = fft(rightPadded, n);
+
+            // Complex conjugate of rightFFT and multiply
+            const product = new Array(n).fill(0).map(() => ({ re: 0, im: 0 }));
+            for (let i = 0; i < n; i++) {
+                const conj = { re: rightFFT[i].re, im: -rightFFT[i].im };
+                product[i].re = leftFFT[i].re * conj.re - leftFFT[i].im * conj.im;
+                product[i].im = leftFFT[i].re * conj.im + leftFFT[i].im * conj.re;
+            }
+
+            // Inverse FFT to get correlation
+            const correlation = ifft(product, n).map(c => c.re);
+            let maxCorr = -Infinity;
+            let bestLag = 0;
+
+            // Find peak within maxLag (in samples)
+            maxLag = Math.min(maxLag, Math.floor(n / 2));
+            for (let lag = -maxLag; lag <= maxLag; lag++) {
+                const idx = (lag + n) % n;
+                if (correlation[idx] > maxCorr) {
+                    maxCorr = correlation[idx];
+                    bestLag = lag;
+                }
+            }
+
+            return bestLag / sampleRate * 1000; // Convert to ms
+        }
+
+        // Draw the scene
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw head
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, headRadius, 0, 2 * Math.PI);
+            ctx.fillStyle = '#ddd';
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.stroke();
+
+            // Draw sound source
+            if (isListening) {
+                const angleRad = (estimatedAngle * Math.PI) / 180;
+                const x = centerX + Math.cos(angleRad) * maxDistance * 0.7;
+                const y = centerY + Math.sin(angleRad) * maxDistance * 0.7;
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, 2 * Math.PI);
+                ctx.fillStyle = 'red';
+                ctx.fill();
+                ctx.stroke();
+            }
+
+            animationId = requestAnimationFrame(draw);
+        }
+
+        // Audio processing
+        function processAudio(event) {
+            const leftInput = event.inputBuffer.getChannelData(0);
+            const rightInput = event.inputBuffer.getChannelData(1);
+
+            if (leftInput.length === 0 || rightInput.length === 0) return;
+
+            // Compute RMS for sound detection
+            const leftRMS = Math.sqrt(leftInput.reduce((sum, val) => sum + val * val, 0) / leftInput.length);
+            const rightRMS = Math.sqrt(rightInput.reduce((sum, val) => sum + val * val, 0) / rightInput.length);
+
+            if (leftRMS > 0.01 || rightRMS > 0.01) {
+                const itdMs = crossCorrelateFFT(leftInput, rightInput, 100);
+                estimatedAngle = (itdMs / maxITD) * 90;
+                estimatedAngle = Math.max(-180, Math.min(180, estimatedAngle));
+                info.textContent = `Angle: ${estimatedAngle.toFixed(1)}° | ITD: ${itdMs.toFixed(3)} ms`;
+            }
+        }
+
+        // Start listening
+        async function startListening() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: false,
+                        noiseSuppression: false,
+                        channelCount: 2
+                    }
+                });
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                microphone = audioContext.createMediaStreamSource(stream);
+                scriptProcessor = audioContext.createScriptProcessor(2048, 2, 2);
+
+                scriptProcessor.onaudioprocess = processAudio;
+
+                microphone.connect(scriptProcessor);
+                scriptProcessor.connect(audioContext.destination);
+
+                isListening = true;
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                draw();
+            } catch (err) {
+                console.error('Error accessing microphone:', err);
+                alert('Microphone access denied. Ensure AirPods are connected and permissions granted.');
+            }
+        }
+
+        // Stop listening
+        function stopListening() {
+            if (audioContext) audioContext.close();
+            if (scriptProcessor) scriptProcessor.disconnect();
+            if (microphone) microphone.disconnect();
+            isListening = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            cancelAnimationFrame(animationId);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            info.textContent = 'Angle: 0° | ITD: 0 ms';
+        }
+
+        startBtn.addEventListener('click', startListening);
+        stopBtn.addEventListener('click', stopListening);
+
+        draw();
+    </script>
+</body>
+</html>
