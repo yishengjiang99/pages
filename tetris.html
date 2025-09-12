@@ -12,7 +12,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: flex-start;
-      height: 100vh; /* full viewport */
+      height: 100vh;
       background-color: #000;
       font-family: Arial, sans-serif;
       overflow: hidden;
@@ -50,7 +50,6 @@
       cursor: pointer;
       margin-bottom: 10px;
     }
-    #startBtn:hover { background-color: #ccc; }
     #score {
       font-size: 20px;
       margin-bottom: 10px;
@@ -64,6 +63,12 @@
       gap: 10px;
       max-height: 100%;
     }
+    #rightPanel {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
     #tetris {
       border: 2px solid #fff;
       background-color: #111;
@@ -75,6 +80,16 @@
     #nextPreview {
       border: 1px solid #fff;
       background: #222;
+      display: none;
+    }
+    #rotateBtn {
+      background: #fff;
+      color: #000;
+      border: none;
+      padding: 10px 15px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
       display: none;
     }
     footer {
@@ -116,10 +131,10 @@
 <body>
   <div id="gameContainer">
     <div id="instructions">
-      ◀▶ Drag left/right to move<br>
-      ▼ Drag down to drop faster<br>
-      ▲ Drag up for hard drop<br>
-      Tap to rotate<br>
+      ◀▶ Drag or Arrow keys to move<br>
+      ▼ Drag down or ArrowDown to soft drop<br>
+      ▲ Drag up or ArrowUp for hard drop<br>
+      Tap rotate button to spin piece<br>
       Clear lines to score points
     </div>
     <div id="silentMode">🔇 Silent mode enabled</div>
@@ -127,13 +142,16 @@
     <div id="score">Score: 0</div>
     <div id="playArea">
       <canvas id="tetris"></canvas>
-      <canvas id="nextPreview"></canvas>
+      <div id="rightPanel">
+        <canvas id="nextPreview"></canvas>
+        <button id="rotateBtn">⟳ Rotate</button>
+      </div>
     </div>
   </div>
   <footer><pre id="errors"></pre></footer>
 
   <script>
-    // Error capture
+    // Error logging
     window.addEventListener('error', e => {
       document.getElementById('errors').textContent += (e.error ? e.error.stack : e.message) + '\n';
       return false;
@@ -175,7 +193,20 @@
         this.canvas.addEventListener('pointermove', e => this.handlePointerMove(e));
         this.canvas.addEventListener('pointerup', e => this.handlePointerUp(e));
         this.canvas.addEventListener('pointercancel', e => this.handlePointerUp(e));
-        this.canvas.addEventListener('click', e => { if (!this.pointerActive) this.rotatePiece(); });
+
+        // Rotate button
+        document.getElementById('rotateBtn').addEventListener('click', () => this.rotatePiece());
+
+        // Keyboard controls
+        window.addEventListener('keydown', e => {
+          if (this.isGameOver) return;
+          switch (e.key) {
+            case "ArrowLeft": this.moveHorizontal(-1); break;
+            case "ArrowRight": this.moveHorizontal(1); break;
+            case "ArrowDown": this.moveDown(); break;
+            case "ArrowUp": this.hardDrop(); break;
+          }
+        });
 
         this.gameLoop = this.gameLoop.bind(this);
         requestAnimationFrame(this.gameLoop);
@@ -183,17 +214,16 @@
 
       resizeCanvas() {
         const footerHeight = document.querySelector('footer')?.offsetHeight || 0;
-        const headerSpace = 140; // space for score + preview + margins
+        const headerSpace = 140;
         const availableHeight = window.innerHeight - footerHeight - headerSpace;
 
         const blockSizeByHeight = availableHeight / this.rows;
-        const blockSizeByWidth  = window.innerWidth * 0.95 / this.cols;
+        const blockSizeByWidth  = window.innerWidth * 0.75 / this.cols; // leave space for preview
         this.blockSize = Math.floor(Math.min(blockSizeByHeight, blockSizeByWidth));
 
         this.canvas.width  = this.cols * this.blockSize;
         this.canvas.height = this.rows * this.blockSize;
 
-        // scale preview canvas relative to block size
         const previewSize = this.blockSize * 4;
         this.previewCanvas.width = previewSize;
         this.previewCanvas.height = previewSize;
@@ -283,9 +313,12 @@
 
       moveDown(steps=1) {
         for(let i=0;i<steps;i++) {
-          if(this.validMove(this.currentPiece,1)) {this.currentPiece.row++;this.playSound(100,0.02);}
-          else {
-            if(!this.landingTimer){ // grace period
+          if(this.validMove(this.currentPiece,1)) {
+            this.currentPiece.row++;
+            this.playSound(100,0.02);
+            if (this.landingTimer) { clearTimeout(this.landingTimer); this.landingTimer = null; }
+          } else {
+            if(!this.landingTimer){ // trigger only when blocked
               this.landingTimer=setTimeout(()=>{this.placePiece();this.landingTimer=null;},500);
             }
             break;
@@ -356,6 +389,7 @@
       document.getElementById('score').style.display='block';
       document.getElementById('tetris').style.display='block';
       document.getElementById('nextPreview').style.display='block';
+      document.getElementById('rotateBtn').style.display='block';
       new TetrisGame(audioContext);
     });
   </script>
