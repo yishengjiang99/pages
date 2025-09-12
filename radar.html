@@ -8,7 +8,7 @@
 </head>
 <body>
     <canvas id="canvas" width="400" height="400" style="border: 1px solid black;"></canvas>
-    <p>Note: This assumes stereo audio input from AirPods microphones (left/right channels). In practice, Bluetooth headsets may provide mono input; test with your setup. Processing uses time-domain correlation for simplicity (FFT loaded but not used in worklet due to isolation; extend if needed).</p>
+    <p>Note: This assumes stereo audio input from AirPods microphones (left/right channels). In practice, Bluetooth headsets may provide mono input; test with your setup. Processing uses time-domain correlation for simplicity (FFT loaded but not used in worklet due to isolation; extend if needed). Updated for iOS Safari compatibility: dynamic biquad coefficients based on sample rate, omitted fixed sample rate in AudioContext.</p>
     <button onclick="start()">Start Listening</button>
     <script>
         const canvas = document.getElementById('canvas');
@@ -26,20 +26,30 @@
                         noiseSuppression: false
                     }
                 });
-                const ac = new AudioContext({ sampleRate: 44100 });
-                await ac.resume();
+                const ac = new AudioContext();  // Omit sampleRate for iOS compatibility (defaults to 48000 Hz on Safari iOS)
+                if (ac.state === 'suspended') {
+                    await ac.resume();
+                }
 
                 const workletCode = `
                     class SoundLocalizerProcessor extends AudioWorkletProcessor {
                         constructor() {
                             super();
+                            // Compute biquad coefficients dynamically based on sample rate
+                            const Fc = 80;  // Cutoff frequency in Hz
+                            const Q = 0.707;  // Butterworth Q
+                            const Fs = sampleRate;
+                            const K = Math.tan(Math.PI * Fc / Fs);
+                            const norm = 1 / (1 + K / Q + K * K);
+                            const b0 = 1 * norm;
+                            this.b0 = b0;
+                            this.b1 = -2 * b0;
+                            this.b2 = b0;
+                            this.a1 = 2 * (K * K - 1) * norm;
+                            this.a2 = (1 - K / Q + K * K) * norm;
+
                             this.leftFilter = { x1: 0, x2: 0, y1: 0, y2: 0 };
                             this.rightFilter = { x1: 0, x2: 0, y1: 0, y2: 0 };
-                            this.b0 = 0.99197274;
-                            this.b1 = -1.98394548;
-                            this.b2 = 0.99197274;
-                            this.a1 = -1.98388104;  // Note: This is the direct coefficient from scipy; formula uses -a1 * y1
-                            this.a2 = 0.98400992;
                             this.windowSize = 1024;
                             this.maxLag = 50;
                             this.leftBuf = new Float32Array(this.windowSize);
@@ -107,7 +117,7 @@
                                     }
 
                                     // Estimate angle (ITD approximation)
-                                    let tau = bestLag / this.sampleRate;
+                                    let tau = bestLag / sampleRate;
                                     let c = 343;  // Speed of sound m/s
                                     let d = 0.17;  // Head width in meters
                                     let theta = Math.asin(c * tau / d) * (180 / Math.PI);
@@ -145,7 +155,7 @@
                 source.connect(processor).connect(ac.destination);  // Connect to speakers if desired
             } catch (error) {
                 console.error('Error starting audio:', error);
-                alert('Failed to start audio. Ensure microphone permissions and stereo input support.');
+                alert('Failed to start audio. Ensure microphone permissions and stereo input support. On iOS Safari, ensure iOS 14.5+ and user gesture.');
             }
         }
 
@@ -177,5 +187,5 @@
         }
     </script>
 </body>
-```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
 </html>
+```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
