@@ -30,6 +30,28 @@
             color: #666;
             font-size: 0.9rem;
         }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+            max-width: 300px;
+            margin-top: 1rem;
+        }
+        label {
+            font-weight: 600;
+            color: #333;
+            align-self: flex-start;
+        }
+        select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background-color: white;
+            font-size: 1rem;
+        }
         button {
             background-color: #007aff;
             color: white;
@@ -38,9 +60,7 @@
             border-radius: 8px;
             font-size: 1rem;
             cursor: pointer;
-            margin-top: 1rem;
             width: 100%;
-            max-width: 300px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         button:hover {
@@ -48,6 +68,12 @@
         }
         button:active {
             transform: scale(0.98);
+        }
+        .secondary-btn {
+            background-color: #6c757d;
+        }
+        .secondary-btn:hover {
+            background-color: #545b62;
         }
         @media (max-width: 480px) {
             body {
@@ -66,7 +92,14 @@
 <body>
     <canvas id="canvas" width="400" height="400"></canvas>
     <p>Note: This assumes stereo audio input from AirPods microphones (left/right channels). In practice, Bluetooth headsets may provide mono input; test with your setup. Processing uses time-domain correlation for simplicity. Updated for iOS Safari compatibility: dynamic biquad coefficients based on sample rate, omitted fixed sample rate in AudioContext. Added left/right RMS computation and scrolling line chart display in bottom of canvas.</p>
-    <button onclick="start()">Start Listening</button>
+    <div class="controls">
+        <label for="micSelect">Microphone:</label>
+        <select id="micSelect">
+            <option value="">Default</option>
+        </select>
+        <button class="secondary-btn" onclick="initMicrophones()">Detect Microphones</button>
+        <button onclick="start()">Start Listening</button>
+    </div>
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
@@ -76,6 +109,7 @@
         const maxHistory = 400;
         let chartHeight;
         let chartY;
+        let audioDevices = [];
 
         // Make canvas responsive
         function resizeCanvas() {
@@ -91,9 +125,30 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();  // Initial resize
 
+        async function initMicrophones() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                audioDevices = devices.filter(device => device.kind === 'audioinput');
+                const select = document.getElementById('micSelect');
+                select.innerHTML = '<option value="">Default</option>';
+                audioDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Microphone ${index + 1}`;
+                    select.appendChild(option);
+                });
+                stream.getTracks().forEach(track => track.stop());
+            } catch (error) {
+                console.error('Error accessing devices:', error);
+                alert('Failed to access microphones. Ensure permissions are granted.');
+            }
+        }
+
         async function start() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
+                const select = document.getElementById('micSelect');
+                let constraints = {
                     audio: {
                         channelCount: { ideal: 2 },
                         channelCountMode: 'explicit',
@@ -101,7 +156,11 @@
                         echoCancellation: false,
                         noiseSuppression: false
                     }
-                });
+                };
+                if (select.value) {
+                    constraints.audio.deviceId = { exact: select.value };
+                }
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
                 const ac = new AudioContext();  // Omit sampleRate for iOS compatibility (defaults to 48000 Hz on Safari iOS)
                 if (ac.state === 'suspended') {
                     await ac.resume();
@@ -341,4 +400,4 @@
     </script>
 </body>
 </html>
-```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
+```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
