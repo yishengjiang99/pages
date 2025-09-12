@@ -26,6 +26,7 @@
     -webkit-user-select:none;
     -webkit-tap-highlight-color:transparent;
     box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    cursor: grab;
   }
   .controls{ display:flex; flex-direction:column; gap:8px; align-items:center; }
   .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; }
@@ -49,26 +50,21 @@
 <img id="preview" alt="Profile preview">
 
 <div class="controls">
-
-  <!-- Mode selector -->
   <div class="row">
     <label><input type="radio" name="mode" value="tint" checked> Tinted</label>
     <label><input type="radio" name="mode" value="ring"> Ring Clip</label>
   </div>
 
-  <!-- Border slider (only relevant in Ring mode) -->
   <div class="row">
     <label for="borderWidthSlider">Border Thickness</label>
   </div>
   <input id="borderWidthSlider" type="range" min="0.5" max="2" step="0.01" value="1.3">
 
-  <!-- Tint opacity slider -->
   <div class="row">
     <label for="tintOpacity">Tint opacity</label>
     <input id="tintOpacity" type="range" min="0" max="1" step="0.01" value="0.4">
   </div>
 
-  <!-- Buttons -->
   <div class="row">
     <button id="downloadBtn">Download Image</button>
     <button id="resetBtn">Reset Position</button>
@@ -199,7 +195,85 @@ function drawCanvas(){
   preview.src = canvas.toDataURL('image/png');
 }
 
-// --- Events ---
+// --- Drag & Pinch ---
+let dragging = false;
+let lastX = 0, lastY = 0;
+let lastDist = null;
+
+preview.addEventListener('pointerdown', e=>{
+  dragging = true;
+  lastX = e.clientX;
+  lastY = e.clientY;
+  preview.setPointerCapture(e.pointerId);
+});
+preview.addEventListener('pointermove', e=>{
+  if (!dragging) return;
+  if (e.pointerType === 'touch' || e.pointerType === 'pen' || e.pointerType === 'mouse'){
+    if (e.pressure && e.pressure>0 && e.touches && e.touches.length === 2){
+      // ignore here; handled in touchmove
+      return;
+    }
+    const dx = e.clientX - lastX;
+    const dy = e.clientY - lastY;
+    offsetX += dx;
+    offsetY += dy;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    drawCanvas();
+  }
+});
+preview.addEventListener('pointerup', e=>{
+  dragging = false;
+  lastDist = null;
+  preview.releasePointerCapture(e.pointerId);
+});
+preview.addEventListener('wheel', e=>{
+  e.preventDefault();
+  imgScale *= e.deltaY<0 ? 1.05 : 0.95;
+  drawCanvas();
+});
+
+// Touch pinch handling
+let ongoingTouches = [];
+preview.addEventListener('touchstart', e=>{
+  if (e.touches.length === 2){
+    const [t1, t2] = e.touches;
+    lastDist = Math.hypot(t2.clientX-t1.clientX, t2.clientY-t1.clientY);
+  }
+});
+preview.addEventListener('touchmove', e=>{
+  if (e.touches.length === 2){
+    e.preventDefault();
+    const [t1, t2] = e.touches;
+    const dist = Math.hypot(t2.clientX-t1.clientX, t2.clientY-t1.clientY);
+    if (lastDist) {
+      const scaleChange = dist / lastDist;
+      imgScale *= scaleChange;
+      lastDist = dist;
+      drawCanvas();
+    }
+  } else if (e.touches.length === 1){
+    const t = e.touches[0];
+    const dx = t.clientX - lastX;
+    const dy = t.clientY - lastY;
+    offsetX += dx;
+    offsetY += dy;
+    lastX = t.clientX;
+    lastY = t.clientY;
+    drawCanvas();
+  }
+});
+preview.addEventListener('touchend', e=>{
+  if (e.touches.length < 2) lastDist = null;
+});
+preview.addEventListener('touchstart', e=>{
+  if (e.touches.length === 1){
+    lastX = e.touches[0].clientX;
+    lastY = e.touches[0].clientY;
+  }
+});
+
+// --- Other Events ---
 upload.addEventListener('change', e=>{
   const file = e.target.files[0];
   if (!file) return;
