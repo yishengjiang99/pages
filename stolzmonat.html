@@ -3,48 +3,33 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Profile Image Generator — 7-Color Tinted Circle</title>
+<title>Profile Image Generator — Tinted / Ring Clip</title>
 <style>
-  :root{
-    --preview-size:300px;
-  }
+  :root{ --preview-size:300px; }
   body{
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    font-family: system-ui, sans-serif;
     display:flex;
     flex-direction:column;
     align-items:center;
     gap:12px;
     margin:24px;
   }
-
-  /* hidden high-res canvas */
   canvas{ display:none; }
-
-  /* visible preview (circular) */
   #preview{
     width:var(--preview-size);
     height:var(--preview-size);
     border-radius:50%;
     object-fit:cover;
     background:#f0f0f0;
-    touch-action:none; /* needed for custom gestures */
-    -webkit-user-select:none;
+    touch-action:none;
     user-select:none;
+    -webkit-user-select:none;
     -webkit-tap-highlight-color:transparent;
     box-shadow: 0 6px 18px rgba(0,0,0,0.12);
   }
-
-  .controls{
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-    align-items:center;
-  }
-
-  input[type="range"]{
-    width:var(--preview-size);
-  }
-
+  .controls{ display:flex; flex-direction:column; gap:8px; align-items:center; }
+  .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; }
+  input[type="range"]{ width:var(--preview-size); }
   button{
     padding:8px 14px;
     font-size:15px;
@@ -53,24 +38,27 @@
     background:#fff;
     cursor:pointer;
   }
-
   label{ font-size:13px; color:#333; }
-  .row{ display:flex; gap:10px; align-items:center; }
 </style>
 </head>
 <body>
 
-<h3>Profile Image — 7-color tinted circle</h3>
+<h3>Profile Image Generator</h3>
 
 <input id="upload" type="file" accept="image/*">
-<!-- visible preview (updated from hidden canvas) -->
 <img id="preview" alt="Profile preview">
 
 <div class="controls">
   <div class="row">
-    <label for="borderWidthSlider">Border / Tint Thickness</label>
+    <label><input type="radio" name="mode" value="tint" checked> Tinted</label>
+    <label><input type="radio" name="mode" value="ring"> Ring Clip</label>
+  </div>
+
+  <div class="row">
+    <label for="borderWidthSlider">Border Thickness</label>
   </div>
   <input id="borderWidthSlider" type="range" min="0.5" max="2" step="0.01" value="1.3">
+
   <div class="row">
     <label for="tintOpacity">Tint opacity</label>
     <input id="tintOpacity" type="range" min="0" max="1" step="0.01" value="0.4">
@@ -82,20 +70,9 @@
   </div>
 </div>
 
-<!-- hidden high-resolution canvas (for crisp downloads) -->
 <canvas id="canvas" width="1000" height="1000"></canvas>
 
 <script>
-/*
-  Profile image generator:
-  - Hidden high-res canvas 1000x1000
-  - Visible <img id="preview"> updated from canvas.toDataURL()
-  - 7-color horizontal tint overlay (black -> 2 intermediates -> red -> 2 intermediates -> gold)
-  - Drag (mouse/touch) and pinch-to-zoom on preview to reposition/scale photo
-  - Slider controls tint "thickness" (affects circle radius) and tint opacity
-  - Download button saves full-res PNG
-*/
-
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { alpha: false });
 const preview = document.getElementById('preview');
@@ -104,297 +81,142 @@ const borderWidthSlider = document.getElementById('borderWidthSlider');
 const tintOpacityInput = document.getElementById('tintOpacity');
 const downloadBtn = document.getElementById('downloadBtn');
 const resetBtn = document.getElementById('resetBtn');
+const modeRadios = document.querySelectorAll('input[name="mode"]');
 
-const CANVAS_SIZE = canvas.width; // 1000
+const CANVAS_SIZE = canvas.width;
+const BASE_OUTER = 480;
+const BASE_THICKNESS = 80;
 
-// base radii (in canvas pixels)
-const BASE_OUTER = 480; // used previously; here we compute inner radius from this
-const BASE_THICKNESS = 80; // thickness multiplier unit
-
-// color endpoints
 const COLOR_BLACK = '#000000';
 const COLOR_RED   = '#ff0000';
 const COLOR_GOLD  = '#ffd700';
 
-// transform state for uploaded image (in canvas pixels)
 let uploadedImg = null;
-let imgScale = 1.0; // scale applied to the base square crop of input image
-let offsetX = 0;    // destination offset (pixels) relative to centered position
+let imgScale = 1.0;
+let offsetX = 0;
 let offsetY = 0;
 
-let borderScale = parseFloat(borderWidthSlider.value); // slider default 1.3
+let borderScale = parseFloat(borderWidthSlider.value);
 let tintOpacity = parseFloat(tintOpacityInput.value);
+let mode = "tint";
 
-// Gesture state
-let isDragging = false;
-let lastX = 0, lastY = 0;
-let pinchStartDist = null;
-let pinchStartScale = 1;
-
-// Helpers: color interpolation (hex)
-function hexToRgb(hex) {
+// --- Helpers ---
+function hexToRgb(hex){
   hex = hex.replace('#','');
   if (hex.length === 3) hex = hex.split('').map(h=>h+h).join('');
   const n = parseInt(hex,16);
-  return [(n>>16)&255, (n>>8)&255, n&255];
+  return [(n>>16)&255,(n>>8)&255,n&255];
 }
-function rgbToHex([r,g,b]) {
-  const hr = r.toString(16).padStart(2,'0');
-  const hg = g.toString(16).padStart(2,'0');
-  const hb = b.toString(16).padStart(2,'0');
-  return `#${hr}${hg}${hb}`;
+function rgbToHex([r,g,b]){
+  return "#" + r.toString(16).padStart(2,'0') +
+               g.toString(16).padStart(2,'0') +
+               b.toString(16).padStart(2,'0');
 }
 function lerp(a,b,t){ return a + (b-a)*t; }
 function lerpColorHex(aHex,bHex,t){
-  const a = hexToRgb(aHex);
-  const b = hexToRgb(bHex);
-  const r = Math.round(lerp(a[0], b[0], t));
-  const g = Math.round(lerp(a[1], b[1], t));
-  const bl = Math.round(lerp(a[2], b[2], t));
-  return rgbToHex([r,g,bl]);
+  const a = hexToRgb(aHex), b = hexToRgb(bHex);
+  return rgbToHex([Math.round(lerp(a[0],b[0],t)),
+                   Math.round(lerp(a[1],b[1],t)),
+                   Math.round(lerp(a[2],b[2],t))]);
 }
-
-// Build 7-color array: black -> (2 intermediate) -> red -> (2 intermediate) -> gold
 function build7Colors(){
   const colors = [];
-  // between black and red: 3 segments => t=0,1/3,2/3,1
   const stepsBR = [0, 1/3, 2/3, 1];
-  for (let t of stepsBR){
-    colors.push(lerpColorHex(COLOR_BLACK, COLOR_RED, t));
-  }
-  // between red and gold: we already have red as last above, add two intermediates and gold
+  for (let t of stepsBR) colors.push(lerpColorHex(COLOR_BLACK, COLOR_RED, t));
   const stepsRG = [1/3, 2/3, 1].map(t => lerpColorHex(COLOR_RED, COLOR_GOLD, t));
-  // stepsRG yields colors at t=1/3,2/3,1 (where t=1 is gold). We want to append the two intermediates and gold,
-  // but avoid duplicating the 'red' color already appended. So just push these three.
   colors.push(...stepsRG);
-  // Now colors length is 4 + 3 = 7
   return colors;
 }
 
-// Draw the scene to the hidden canvas and update preview <img>
+// --- Drawing ---
 function drawCanvas(){
-  // clear to white (no transparency)
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#fff';
   ctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
 
-  // compute tint circle radius (single circle, clipped)
-  // earlier logic used radius = 480 - (80 * borderScale)
-  // keep similar behaviour: thicker tint => smaller inner radius (so tint bands cover more of the circle)
-  const radius = Math.max(10, Math.round(BASE_OUTER - (BASE_THICKNESS * borderScale)));
+  let effectiveScale = (mode === "ring") ? borderScale : 0; // border width zero in tinted mode
+  const radius = Math.max(10, Math.round(BASE_OUTER - (BASE_THICKNESS * effectiveScale)));
 
-  // Clip to a single circle for the photo & tint
   ctx.save();
   ctx.beginPath();
   ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, radius, 0, Math.PI*2);
   ctx.closePath();
   ctx.clip();
 
-  // draw photo (center-cropped from uploaded image)
+  // photo
   if (uploadedImg){
     const baseSize = Math.min(uploadedImg.width, uploadedImg.height);
-    const drawSize = Math.max(1, baseSize * imgScale);
-
-    // source crop (center)
-    const sx = Math.round((uploadedImg.width - baseSize)/2);
-    const sy = Math.round((uploadedImg.height - baseSize)/2);
-
-    // destination top-left within canvas: center + offsets
-    const dx = Math.round((CANVAS_SIZE - drawSize)/2 + offsetX);
-    const dy = Math.round((CANVAS_SIZE - drawSize)/2 + offsetY);
-
-    ctx.drawImage(uploadedImg, sx, sy, baseSize, baseSize, dx, dy, drawSize, drawSize);
+    const drawSize = baseSize * imgScale;
+    const sx = (uploadedImg.width - baseSize)/2;
+    const sy = (uploadedImg.height - baseSize)/2;
+    ctx.drawImage(uploadedImg, sx, sy, baseSize, baseSize,
+      (CANVAS_SIZE - drawSize)/2 + offsetX,
+      (CANVAS_SIZE - drawSize)/2 + offsetY,
+      drawSize, drawSize);
   } else {
-    // placeholder silhouette: simple person-ish shape
-    // fill background
-    ctx.fillStyle = '#cccccc';
+    ctx.fillStyle = '#ccc';
     ctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
-
-    // draw a simple head+shoulders silhouette
-    const cx = CANVAS_SIZE/2, cy = CANVAS_SIZE/2;
-    ctx.fillStyle = '#999';
-    // head
-    ctx.beginPath();
-    ctx.arc(cx, cy - radius*0.18, radius*0.3, 0, Math.PI*2);
-    ctx.fill();
-    // shoulders (ellipse)
-    ctx.beginPath();
-    ctx.ellipse(cx, cy + radius*0.22, radius*0.55, radius*0.3, 0, 0, Math.PI*2);
-    ctx.fill();
   }
 
-  // apply 7-color horizontal tint overlay clipped by same circle
-  ctx.globalAlpha = Number(tintOpacity);
-  const colors = build7Colors();
-  const bandHeight = (radius * 2) / colors.length;
-  const left = CANVAS_SIZE/2 - radius;
-  let y = CANVAS_SIZE/2 - radius;
-  for (let i=0; i<colors.length; i++){
-    ctx.fillStyle = colors[i];
-    ctx.fillRect(left, y + i*bandHeight, radius*2, Math.ceil(bandHeight));
+  if (mode === "tint"){
+    const colors = build7Colors();
+    const bandHeight = (radius*2) / colors.length;
+    ctx.globalAlpha = tintOpacity;
+    for (let i=0; i<colors.length; i++){
+      ctx.fillStyle = colors[i];
+      ctx.fillRect(CANVAS_SIZE/2 - radius, CANVAS_SIZE/2 - radius + i*bandHeight, radius*2, bandHeight);
+    }
+    ctx.globalAlpha = 1.0;
   }
-  ctx.globalAlpha = 1.0;
+  ctx.restore();
 
-  ctx.restore(); // remove clip
+  if (mode === "ring"){
+    const colors = build7Colors();
+    const outerR = BASE_OUTER;
+    const innerR = radius;
+    const bandHeight = (outerR*2) / colors.length;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, outerR, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.clip();
+    ctx.globalAlpha = tintOpacity;
+    for (let i=0; i<colors.length; i++){
+      ctx.fillStyle = colors[i];
+      ctx.fillRect(CANVAS_SIZE/2 - outerR, CANVAS_SIZE/2 - outerR + i*bandHeight, outerR*2, bandHeight);
+    }
+    ctx.globalAlpha = 1.0;
+    ctx.beginPath();
+    ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, innerR, 0, Math.PI*2);
+    ctx.closePath();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
+  }
 
-  // OPTIONAL: draw a subtle circular stroke outside the tinted circle for nicer boundary in preview
-  ctx.beginPath();
-  ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, radius + 1.5, 0, Math.PI*2);
-  ctx.closePath();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-  ctx.stroke();
-
-  // update preview image (scaled down by browser)
   preview.src = canvas.toDataURL('image/png');
 }
 
-// --- Gesture handling on preview image ---
-
-// utility: distance between two touches
-function touchDistance(t0, t1){
-  const dx = t0.clientX - t1.clientX;
-  const dy = t0.clientY - t1.clientY;
-  return Math.sqrt(dx*dx + dy*dy);
-}
-
-// Mouse events (desktop)
-preview.addEventListener('mousedown', (ev) => {
-  isDragging = true;
-  lastX = ev.clientX;
-  lastY = ev.clientY;
-});
-window.addEventListener('mouseup', () => { isDragging = false; pinchStartDist = null; });
-window.addEventListener('mousemove', (ev) => {
-  if (!isDragging) return;
-  const dx = ev.clientX - lastX;
-  const dy = ev.clientY - lastY;
-  // translate preview-space deltas to canvas-space
-  const displaySize = Math.min(preview.clientWidth, preview.clientHeight);
-  const scaleFactor = CANVAS_SIZE / displaySize;
-  offsetX += dx * scaleFactor;
-  offsetY += dy * scaleFactor;
-  lastX = ev.clientX;
-  lastY = ev.clientY;
-  drawCanvas();
-});
-
-// Touch events (mobile)
-preview.addEventListener('touchstart', (ev) => {
-  ev.preventDefault();
-  if (ev.touches.length === 1){
-    isDragging = true;
-    lastX = ev.touches[0].clientX;
-    lastY = ev.touches[0].clientY;
-  } else if (ev.touches.length === 2){
-    isDragging = false;
-    pinchStartDist = touchDistance(ev.touches[0], ev.touches[1]);
-    pinchStartScale = imgScale;
-  }
-}, { passive: false });
-
-preview.addEventListener('touchmove', (ev) => {
-  ev.preventDefault();
-  const displaySize = Math.min(preview.clientWidth, preview.clientHeight);
-  const scaleFactor = CANVAS_SIZE / displaySize;
-
-  if (ev.touches.length === 1 && isDragging){
-    const dx = ev.touches[0].clientX - lastX;
-    const dy = ev.touches[0].clientY - lastY;
-    offsetX += dx * scaleFactor;
-    offsetY += dy * scaleFactor;
-    lastX = ev.touches[0].clientX;
-    lastY = ev.touches[0].clientY;
-    drawCanvas();
-  } else if (ev.touches.length === 2){
-    const newDist = touchDistance(ev.touches[0], ev.touches[1]);
-    if (pinchStartDist && pinchStartDist > 0){
-      const factor = newDist / pinchStartDist;
-      imgScale = Math.max(0.1, pinchStartScale * factor);
-      drawCanvas();
-    }
-  }
-}, { passive: false });
-
-preview.addEventListener('touchend', (ev) => {
-  if (ev.touches.length < 2) pinchStartDist = null;
-  if (ev.touches.length === 0) isDragging = false;
-});
-
-// Wheel zoom on preview (desktop)
-preview.addEventListener('wheel', (ev) => {
-  ev.preventDefault();
-  // zoom factor
-  const delta = -ev.deltaY;
-  const zoom = delta > 0 ? 1.05 : 0.95;
-  // find mouse position relative to preview center, convert to canvas coords and adjust offset so zoom is around pointer
-  const rect = preview.getBoundingClientRect();
-  const px = ev.clientX - rect.left;
-  const py = ev.clientY - rect.top;
-  const cx = rect.width/2;
-  const cy = rect.height/2;
-  // pointer vec relative to center in display space
-  const vx = px - cx;
-  const vy = py - cy;
-  const scaleFactor = CANVAS_SIZE / rect.width;
-  // adjust offset so that point remains under pointer after scaling
-  const beforeX = (CANVAS_SIZE - (Math.min(uploadedImg ? Math.min(uploadedImg.width, uploadedImg.height) * imgScale : 0, CANVAS_SIZE))) / 2 + offsetX + vx*scaleFactor;
-  imgScale *= zoom;
-  const afterX = (CANVAS_SIZE - (Math.min(uploadedImg ? Math.min(uploadedImg.width, uploadedImg.height) * imgScale : 0, CANVAS_SIZE))) / 2 + offsetX + vx*scaleFactor;
-  // small correction attempt: simpler approach — just scale around center by adjusting offsets proportionally:
-  offsetX *= zoom;
-  offsetY *= zoom;
-  drawCanvas();
-}, { passive: false });
-
-// --- File upload handling ---
-upload.addEventListener('change', (ev) => {
-  const file = ev.target.files && ev.target.files[0];
+// --- Events ---
+upload.addEventListener('change', e=>{
+  const file = e.target.files[0];
   if (!file) return;
   const img = new Image();
-  img.onload = () => {
-    uploadedImg = img;
-    // reset position & scale to reasonable defaults
-    imgScale = Math.min( (CANVAS_SIZE / Math.min(img.width, img.height)) * 0.9, 1.8 );
-    offsetX = 0;
-    offsetY = 0;
-    drawCanvas();
-  };
+  img.onload = ()=>{ uploadedImg = img; imgScale=1; offsetX=0; offsetY=0; drawCanvas(); };
   img.src = URL.createObjectURL(file);
 });
-
-// sliders
-borderWidthSlider.addEventListener('input', (ev) => {
-  borderScale = parseFloat(ev.target.value);
-  drawCanvas();
+borderWidthSlider.addEventListener('input', e=>{ borderScale=parseFloat(e.target.value); drawCanvas(); });
+tintOpacityInput.addEventListener('input', e=>{ tintOpacity=parseFloat(e.target.value); drawCanvas(); });
+modeRadios.forEach(r=> r.addEventListener('change', e=>{ mode=e.target.value; drawCanvas(); }));
+downloadBtn.addEventListener('click', ()=>{
+  const a=document.createElement('a');
+  a.download='profile-image.png';
+  a.href=canvas.toDataURL('image/png');
+  a.click();
 });
-tintOpacityInput.addEventListener('input', (ev) => {
-  tintOpacity = parseFloat(ev.target.value);
-  drawCanvas();
-});
+resetBtn.addEventListener('click', ()=>{ offsetX=0; offsetY=0; imgScale=1; drawCanvas(); });
 
-// download
-downloadBtn.addEventListener('click', () => {
-  // create link to full-res canvas PNG
-  const link = document.createElement('a');
-  link.download = 'profile-image.png';
-  link.href = canvas.toDataURL('image/png');
-  // Some browsers require link to be added to DOM before clicking
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-});
-
-// reset
-resetBtn.addEventListener('click', () => {
-  offsetX = 0;
-  offsetY = 0;
-  imgScale = uploadedImg ? Math.min( (CANVAS_SIZE / Math.min(uploadedImg.width, uploadedImg.height)) * 0.9, 1.8 ) : 1;
-  drawCanvas();
-});
-
-// initial render (blank silhouette)
 drawCanvas();
-
 </script>
 </body>
 </html>
