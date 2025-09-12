@@ -2,46 +2,121 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Mobile Tetris</title>
     <style>
         body {
             margin: 0;
             padding: 0;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            height: 100vh;
+            justify-content: flex-start;
+            min-height: 100vh;
             background-color: #000;
             font-family: Arial, sans-serif;
             overflow: hidden;
+            padding-top: 10px;
         }
         #gameContainer {
             text-align: center;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        #startBtn {
+            background-color: #fff;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+        #startBtn:hover {
+            background-color: #ccc;
         }
         #score {
             color: #fff;
             font-size: 24px;
             margin-bottom: 10px;
+            display: none;
         }
         canvas {
             border: 2px solid #fff;
             background-color: #111;
-            max-width: 100%;
-            max-height: 100%;
             touch-action: none; /* Prevent default touch behaviors */
+            display: none;
+        }
+        footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background: #000;
+            color: #fff;
+            z-index: 100;
+        }
+        #errors {
+            margin: 0;
+            padding: 5px;
+            font-size: 12px;
+            max-height: 100px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        @media (orientation: landscape) {
+            body::before {
+                content: "Please rotate your device to portrait mode";
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                background: rgba(0,0,0,0.9);
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                z-index: 1000;
+            }
+            #gameContainer {
+                display: none;
+            }
         }
     </style>
 </head>
 <body>
     <div id="gameContainer">
+        <button id="startBtn">Start Game</button>
         <div id="score">Score: 0</div>
         <canvas id="tetris"></canvas>
     </div>
+    <footer>
+        <pre id="errors"></pre>
+    </footer>
 
     <script>
+        // Error handling
+        window.addEventListener('error', function(e) {
+            const pre = document.getElementById('errors');
+            if (pre) {
+                pre.textContent += (e.error ? e.error.stack : e.message) + '\n';
+            }
+            return false;
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+            const pre = document.getElementById('errors');
+            if (pre) {
+                pre.textContent += 'Promise rejection: ' + (e.reason || 'Unknown') + '\n';
+            }
+        });
+
         class TetrisGame {
-            constructor() {
+            constructor(audioContext) {
                 this.canvas = document.getElementById('tetris');
                 this.ctx = this.canvas.getContext('2d');
                 this.scoreElement = document.getElementById('score');
@@ -52,10 +127,10 @@
                 this.dropTime = 0;
                 this.dropInterval = 1000; // ms per drop
                 this.lastTime = 0;
-                this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                this.audioContext = audioContext;
                 this.isGameOver = false;
 
-                // Resize canvas to fit mobile
+                // Resize canvas to fit portrait
                 this.resizeCanvas();
                 window.addEventListener('resize', () => this.resizeCanvas());
 
@@ -69,10 +144,10 @@
             }
 
             resizeCanvas() {
-                const size = Math.min(window.innerWidth * 0.9, window.innerHeight * 0.8);
-                this.canvas.width = size;
-                this.canvas.height = size;
-                this.blockSize = size / 20; // 20 rows
+                const padding = 60; // Account for score, borders, etc.
+                this.blockSize = Math.min(window.innerWidth * 0.95 / 10, (window.innerHeight - padding) / 20);
+                this.canvas.width = 10 * this.blockSize;
+                this.canvas.height = 20 * this.blockSize;
                 this.cols = 10;
                 this.rows = 20;
             }
@@ -243,6 +318,9 @@
             }
 
             playSound(frequency, duration) {
+                if (this.audioContext.state === 'suspended') {
+                    this.audioContext.resume();
+                }
                 const oscillator = this.audioContext.createOscillator();
                 const gainNode = this.audioContext.createGain();
                 oscillator.connect(gainNode);
@@ -313,8 +391,15 @@
             }
         }
 
-        // Start the game
-        new TetrisGame();
+        // Start button handler
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            await audioContext.resume();
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('score').style.display = 'block';
+            document.getElementById('tetris').style.display = 'block';
+            new TetrisGame(audioContext);
+        });
     </script>
 </body>
 </html>
