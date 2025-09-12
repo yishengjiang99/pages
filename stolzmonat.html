@@ -133,16 +133,16 @@ function drawCanvas(){
   ctx.fillStyle = '#fff';
   ctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
 
-  let effectiveScale = (mode === "ring") ? borderScale : 0; // border width zero in tinted mode
-  const radius = Math.max(10, Math.round(BASE_OUTER - (BASE_THICKNESS * effectiveScale)));
+  let effectiveScale = (mode === "ring") ? borderScale : 0;
+  const innerR = Math.max(10, Math.round(BASE_OUTER - (BASE_THICKNESS * effectiveScale)));
 
+  // --- Draw photo clipped to inner circle ---
   ctx.save();
   ctx.beginPath();
-  ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, radius, 0, Math.PI*2);
+  ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, innerR, 0, Math.PI*2);
   ctx.closePath();
   ctx.clip();
 
-  // photo
   if (uploadedImg){
     const baseSize = Math.min(uploadedImg.width, uploadedImg.height);
     const drawSize = baseSize * imgScale;
@@ -159,38 +159,35 @@ function drawCanvas(){
 
   if (mode === "tint"){
     const colors = build7Colors();
-    const bandHeight = (radius*2) / colors.length;
+    const bandHeight = (innerR*2) / colors.length;
     ctx.globalAlpha = tintOpacity;
     for (let i=0; i<colors.length; i++){
       ctx.fillStyle = colors[i];
-      ctx.fillRect(CANVAS_SIZE/2 - radius, CANVAS_SIZE/2 - radius + i*bandHeight, radius*2, bandHeight);
+      ctx.fillRect(CANVAS_SIZE/2 - innerR, CANVAS_SIZE/2 - innerR + i*bandHeight, innerR*2, bandHeight);
     }
     ctx.globalAlpha = 1.0;
   }
   ctx.restore();
 
+  // --- Draw ring (only in ring mode) ---
   if (mode === "ring"){
     const colors = build7Colors();
     const outerR = BASE_OUTER;
-    const innerR = radius;
     const bandHeight = (outerR*2) / colors.length;
+
     ctx.save();
     ctx.beginPath();
     ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, outerR, 0, Math.PI*2);
+    ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, innerR, 0, Math.PI*2, true);
     ctx.closePath();
     ctx.clip();
+
     ctx.globalAlpha = tintOpacity;
     for (let i=0; i<colors.length; i++){
       ctx.fillStyle = colors[i];
       ctx.fillRect(CANVAS_SIZE/2 - outerR, CANVAS_SIZE/2 - outerR + i*bandHeight, outerR*2, bandHeight);
     }
     ctx.globalAlpha = 1.0;
-    ctx.beginPath();
-    ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, innerR, 0, Math.PI*2);
-    ctx.closePath();
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
     ctx.restore();
   }
 
