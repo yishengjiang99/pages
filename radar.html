@@ -4,16 +4,92 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sound Source Localization</title>
-    <script src="https://cdn.jsdelivr.net/npm/fft-js@5.1.0/dist/fft.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f5f5f5;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        p {
+            text-align: center;
+            max-width: 90%;
+            line-height: 1.4;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        button {
+            background-color: #007aff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 1rem;
+            width: 100%;
+            max-width: 300px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button:hover {
+            background-color: #0056cc;
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+        @media (max-width: 480px) {
+            body {
+                padding: 0.5rem;
+            }
+            p {
+                font-size: 0.8rem;
+            }
+            button {
+                padding: 14px 20px;
+                font-size: 1.1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <canvas id="canvas" width="400" height="400" style="border: 1px solid black;"></canvas>
-    <p>Note: This assumes stereo audio input from AirPods microphones (left/right channels). In practice, Bluetooth headsets may provide mono input; test with your setup. Processing uses time-domain correlation for simplicity (FFT loaded but not used in worklet due to isolation; extend if needed). Updated for iOS Safari compatibility: dynamic biquad coefficients based on sample rate, omitted fixed sample rate in AudioContext.</p>
+    <canvas id="canvas" width="400" height="400"></canvas>
+    <p>Note: This assumes stereo audio input from AirPods microphones (left/right channels). In practice, Bluetooth headsets may provide mono input; test with your setup. Processing uses time-domain correlation for simplicity. Updated for iOS Safari compatibility: dynamic biquad coefficients based on sample rate, omitted fixed sample rate in AudioContext. Added left/right RMS computation and scrolling line chart display in bottom of canvas.</p>
     <button onclick="start()">Start Listening</button>
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         let angle = 0;
+        let leftHistory = [];
+        let rightHistory = [];
+        const maxHistory = 400;
+        let chartHeight;
+        let chartY;
+
+        // Make canvas responsive
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            chartHeight = (canvas.height / dpr) * 0.45;  // 45% for chart
+            chartY = (canvas.height / dpr) - chartHeight;
+            draw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();  // Initial resize
 
         async function start() {
             try {
@@ -35,7 +111,7 @@
                     class SoundLocalizerProcessor extends AudioWorkletProcessor {
                         constructor() {
                             super();
-                            // Compute biquad coefficients dynamically based on sample rate
+                            // Compute biquad coefficients dynamically based on sample rate (highpass to filter low freq noise)
                             const Fc = 80;  // Cutoff frequency in Hz
                             const Q = 0.707;  // Butterworth Q
                             const Fs = sampleRate;
@@ -99,7 +175,7 @@
                                 this.rightBuf[this.writePos] = right_y;
                                 this.writePos++;
 
-                                // Compute correlation when buffer is full
+                                // Compute correlation and RMS when buffer is full
                                 if (this.writePos >= this.windowSize) {
                                     let maxCorr = -Infinity;
                                     let bestLag = 0;
@@ -116,14 +192,31 @@
                                         }
                                     }
 
-                                    // Estimate angle (ITD approximation)
+                                    // Compute RMS for left and right
+                                    let sumL = 0;
+                                    let sumR = 0;
+                                    for (let j = 0; j < this.windowSize; j++) {
+                                        sumL += this.leftBuf[j] * this.leftBuf[j];
+                                        sumR += this.rightBuf[j] * this.rightBuf[j];
+                                    }
+                                    let leftRMS = Math.sqrt(sumL / this.windowSize);
+                                    let rightRMS = Math.sqrt(sumR / this.windowSize);
+
+                                    // Estimate angle (ITD approximation, clamped)
                                     let tau = bestLag / sampleRate;
                                     let c = 343;  // Speed of sound m/s
                                     let d = 0.17;  // Head width in meters
-                                    let theta = Math.asin(c * tau / d) * (180 / Math.PI);
-                                    if (!isNaN(theta)) {
-                                        this.port.postMessage({ angle: theta });
+                                    let maxTau = d / c;
+                                    if (Math.abs(tau) > maxTau) {
+                                        tau = Math.sign(tau) * maxTau;
                                     }
+                                    let theta = Math.asin(c * tau / d) * (180 / Math.PI);
+
+                                    this.port.postMessage({ 
+                                        angle: theta, 
+                                        leftRMS: leftRMS, 
+                                        rightRMS: rightRMS 
+                                    });
 
                                     // Reset buffer
                                     this.writePos = 0;
@@ -150,6 +243,14 @@
                 const processor = new AudioWorkletNode(ac, 'sound-localizer');
                 processor.port.onmessage = (event) => {
                     angle = event.data.angle;
+                    leftHistory.push(event.data.leftRMS || 0);
+                    if (leftHistory.length > maxHistory) {
+                        leftHistory.shift();
+                    }
+                    rightHistory.push(event.data.rightRMS || 0);
+                    if (rightHistory.length > maxHistory) {
+                        rightHistory.shift();
+                    }
                     draw();
                 };
                 source.connect(processor).connect(ac.destination);  // Connect to speakers if desired
@@ -160,13 +261,18 @@
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const width = canvas.width / (window.devicePixelRatio || 1);
+            const height = canvas.height / (window.devicePixelRatio || 1);
+            ctx.clearRect(0, 0, width, height);
+
+            // Draw head and angle at top half
+            const headCenterY = height * 0.25;
             ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.translate(width / 2, headCenterY);
 
             // Draw head (circle)
             ctx.beginPath();
-            ctx.arc(0, 0, 50, 0, 2 * Math.PI);
+            ctx.arc(0, 0, Math.min(50, width * 0.1), 0, 2 * Math.PI);
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 2;
             ctx.stroke();
@@ -174,7 +280,7 @@
             // Draw sound source direction (line from head center)
             if (angle !== undefined && !isNaN(angle)) {
                 const rad = angle * (Math.PI / 180);
-                const length = 100;
+                const length = Math.min(100, width * 0.2);
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
                 ctx.lineTo(length * Math.cos(rad), length * Math.sin(rad));
@@ -184,6 +290,53 @@
             }
 
             ctx.restore();
+
+            // Draw RMS line chart in bottom (moving ticker)
+            const numPoints = leftHistory.length;
+            if (numPoints > 0) {
+                const chartTop = height * 0.55;
+                const chartBottom = height;
+                const chartScaleX = (width - 1) / Math.max(1, numPoints - 1);
+
+                // Left RMS (blue)
+                ctx.strokeStyle = 'blue';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                for (let i = 0; i < numPoints; i++) {
+                    const x = i * chartScaleX;
+                    const rmsVal = Math.max(0, Math.min(1, leftHistory[i]));  // Clamp 0-1
+                    const y = chartBottom - (rmsVal * (chartBottom - chartTop));
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+
+                // Right RMS (green)
+                ctx.strokeStyle = 'green';
+                ctx.beginPath();
+                for (let i = 0; i < numPoints; i++) {
+                    const x = i * chartScaleX;
+                    const rmsVal = Math.max(0, Math.min(1, rightHistory[i]));  // Clamp 0-1
+                    const y = chartBottom - (rmsVal * (chartBottom - chartTop));
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+
+                // Optional: draw baseline
+                ctx.strokeStyle = 'gray';
+                ctx.lineWidth = 0.5;
+                ctx.beginPath();
+                ctx.moveTo(0, chartBottom);
+                ctx.lineTo(width - 1, chartBottom);
+                ctx.stroke();
+            }
         }
     </script>
 </body>
