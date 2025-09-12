@@ -1,232 +1,400 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Profile Image Generator with Tricolor Border & Gestures</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Profile Image Generator — 7-Color Tinted Circle</title>
 <style>
-  body {
-    font-family: sans-serif;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-top: 30px;
+  :root{
+    --preview-size:300px;
   }
-  canvas {
-    display: none; /* hidden */
+  body{
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+    margin:24px;
   }
-  #preview {
-    border-radius: 50%;
-    background-color: #f0f0f0;
-    width: 300px;   /* display size */
-    height: 300px;  /* display size */
-    object-fit: cover;
-    touch-action: none; /* important for custom gestures */
+
+  /* hidden high-res canvas */
+  canvas{ display:none; }
+
+  /* visible preview (circular) */
+  #preview{
+    width:var(--preview-size);
+    height:var(--preview-size);
+    border-radius:50%;
+    object-fit:cover;
+    background:#f0f0f0;
+    touch-action:none; /* needed for custom gestures */
+    -webkit-user-select:none;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
   }
-  input[type="range"] {
-    width: 300px;
-    margin-top: 20px;
+
+  .controls{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    align-items:center;
   }
-  button {
-    margin-top: 20px;
-    padding: 8px 16px;
-    font-size: 16px;
+
+  input[type="range"]{
+    width:var(--preview-size);
   }
+
+  button{
+    padding:8px 14px;
+    font-size:15px;
+    border-radius:6px;
+    border:1px solid rgba(0,0,0,0.08);
+    background:#fff;
+    cursor:pointer;
+  }
+
+  label{ font-size:13px; color:#333; }
+  .row{ display:flex; gap:10px; align-items:center; }
 </style>
 </head>
 <body>
 
-<h2>Profile Image Generator</h2>
-<input type="file" id="upload" accept="image/*">
-<img id="preview" alt="Profile preview">
-<label for="borderWidthSlider">Border Thickness</label>
-<input type="range" id="borderWidthSlider" min="0.5" max="2" step="0.01" value="1.3">
-<button id="downloadBtn">Download Image</button>
+<h3>Profile Image — 7-color tinted circle</h3>
 
+<input id="upload" type="file" accept="image/*">
+<!-- visible preview (updated from hidden canvas) -->
+<img id="preview" alt="Profile preview">
+
+<div class="controls">
+  <div class="row">
+    <label for="borderWidthSlider">Border / Tint Thickness</label>
+  </div>
+  <input id="borderWidthSlider" type="range" min="0.5" max="2" step="0.01" value="1.3">
+  <div class="row">
+    <label for="tintOpacity">Tint opacity</label>
+    <input id="tintOpacity" type="range" min="0" max="1" step="0.01" value="0.4">
+  </div>
+
+  <div class="row">
+    <button id="downloadBtn">Download Image</button>
+    <button id="resetBtn">Reset Position</button>
+  </div>
+</div>
+
+<!-- hidden high-resolution canvas (for crisp downloads) -->
 <canvas id="canvas" width="1000" height="1000"></canvas>
 
 <script>
+/*
+  Profile image generator:
+  - Hidden high-res canvas 1000x1000
+  - Visible <img id="preview"> updated from canvas.toDataURL()
+  - 7-color horizontal tint overlay (black -> 2 intermediates -> red -> 2 intermediates -> gold)
+  - Drag (mouse/touch) and pinch-to-zoom on preview to reposition/scale photo
+  - Slider controls tint "thickness" (affects circle radius) and tint opacity
+  - Download button saves full-res PNG
+*/
+
 const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { alpha: false });
+const preview = document.getElementById('preview');
 const upload = document.getElementById('upload');
 const borderWidthSlider = document.getElementById('borderWidthSlider');
+const tintOpacityInput = document.getElementById('tintOpacity');
 const downloadBtn = document.getElementById('downloadBtn');
-const preview = document.getElementById('preview');
+const resetBtn = document.getElementById('resetBtn');
 
+const CANVAS_SIZE = canvas.width; // 1000
+
+// base radii (in canvas pixels)
+const BASE_OUTER = 480; // used previously; here we compute inner radius from this
+const BASE_THICKNESS = 80; // thickness multiplier unit
+
+// color endpoints
+const COLOR_BLACK = '#000000';
+const COLOR_RED   = '#ff0000';
+const COLOR_GOLD  = '#ffd700';
+
+// transform state for uploaded image (in canvas pixels)
 let uploadedImg = null;
-let borderScale = parseFloat(borderWidthSlider.value);
-
-// Transform state for image
-let offsetX = 0;
+let imgScale = 1.0; // scale applied to the base square crop of input image
+let offsetX = 0;    // destination offset (pixels) relative to centered position
 let offsetY = 0;
-let imgScale = 1.0;
+
+let borderScale = parseFloat(borderWidthSlider.value); // slider default 1.3
+let tintOpacity = parseFloat(tintOpacityInput.value);
 
 // Gesture state
 let isDragging = false;
-let lastX, lastY;
+let lastX = 0, lastY = 0;
 let pinchStartDist = null;
-let pinchStartScale = 1.0;
+let pinchStartScale = 1;
 
-// Make border SVG dynamically
-function makeBorderSvg(scale) {
-  const outerRadius = 480;
-  const innerRadius = 480 - (80 * scale);
-  return `
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">
-    <defs>
-      <clipPath id="circleClip">
-        <circle cx="500" cy="500" r="${outerRadius}"/>
-        <circle cx="500" cy="500" r="${innerRadius}" fill="white"/>
-      </clipPath>
-    </defs>
-    <g clip-path="url(#circleClip)">
-      <rect width="1000" height="333" y="0" fill="black"/>
-      <rect width="1000" height="333" y="333" fill="red"/>
-      <rect width="1000" height="334" y="666" fill="gold"/>
-    </g>
-  </svg>
-  `;
+// Helpers: color interpolation (hex)
+function hexToRgb(hex) {
+  hex = hex.replace('#','');
+  if (hex.length === 3) hex = hex.split('').map(h=>h+h).join('');
+  const n = parseInt(hex,16);
+  return [(n>>16)&255, (n>>8)&255, n&255];
 }
-function svgToImage(svgString) {
-  const img = new Image();
-  img.src = 'data:image/svg+xml;base64,' + btoa(svgString);
-  return img;
+function rgbToHex([r,g,b]) {
+  const hr = r.toString(16).padStart(2,'0');
+  const hg = g.toString(16).padStart(2,'0');
+  const hb = b.toString(16).padStart(2,'0');
+  return `#${hr}${hg}${hb}`;
+}
+function lerp(a,b,t){ return a + (b-a)*t; }
+function lerpColorHex(aHex,bHex,t){
+  const a = hexToRgb(aHex);
+  const b = hexToRgb(bHex);
+  const r = Math.round(lerp(a[0], b[0], t));
+  const g = Math.round(lerp(a[1], b[1], t));
+  const bl = Math.round(lerp(a[2], b[2], t));
+  return rgbToHex([r,g,bl]);
 }
 
-// Draw function
-function drawCanvas() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+// Build 7-color array: black -> (2 intermediate) -> red -> (2 intermediate) -> gold
+function build7Colors(){
+  const colors = [];
+  // between black and red: 3 segments => t=0,1/3,2/3,1
+  const stepsBR = [0, 1/3, 2/3, 1];
+  for (let t of stepsBR){
+    colors.push(lerpColorHex(COLOR_BLACK, COLOR_RED, t));
+  }
+  // between red and gold: we already have red as last above, add two intermediates and gold
+  const stepsRG = [1/3, 2/3, 1].map(t => lerpColorHex(COLOR_RED, COLOR_GOLD, t));
+  // stepsRG yields colors at t=1/3,2/3,1 (where t=1 is gold). We want to append the two intermediates and gold,
+  // but avoid duplicating the 'red' color already appended. So just push these three.
+  colors.push(...stepsRG);
+  // Now colors length is 4 + 3 = 7
+  return colors;
+}
 
-  const borderSvgString = makeBorderSvg(borderScale);
-  const borderImg = svgToImage(borderSvgString);
+// Draw the scene to the hidden canvas and update preview <img>
+function drawCanvas(){
+  // clear to white (no transparency)
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
 
-  borderImg.onload = () => {
-    // Border bottom layer
-    ctx.drawImage(borderImg, 0, 0, canvas.width, canvas.height);
+  // compute tint circle radius (single circle, clipped)
+  // earlier logic used radius = 480 - (80 * borderScale)
+  // keep similar behaviour: thicker tint => smaller inner radius (so tint bands cover more of the circle)
+  const radius = Math.max(10, Math.round(BASE_OUTER - (BASE_THICKNESS * borderScale)));
 
-    // Clip for photo
-    ctx.save();
-    const radius = 400 - (40 * (borderScale - 1));
+  // Clip to a single circle for the photo & tint
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, radius, 0, Math.PI*2);
+  ctx.closePath();
+  ctx.clip();
+
+  // draw photo (center-cropped from uploaded image)
+  if (uploadedImg){
+    const baseSize = Math.min(uploadedImg.width, uploadedImg.height);
+    const drawSize = Math.max(1, baseSize * imgScale);
+
+    // source crop (center)
+    const sx = Math.round((uploadedImg.width - baseSize)/2);
+    const sy = Math.round((uploadedImg.height - baseSize)/2);
+
+    // destination top-left within canvas: center + offsets
+    const dx = Math.round((CANVAS_SIZE - drawSize)/2 + offsetX);
+    const dy = Math.round((CANVAS_SIZE - drawSize)/2 + offsetY);
+
+    ctx.drawImage(uploadedImg, sx, sy, baseSize, baseSize, dx, dy, drawSize, drawSize);
+  } else {
+    // placeholder silhouette: simple person-ish shape
+    // fill background
+    ctx.fillStyle = '#cccccc';
+    ctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+
+    // draw a simple head+shoulders silhouette
+    const cx = CANVAS_SIZE/2, cy = CANVAS_SIZE/2;
+    ctx.fillStyle = '#999';
+    // head
     ctx.beginPath();
-    ctx.arc(canvas.width/2, canvas.height/2, radius, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
+    ctx.arc(cx, cy - radius*0.18, radius*0.3, 0, Math.PI*2);
+    ctx.fill();
+    // shoulders (ellipse)
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + radius*0.22, radius*0.55, radius*0.3, 0, 0, Math.PI*2);
+    ctx.fill();
+  }
 
-    if (uploadedImg) {
-      // Apply transform
-      const baseSize = Math.min(uploadedImg.width, uploadedImg.height);
-      const drawSize = baseSize * imgScale;
+  // apply 7-color horizontal tint overlay clipped by same circle
+  ctx.globalAlpha = Number(tintOpacity);
+  const colors = build7Colors();
+  const bandHeight = (radius * 2) / colors.length;
+  const left = CANVAS_SIZE/2 - radius;
+  let y = CANVAS_SIZE/2 - radius;
+  for (let i=0; i<colors.length; i++){
+    ctx.fillStyle = colors[i];
+    ctx.fillRect(left, y + i*bandHeight, radius*2, Math.ceil(bandHeight));
+  }
+  ctx.globalAlpha = 1.0;
 
-      const sx = (uploadedImg.width - baseSize) / 2;
-      const sy = (uploadedImg.height - baseSize) / 2;
+  ctx.restore(); // remove clip
 
-      ctx.drawImage(
-        uploadedImg,
-        sx, sy, baseSize, baseSize,
-        offsetX + (canvas.width - drawSize) / 2,
-        offsetY + (canvas.height - drawSize) / 2,
-        drawSize, drawSize
-      );
-    } else {
-      ctx.fillStyle = '#ccc';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
+  // OPTIONAL: draw a subtle circular stroke outside the tinted circle for nicer boundary in preview
+  ctx.beginPath();
+  ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, radius + 1.5, 0, Math.PI*2);
+  ctx.closePath();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+  ctx.stroke();
 
-    ctx.restore();
-
-    // Update preview <img>
-    preview.src = canvas.toDataURL('image/png');
-  };
+  // update preview image (scaled down by browser)
+  preview.src = canvas.toDataURL('image/png');
 }
 
-// --- Gesture handlers ---
-function distance(touches) {
-  const dx = touches[0].clientX - touches[1].clientX;
-  const dy = touches[0].clientY - touches[1].clientY;
+// --- Gesture handling on preview image ---
+
+// utility: distance between two touches
+function touchDistance(t0, t1){
+  const dx = t0.clientX - t1.clientX;
+  const dy = t0.clientY - t1.clientY;
   return Math.sqrt(dx*dx + dy*dy);
 }
 
-preview.addEventListener('mousedown', (e) => {
+// Mouse events (desktop)
+preview.addEventListener('mousedown', (ev) => {
   isDragging = true;
-  lastX = e.clientX;
-  lastY = e.clientY;
+  lastX = ev.clientX;
+  lastY = ev.clientY;
 });
-window.addEventListener('mouseup', () => { isDragging = false; });
-window.addEventListener('mousemove', (e) => {
+window.addEventListener('mouseup', () => { isDragging = false; pinchStartDist = null; });
+window.addEventListener('mousemove', (ev) => {
   if (!isDragging) return;
-  offsetX += e.clientX - lastX;
-  offsetY += e.clientY - lastY;
-  lastX = e.clientX;
-  lastY = e.clientY;
+  const dx = ev.clientX - lastX;
+  const dy = ev.clientY - lastY;
+  // translate preview-space deltas to canvas-space
+  const displaySize = Math.min(preview.clientWidth, preview.clientHeight);
+  const scaleFactor = CANVAS_SIZE / displaySize;
+  offsetX += dx * scaleFactor;
+  offsetY += dy * scaleFactor;
+  lastX = ev.clientX;
+  lastY = ev.clientY;
   drawCanvas();
 });
 
-// Touch drag & pinch
-preview.addEventListener('touchstart', (e) => {
-  if (e.touches.length === 1) {
+// Touch events (mobile)
+preview.addEventListener('touchstart', (ev) => {
+  ev.preventDefault();
+  if (ev.touches.length === 1){
     isDragging = true;
-    lastX = e.touches[0].clientX;
-    lastY = e.touches[0].clientY;
-  } else if (e.touches.length === 2) {
+    lastX = ev.touches[0].clientX;
+    lastY = ev.touches[0].clientY;
+  } else if (ev.touches.length === 2){
     isDragging = false;
-    pinchStartDist = distance(e.touches);
+    pinchStartDist = touchDistance(ev.touches[0], ev.touches[1]);
     pinchStartScale = imgScale;
   }
-}, {passive: false});
+}, { passive: false });
 
-preview.addEventListener('touchmove', (e) => {
-  e.preventDefault();
-  if (e.touches.length === 1 && isDragging) {
-    const dx = e.touches[0].clientX - lastX;
-    const dy = e.touches[0].clientY - lastY;
-    offsetX += dx;
-    offsetY += dy;
-    lastX = e.touches[0].clientX;
-    lastY = e.touches[0].clientY;
+preview.addEventListener('touchmove', (ev) => {
+  ev.preventDefault();
+  const displaySize = Math.min(preview.clientWidth, preview.clientHeight);
+  const scaleFactor = CANVAS_SIZE / displaySize;
+
+  if (ev.touches.length === 1 && isDragging){
+    const dx = ev.touches[0].clientX - lastX;
+    const dy = ev.touches[0].clientY - lastY;
+    offsetX += dx * scaleFactor;
+    offsetY += dy * scaleFactor;
+    lastX = ev.touches[0].clientX;
+    lastY = ev.touches[0].clientY;
     drawCanvas();
-  } else if (e.touches.length === 2 && pinchStartDist) {
-    const newDist = distance(e.touches);
-    const scaleFactor = newDist / pinchStartDist;
-    imgScale = pinchStartScale * scaleFactor;
-    drawCanvas();
+  } else if (ev.touches.length === 2){
+    const newDist = touchDistance(ev.touches[0], ev.touches[1]);
+    if (pinchStartDist && pinchStartDist > 0){
+      const factor = newDist / pinchStartDist;
+      imgScale = Math.max(0.1, pinchStartScale * factor);
+      drawCanvas();
+    }
   }
-}, {passive: false});
+}, { passive: false });
 
-preview.addEventListener('touchend', (e) => {
-  if (e.touches.length < 2) pinchStartDist = null;
-  if (e.touches.length === 0) isDragging = false;
+preview.addEventListener('touchend', (ev) => {
+  if (ev.touches.length < 2) pinchStartDist = null;
+  if (ev.touches.length === 0) isDragging = false;
 });
 
-// File upload
-upload.addEventListener('change', (e) => {
-  const file = e.target.files[0];
+// Wheel zoom on preview (desktop)
+preview.addEventListener('wheel', (ev) => {
+  ev.preventDefault();
+  // zoom factor
+  const delta = -ev.deltaY;
+  const zoom = delta > 0 ? 1.05 : 0.95;
+  // find mouse position relative to preview center, convert to canvas coords and adjust offset so zoom is around pointer
+  const rect = preview.getBoundingClientRect();
+  const px = ev.clientX - rect.left;
+  const py = ev.clientY - rect.top;
+  const cx = rect.width/2;
+  const cy = rect.height/2;
+  // pointer vec relative to center in display space
+  const vx = px - cx;
+  const vy = py - cy;
+  const scaleFactor = CANVAS_SIZE / rect.width;
+  // adjust offset so that point remains under pointer after scaling
+  const beforeX = (CANVAS_SIZE - (Math.min(uploadedImg ? Math.min(uploadedImg.width, uploadedImg.height) * imgScale : 0, CANVAS_SIZE))) / 2 + offsetX + vx*scaleFactor;
+  imgScale *= zoom;
+  const afterX = (CANVAS_SIZE - (Math.min(uploadedImg ? Math.min(uploadedImg.width, uploadedImg.height) * imgScale : 0, CANVAS_SIZE))) / 2 + offsetX + vx*scaleFactor;
+  // small correction attempt: simpler approach — just scale around center by adjusting offsets proportionally:
+  offsetX *= zoom;
+  offsetY *= zoom;
+  drawCanvas();
+}, { passive: false });
+
+// --- File upload handling ---
+upload.addEventListener('change', (ev) => {
+  const file = ev.target.files && ev.target.files[0];
   if (!file) return;
-  uploadedImg = new Image();
-  uploadedImg.src = URL.createObjectURL(file);
-  uploadedImg.onload = () => {
+  const img = new Image();
+  img.onload = () => {
+    uploadedImg = img;
+    // reset position & scale to reasonable defaults
+    imgScale = Math.min( (CANVAS_SIZE / Math.min(img.width, img.height)) * 0.9, 1.8 );
     offsetX = 0;
     offsetY = 0;
-    imgScale = 1.0;
     drawCanvas();
   };
+  img.src = URL.createObjectURL(file);
 });
 
-// Border slider
-borderWidthSlider.addEventListener('input', (e) => {
-  borderScale = parseFloat(e.target.value);
+// sliders
+borderWidthSlider.addEventListener('input', (ev) => {
+  borderScale = parseFloat(ev.target.value);
+  drawCanvas();
+});
+tintOpacityInput.addEventListener('input', (ev) => {
+  tintOpacity = parseFloat(ev.target.value);
   drawCanvas();
 });
 
-// Download
+// download
 downloadBtn.addEventListener('click', () => {
+  // create link to full-res canvas PNG
   const link = document.createElement('a');
   link.download = 'profile-image.png';
   link.href = canvas.toDataURL('image/png');
+  // Some browsers require link to be added to DOM before clicking
+  document.body.appendChild(link);
   link.click();
+  link.remove();
 });
 
-// Initial render
+// reset
+resetBtn.addEventListener('click', () => {
+  offsetX = 0;
+  offsetY = 0;
+  imgScale = uploadedImg ? Math.min( (CANVAS_SIZE / Math.min(uploadedImg.width, uploadedImg.height)) * 0.9, 1.8 ) : 1;
+  drawCanvas();
+});
+
+// initial render (blank silhouette)
 drawCanvas();
+
 </script>
 </body>
 </html>
