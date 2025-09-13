@@ -73,6 +73,7 @@
     color: #0f0;
     padding: 4px;
     font-size: 12px;
+    white-space: pre-wrap;
   }
 </style>
 </head>
@@ -99,9 +100,17 @@
 <script>
 const logEl = document.getElementById("log");
 function log(msg){
-  logEl.textContent += msg + "\\n";
+  logEl.textContent += msg + "\n";
   logEl.scrollTop = logEl.scrollHeight;
 }
+
+// --- Catch all JS errors ---
+window.addEventListener("error", e => {
+  log("JS Error: " + e.message + " @ " + e.filename + ":" + e.lineno);
+});
+window.addEventListener("unhandledrejection", e => {
+  log("Unhandled Promise Rejection: " + e.reason);
+});
 
 let audioContext, mic, analyser, highpass, workletNode;
 let running = false;
@@ -204,7 +213,6 @@ function exportMIDI(){
 
 // --- Audio Worklet ---
 async function setup(){
-  audioContext=new AudioContext();
   await audioContext.audioWorklet.addModule(URL.createObjectURL(new Blob([`
     class FFTProcessor extends AudioWorkletProcessor {
       constructor(){
@@ -316,18 +324,43 @@ function visualizeVolume(){
 }
 
 // --- Buttons ---
-document.getElementById("startBtn").onclick=async()=>{
-  if(!audioContext) await setup();
-  running=true;
-  startTime=audioContext.currentTime;
-  log("Recording started");
+document.getElementById("startBtn").onclick = async () => {
+  try {
+    if (!audioContext) {
+      audioContext = new AudioContext();
+      await audioContext.resume(); // resume immediately on gesture
+      await setup();
+    } else if (audioContext.state === "suspended") {
+      await audioContext.resume();
+    }
+    running = true;
+    startTime = audioContext.currentTime;
+    log("Recording started");
+  } catch(e) {
+    log("StartBtn Error: " + e.message);
+  }
 };
-document.getElementById("stopBtn").onclick=()=>{
-  running=false;
-  log("Stopped");
-  drawPianoRoll();
+
+document.getElementById("stopBtn").onclick = () => {
+  try {
+    if (audioContext && audioContext.state === "running") {
+      audioContext.suspend();
+    }
+    running = false;
+    log("Stopped");
+    drawPianoRoll();
+  } catch(e) {
+    log("StopBtn Error: " + e.message);
+  }
 };
-document.getElementById("exportBtn").onclick=()=>exportMIDI();
+
+document.getElementById("exportBtn").onclick = () => {
+  try {
+    exportMIDI();
+  } catch(e) {
+    log("ExportBtn Error: " + e.message);
+  }
+};
 
 drawAxis();
 </script>
