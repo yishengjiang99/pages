@@ -213,7 +213,7 @@ function exportMIDI(){
 
 // --- Audio Worklet ---
 async function setup(){
-  await audioContext.audioWorklet.addModule(URL.createObjectURL(new Blob([`
+  const workletCode = `
     class FFTProcessor extends AudioWorkletProcessor {
       constructor(){
         super();
@@ -230,7 +230,6 @@ async function setup(){
         if(!input||!input[0]) return true;
         let ch=input[0];
         for(let s of ch){
-          // High-pass filter
           this.hpBuf += this.alpha*(s-this.hpBuf);
           let x=this.hpBuf;
           if(Math.abs(x)>this.threshold){
@@ -274,7 +273,12 @@ async function setup(){
       }
     }
     registerProcessor("fft-processor",FFTProcessor);
-  `],[{type:"text/javascript"}])));
+  `;
+  const blob = new Blob([workletCode], { type: 'text/javascript' }); // ✅ MIME type
+  const moduleURL = URL.createObjectURL(blob);
+  await audioContext.audioWorklet.addModule(moduleURL);
+  URL.revokeObjectURL(moduleURL);
+
   mic=await navigator.mediaDevices.getUserMedia({audio:true});
   highpass=audioContext.createBiquadFilter();
   highpass.type="highpass";highpass.frequency.value=70;
@@ -328,7 +332,7 @@ document.getElementById("startBtn").onclick = async () => {
   try {
     if (!audioContext) {
       audioContext = new AudioContext();
-      await audioContext.resume(); // resume immediately on gesture
+      await audioContext.resume();
       await setup();
     } else if (audioContext.state === "suspended") {
       await audioContext.resume();
@@ -350,19 +354,4 @@ document.getElementById("stopBtn").onclick = () => {
     log("Stopped");
     drawPianoRoll();
   } catch(e) {
-    log("StopBtn Error: " + e.message);
-  }
-};
-
-document.getElementById("exportBtn").onclick = () => {
-  try {
-    exportMIDI();
-  } catch(e) {
-    log("ExportBtn Error: " + e.message);
-  }
-};
-
-drawAxis();
-</script>
-</body>
-</html>
+    log("
