@@ -1,0 +1,459 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>AudioWorklet → MIDI notes → VexFlow → MIDI export</title>
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; margin: 12px; }
+    #controls { margin-bottom: 12px; }
+    button { margin-right: 8px; padding: 8px 12px; }
+    #status { margin-left: 8px; font-weight: bold; }
+    #sheet { border:1px solid #ddd; padding: 8px; min-height: 160px; }
+    #log { font-family: monospace; white-space: pre-wrap; margin-top: 10px; max-height: 200px; overflow:auto; background:#fafafa; padding:8px; border-radius:6px; }
+  </style>
+  <!-- VexFlow (rendering) and MidiWriterJS (MIDI export) CDNs -->
+  <script src="https://unpkg.com/vexflow/releases/vexflow-min.js"></script>
+  <script src="https://unpkg.com/midiwriter-js/dist/MidiWriter.min.js"></script>
+</head>
+<body>
+  <h2>Real-time polyphonic pitch → MIDI → VexFlow (demo)</h2>
+  <div id="controls">
+    <button id="startBtn">Start</button>
+    <button id="stopBtn" disabled>Stop</button>
+    <button id="exportBtn" disabled>Export MIDI</button>
+    <span id="status">idle</span>
+  </div>
+
+  <div id="sheet"></div>
+  <div id="log"></div>
+
+<script>
+/* -----------------------------
+   AudioWorklet processor source as string
+   We'll create a blob URL and addModule() with it.
+   The processor runs a Goertzel detector for a set of MIDI notes.
+   ----------------------------- */
+const workletSource = `
+
+class GoertzelPitchProcessor extends AudioWorkletProcessor {
+  // Options: range of MIDI notes to analyze, blockSize for Goertzel
+  constructor(options) {
+    super();
+    const opt = options.processorOptions || {};
+    this.midiLow = opt.midiLow || 40;   // A2-ish
+    this.midiHigh = opt.midiHigh || 88; // top piano-ish
+    this.sampleRate = sampleRate;
+    this.blockSize = opt.blockSize || 1024; // analysis window
+    // Build table of frequencies and Goertzel coefficients
+    this.notes = [];
+    for (let midi = this.midiLow; midi <= this.midiHigh; ++midi) {
+      const freq = 440 * Math.pow(2, (midi - 69)/12);
+      const normalized = freq / this.sampleRate;
+      const omega = 2 * Math.PI * normalized;
+      const coeff = 2 * Math.cos(omega);
+      this.notes.push({ midi, freq, coeff, energy: 0, smooth: 0 });
+    }
+    // We'll accumulate samples into a circular buffer until blockSize
+    this.buf = new Float32Array(this.blockSize);
+    this.bufIndex = 0;
+    this.windowCount = 0;
+    this.smoothing = 0.8;
+    this.postIntervalFrames = 1; // post every analysis block
+    this.holdFrames = opt.holdFrames || 3; // frames to hold detected state
+    this.prevDetected = new Map();
+    this.port.postMessage({ type: 'ready' });
+  }
+
+  // Simple Hann window generator
+  hann(n, N) { return 0.5 * (1 - Math.cos(2*Math.PI*n/(N-1))); }
+
+  // Run Goertzel for a single target freq over 'block' buffer
+  goertzel(block, coeff) {
+    let s0 = 0, s1 = 0, s2 = 0;
+    for (let i = 0; i < block.length; ++i) {
+      s0 = block[i] + coeff * s1 - s2;
+      s2 = s1;
+      s1 = s0;
+    }
+    // magnitude estimate: sqrt(s1^2 + s2^2 - coeff*s1*s2)
+    const mag2 = s1*s1 + s2*s2 - coeff*s1*s2;
+    return mag2 > 0 ? mag2 : 0;
+  }
+
+  process(inputs, outputs, parameters) {
+    const input = inputs[0];
+    if (!input || input.length === 0) return true;
+    const channelData = input[0]; // mono only (first channel)
+    // feed samples into circular buffer
+    for (let i = 0; i < channelData.length; ++i) {
+      this.buf[this.bufIndex++] = channelData[i];
+      if (this.bufIndex >= this.blockSize) {
+        // copy to local array and apply window
+        const block = new Float32Array(this.blockSize);
+        for (let j = 0; j < this.blockSize; ++j) {
+          block[j] = this.buf[j] * this.hann(j, this.blockSize);
+        }
+        // shift buffer left for overlap (simple overlap-add: here we use 50% hop)
+        const hop = Math.floor(this.blockSize/2);
+        for (let j = 0; j < this.blockSize - hop; ++j) this.buf[j] = this.buf[j+hop];
+        this.bufIndex = this.blockSize - hop;
+
+        // Run Goertzel across notes
+        const detections = [];
+        let maxEnergy = 0;
+        for (let note of this.notes) {
+          const mag2 = this.goertzel(block, note.coeff);
+          // smooth energy
+          note.smooth = 0.6 * note.smooth + 0.4 * Math.sqrt(mag2);
+          if (note.smooth > maxEnergy) maxEnergy = note.smooth;
+        }
+        // Threshold relative to maxEnergy (allow dynamic level)
+        const thresh = Math.max(1e-4, maxEnergy * 0.25);
+        for (let note of this.notes) {
+          // reported amplitude 0..1 (rough)
+          if (note.smooth > thresh) {
+            detections.push({ midi: note.midi, amp: note.smooth });
+          }
+        }
+        // send detections (deduplicate small changes)
+        // basic grouping: only send when at least one detection exists (we post continuously)
+        this.port.postMessage({ type: 'detections', detections, timestamp: currentTime });
+      }
+    }
+    return true;
+  }
+}
+
+registerProcessor('goertzel-pitch-processor', GoertzelPitchProcessor);
+`;
+
+/* -----------------------------
+   Main thread logic
+   ----------------------------- */
+
+const startBtn = document.getElementById('startBtn');
+const stopBtn  = document.getElementById('stopBtn');
+const exportBtn = document.getElementById('exportBtn');
+const statusSpan = document.getElementById('status');
+const logDiv = document.getElementById('log');
+const sheetDiv = document.getElementById('sheet');
+
+let audioContext = null;
+let micStream = null;
+let workletNode = null;
+
+let noteState = new Map(); // midi -> {startTime, lastSeen}
+let capturedNotes = []; // {midi, start, end} in seconds (end may be null while active)
+let lastPostTime = 0;
+
+// helper
+function log(...args) {
+  logDiv.textContent = (new Date()).toISOString() + '  ' + args.join(' ') + '\\n' + logDiv.textContent;
+}
+
+// midi to note name for VexFlow: returns like ["c/4","#"]
+function midiToVex(m) {
+  const names = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
+  const name = names[m % 12];
+  const octave = Math.floor(m/12) - 1;
+  // VexFlow expects accidental separate; we'll keep names like "c#/4"
+  return name.replace('#','b') ? null : null; // (unused)
+}
+
+// helper map midi to scientific pitch, and accidentals splitting
+function midiToNoteStruct(m) {
+  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const n = names[m % 12];
+  const octave = Math.floor(m/12) - 1;
+  // convert to lower-case note key used by VexFlow e.g. "c/4"
+  const key = n[0].toLowerCase() + '/' + octave;
+  const accidental = n.includes('#') ? '#' : null;
+  return { key, accidental };
+}
+
+// quantize duration in seconds to nearest 16th note given tempo
+function secondsToTickLength(sec, tempo=120) {
+  // quarter length in seconds = 60/tempo
+  const quarter = 60/tempo;
+  // 16th note = quarter / 4
+  const sixteenth = quarter / 4;
+  const count = Math.max(1, Math.round(sec / sixteenth));
+  // return a duration string for VexFlow / MIDIWriter (we'll use relative ticks later)
+  return { sixteenthCount: count, sixteenth };
+}
+
+async function startAudio() {
+  if (audioContext) return;
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  // create blob for worklet
+  const blob = new Blob([workletSource], { type: 'application/javascript' });
+  const url = URL.createObjectURL(blob);
+  await audioContext.audioWorklet.addModule(url);
+  workletNode = new AudioWorkletNode(audioContext, 'goertzel-pitch-processor', {
+    processorOptions: { midiLow: 40, midiHigh: 88, blockSize: 1024 }
+  });
+  workletNode.port.onmessage = handleWorkletMessage;
+
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+  } catch (err) {
+    log('getUserMedia error:', err);
+    statusSpan.textContent = 'mic error';
+    return;
+  }
+  const src = audioContext.createMediaStreamSource(micStream);
+  src.connect(workletNode);
+  // connect worklet to destination (no sound) -- the processor doesn't output audio
+  workletNode.connect(audioContext.destination);
+
+  statusSpan.textContent = 'running';
+  startBtn.disabled = true;
+  stopBtn.disabled = false;
+  exportBtn.disabled = false;
+  log('started audio context; sampleRate=' + audioContext.sampleRate);
+}
+
+function stopAudio() {
+  if (!audioContext) return;
+  // finalize any active notes
+  const t = audioContext.currentTime;
+  for (let [m,st] of noteState) {
+    if (!st.end) {
+      st.end = t;
+      capturedNotes.push({ midi: m, start: st.start, end: st.end });
+    }
+  }
+  noteState.clear();
+
+  if (micStream) {
+    micStream.getTracks().forEach(t => t.stop());
+    micStream = null;
+  }
+  if (workletNode) {
+    workletNode.port.onmessage = null;
+    try { workletNode.disconnect(); } catch(_) {}
+    workletNode = null;
+  }
+  try { audioContext.close(); } catch(_) {}
+  audioContext = null;
+
+  statusSpan.textContent = 'stopped';
+  startBtn.disabled = false;
+  stopBtn.disabled = true;
+  log('stopped');
+  renderScore();
+}
+
+function handleWorkletMessage(ev) {
+  const msg = ev.data;
+  if (!msg) return;
+  if (msg.type === 'ready') {
+    log('worklet ready');
+  } else if (msg.type === 'detections') {
+    // msg.detections {midi, amp}
+    handleDetections(msg.detections, msg.timestamp);
+  }
+}
+
+// Basic detection logic: track note on/off with debounce
+function handleDetections(detections, timestamp) {
+  if (!audioContext) return;
+  const now = audioContext.currentTime;
+  const detectedSet = new Set(detections.map(d => d.midi));
+  const thresholdHold = 0.15; // seconds of missing before we close note (debounce)
+  // Mark seen for active
+  for (let midi of detectedSet) {
+    if (!noteState.has(midi)) {
+      // new note on
+      noteState.set(midi, { start: now, lastSeen: now, end: null });
+      log('NOTE ON', midi);
+    } else {
+      const st = noteState.get(midi);
+      st.lastSeen = now;
+    }
+  }
+  // For notes currently active but not detected, check lastSeen
+  for (let [midi, st] of Array.from(noteState.entries())) {
+    if (!detectedSet.has(midi)) {
+      if ((now - st.lastSeen) > thresholdHold) {
+        // consider note ended
+        st.end = st.lastSeen;
+        capturedNotes.push({ midi, start: st.start, end: st.end });
+        noteState.delete(midi);
+        log('NOTE OFF', midi, 'dur=', (st.end - st.start).toFixed(3));
+      }
+    }
+  }
+  // redraw sheet on each detection update
+  renderScore();
+}
+
+// Render using VexFlow: we will make a simple single-staff display and convert capturedNotes to nearest durations
+function renderScore() {
+  // prepare a combined list: take capturedNotes + currently active (approx end = now)
+  const now = audioContext ? audioContext.currentTime : (capturedNotes.length ? capturedNotes[capturedNotes.length-1].end : 0);
+  const events = capturedNotes.slice();
+  for (let [m, st] of noteState) {
+    events.push({ midi: m, start: st.start, end: now });
+  }
+  // sort by start time
+  events.sort((a,b) => a.start - b.start);
+
+  // Clear sheetDiv
+  sheetDiv.innerHTML = '';
+  const VF = Vex.Flow;
+  const renderer = new VF.Renderer(sheetDiv, VF.Renderer.Backends.SVG);
+  renderer.resize(900, 220);
+  const context = renderer.getContext();
+  context.setFont('Arial', 10, '').setBackgroundFillStyle('#fff');
+
+  // create stave
+  const stave = new VF.Stave(10, 10, 860);
+  stave.addClef('treble').addTimeSignature('4/4');
+  stave.setContext(context).draw();
+
+  // Convert events to VexFlow notes grouped into beats (very simple quantization to 16th)
+  const tempo = 100; // base tempo assumption for display and midi export (BPM)
+  const sixteenth = 60/tempo / 4;
+  // group events by onset times close enough to treat as simultaneous chord
+  const grouped = [];
+  const onsetTolerance = sixteenth/2;
+  for (let ev of events) {
+    // compute position in sixteenth counts relative to first event
+    if (grouped.length === 0) {
+      grouped.push({ t: ev.start, notes: [ev] });
+    } else {
+      const last = grouped[grouped.length-1];
+      if (Math.abs(ev.start - last.t) <= onsetTolerance) last.notes.push(ev);
+      else grouped.push({ t: ev.start, notes: [ev] });
+    }
+  }
+
+  // create VexFlow notes array
+  const vfNotes = [];
+  for (let g of grouped) {
+    // duration: average length of notes in group
+    const durations = g.notes.map(n => Math.max(0.01, n.end - n.start));
+    const avgDur = durations.reduce((a,b)=>a+b,0)/durations.length;
+    // quantize to nearest 16th count
+    const count = Math.max(1, Math.round(avgDur / sixteenth));
+    // convert count to a VexFlow duration string (we'll use "q" for quarter, "8" etc. VexFlow supports numeric durations like "16", but to include dots/slashes would need mapping)
+    // For simplicity: map counts to common durations up to whole note
+    let durStr = '16'; // default 16th
+    if (count >= 16) durStr = 'w';
+    else if (count >= 8) durStr = 'h';
+    else if (count >= 4) durStr = 'q';
+    else if (count >= 2) durStr = '8';
+    else durStr = '16';
+
+    // build chord keys and accidentals
+    const keys = [];
+    const accidentals = [];
+    for (let n of g.notes) {
+      const m = n.midi;
+      // map midi to key like 'c/4' with accidentals handled by VexFlow accidental API
+      const names = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
+      const name = names[m % 12];
+      const octave = Math.floor(m/12) - 1;
+      keys.push(name.replace('#','') + '/' + octave + (name.includes('#') ? '' : ''));
+      accidentals.push(name.includes('#') ? '#' : null);
+    }
+    // naive: if duplicates or name formatting, make keys with sharps included (VexFlow will accept e.g. "c#/4")
+    const vfKeyList = g.notes.map(n => {
+      const names = ['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
+      const nm = names[n.midi % 12];
+      const oct = Math.floor(n.midi/12) -1;
+      return nm + '/' + oct;
+    });
+
+    const staveNote = new VF.StaveNote({ keys: vfKeyList, duration: durStr });
+    // add accidentals
+    for (let i = 0; i < vfKeyList.length; ++i) {
+      if (vfKeyList[i].includes('#')) {
+        staveNote.addAccidental(i, new VF.Accidental('#'));
+      }
+    }
+    vfNotes.push(staveNote);
+  }
+
+  // If no notes, put an empty whole rest measure
+  if (vfNotes.length === 0) {
+    const rest = new VF.StaveNote({ keys: ['b/4'], duration: 'w' }).addModifier(new VF.Annotation('No notes detected').setFont('Arial', 12), 0);
+    VF.Formatter.FormatAndDraw(context, stave, [rest]);
+    return;
+  }
+
+  // Format and draw (single voice)
+  const voice = new VF.Voice({ num_beats: 4, beat_value: 4 });
+  voice.addTickables(vfNotes);
+  new VF.Formatter().joinVoices([voice]).format([voice], 700);
+  voice.draw(context, stave);
+}
+
+/* Export MIDI using MidiWriterJS */
+function exportMidi() {
+  if (capturedNotes.length === 0) {
+    alert('No captured notes to export');
+    return;
+  }
+  // Create track and add events
+  const track = new MidiWriter.Track();
+  track.setTempo(100);
+
+  // Convert captured notes to MidiWriter events
+  // We'll quantize times to ticks using quarter=128 ticks
+  const ticksPerQuarter = 128;
+  // For simplicity, sort events by start time and create durations
+  const events = capturedNotes.slice().sort((a,b)=>a.start - b.start);
+  let cursor = 0; // seconds
+  for (let ev of events) {
+    const startOffsetSec = ev.start - events[0].start;
+    const offsetTicks = Math.max(0, Math.round((startOffsetSec / (60/100)) * ticksPerQuarter));
+    const durSec = Math.max(0.01, ev.end - ev.start);
+    // convert durSec to ticks
+    const durTicks = Math.max(1, Math.round((durSec / (60/100)) * ticksPerQuarter));
+    const midi = ev.midi;
+    const noteEvent = new MidiWriter.NoteEvent({
+      pitch: [midiToName(midi)],
+      duration: 'T' + durTicks,
+      startTick: offsetTicks
+    });
+    track.addEvent(noteEvent);
+  }
+  const write = new MidiWriter.Writer(track);
+  const dataUri = write.dataUri();
+  // Create download link
+  const a = document.createElement('a');
+  a.href = dataUri;
+  a.download = 'capture.mid';
+  a.click();
+}
+
+// midi number to name like "C4", MidiWriter supports names like "C4" or "C#4"
+function midiToName(m) {
+  const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const name = names[m % 12];
+  const octave = Math.floor(m/12) - 1;
+  return name + octave;
+}
+
+startBtn.addEventListener('click', () => {
+  startAudio().catch(err => { log('start error', err); });
+});
+
+stopBtn.addEventListener('click', () => {
+  stopAudio();
+});
+
+exportBtn.addEventListener('click', () => {
+  exportMidi();
+});
+
+/* enable export when there are captured notes */
+setInterval(() => {
+  exportBtn.disabled = capturedNotes.length === 0;
+}, 500);
+
+</script>
+</body>
+</html>
