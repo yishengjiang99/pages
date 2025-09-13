@@ -2,23 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Sound Source Localization</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        html, body {
             margin: 0;
-            padding: 1rem;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
             align-items: center;
             background-color: #f5f5f5;
-            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             box-sizing: border-box;
+            user-select: none;
         }
         canvas {
             max-width: 100%;
+            width: 100%;
             height: auto;
+            max-height: 50%;
             border: 1px solid #ccc;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -29,6 +33,7 @@
             line-height: 1.4;
             color: #666;
             font-size: 0.9rem;
+            margin: 0.5rem 0;
         }
         .controls {
             display: flex;
@@ -37,7 +42,8 @@
             gap: 0.5rem;
             width: 100%;
             max-width: 300px;
-            margin-top: 1rem;
+            margin-top: 0.5rem;
+            flex-grow: 1;
         }
         .mic-group {
             display: flex;
@@ -97,7 +103,7 @@
     </style>
 </head>
 <body>
-    <canvas id="canvas" width="400" height="400"></canvas>
+    <canvas id="canvas"></canvas>
     <p>Drag the microphone icons (L and R) on the canvas to position them relative to your head (top-down view). The inter-microphone distance will be used for localization. Select two microphones for left and right channels. This assumes mono input from each; they will be merged into stereo for processing. In practice, test with your setup. Processing uses frequency-domain correlation via custom FFT implementation. Updated for iOS Safari compatibility: dynamic biquad coefficients based on sample rate, omitted fixed sample rate in AudioContext. Added left/right RMS computation and scrolling line chart display in bottom of canvas.</p>
     <div class="controls">
         <div class="mic-group">
@@ -128,8 +134,8 @@
         let audioContext;
         let processor;
         let draggingMic = null;
-        const micRadius = 5;
-        const hitRadius = 10;
+        const micRadius = 10; // Increased for better touch target
+        const hitRadius = 20; // Larger hit area for touch
         const mics = [
             {id: 'left', x: -50, y: 0, label: 'L'},
             {id: 'right', x: 50, y: 0, label: 'R'}
@@ -143,16 +149,20 @@
             canvas.width = rect.width * dpr;
             canvas.height = rect.height * dpr;
             ctx.scale(dpr, dpr);
+            chartHeight = (canvas.height / dpr) * 0.45;
+            chartY = (canvas.height / dpr) - chartHeight;
             draw();
         }
         window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();  // Initial resize
+        resizeCanvas();
 
-        function getMousePos(e) {
+        function getEventPos(e) {
             const rect = canvas.getBoundingClientRect();
+            const clientX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+            const clientY = e.type.startsWith('touch') ? e.touches[0].clientY : e.clientY;
             return {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
+                x: (clientX - rect.left) / (rect.width / (canvas.width / (window.devicePixelRatio || 1))),
+                y: (clientY - rect.top) / (rect.height / (canvas.height / (window.devicePixelRatio || 1)))
             };
         }
 
@@ -166,9 +176,9 @@
             }
         }
 
-        canvas.addEventListener('mousedown', (e) => {
+        function handleStart(e) {
             e.preventDefault();
-            const pos = getMousePos(e);
+            const pos = getEventPos(e);
             const width = canvas.width / (window.devicePixelRatio || 1);
             const height = canvas.height / (window.devicePixelRatio || 1);
             const headCenterX = width / 2;
@@ -183,12 +193,12 @@
                     break;
                 }
             }
-        });
+        }
 
-        canvas.addEventListener('mousemove', (e) => {
+        function handleMove(e) {
             if (draggingMic) {
                 e.preventDefault();
-                const pos = getMousePos(e);
+                const pos = getEventPos(e);
                 const width = canvas.width / (window.devicePixelRatio || 1);
                 const height = canvas.height / (window.devicePixelRatio || 1);
                 const headCenterX = width / 2;
@@ -198,16 +208,24 @@
                 updateMicDistance();
                 draw();
             }
-        });
+        }
 
-        canvas.addEventListener('mouseup', (e) => {
+        function handleEnd(e) {
             e.preventDefault();
             draggingMic = null;
-        });
+        }
 
-        canvas.addEventListener('mouseleave', (e) => {
-            draggingMic = null;
-        });
+        // Mouse events
+        canvas.addEventListener('mousedown', handleStart);
+        canvas.addEventListener('mousemove', handleMove);
+        canvas.addEventListener('mouseup', handleEnd);
+        canvas.addEventListener('mouseleave', handleEnd);
+
+        // Touch events
+        canvas.addEventListener('touchstart', handleStart, { passive: false });
+        canvas.addEventListener('touchmove', handleMove, { passive: false });
+        canvas.addEventListener('touchend', handleEnd, { passive: false });
+        canvas.addEventListener('touchcancel', handleEnd, { passive: false });
 
         async function detectMicrophones() {
             try {
@@ -258,38 +276,29 @@
                     return;
                 }
 
-                audioContext = new AudioContext();  // Omit sampleRate for iOS compatibility (defaults to 48000 Hz on Safari iOS)
+                audioContext = new AudioContext();
                 if (audioContext.state === 'suspended') {
                     await audioContext.resume();
                 }
 
-                // Get streams for each selected microphone.
                 const stream1 = await getMicStream(leftId);
                 const stream2 = await getMicStream(rightId);
 
-                // Create audio source nodes from each stream.
                 const source1 = audioContext.createMediaStreamSource(stream1);
                 const source2 = audioContext.createMediaStreamSource(stream2);
 
-                // Create a ChannelMergerNode to combine the streams.
-                const merger = audioContext.createChannelMerger(2); // Merge to 2 channels.
-                
-                // Connect each microphone source to a specific channel on the merger.
-                source1.connect(merger, 0, 0); // Connect left mic to the first channel (index 0).
-                source2.connect(merger, 0, 1); // Connect right mic to the second channel (index 1).
+                const merger = audioContext.createChannelMerger(2);
+                source1.connect(merger, 0, 0);
+                source2.connect(merger, 0, 1);
 
-                // Connect the merged audio to the destination (e.g., speakers).
-                // This allows you to hear the combined audio.
                 merger.connect(audioContext.destination);
 
-                // Create a destination stream for further processing.
                 const destination = audioContext.createMediaStreamDestination();
                 merger.connect(destination);
-                
+
                 console.log('Combined mic stream:', destination.stream);
 
                 const workletCode = `
-                    // Simple Complex number class
                     class Complex {
                         constructor(re = 0, im = 0) {
                             this.re = re;
@@ -315,7 +324,6 @@
                         }
                     }
 
-                    // Bit reversal permutation
                     function bitReverse(n, bits) {
                         let rev = 0;
                         for (let i = 0; i < bits; i++) {
@@ -326,7 +334,6 @@
                         return rev;
                     }
 
-                    // Cooley-Tukey radix-2 FFT
                     function fft(signal, inverse = false) {
                         const N = signal.length;
                         const bits = Math.log2(N);
@@ -368,9 +375,8 @@
                                     this.d = e.data.d;
                                 }
                             };
-                            // Compute biquad coefficients dynamically based on sample rate (highpass to filter low freq noise)
-                            const Fc = 80;  // Cutoff frequency in Hz
-                            const Q = 0.707;  // Butterworth Q
+                            const Fc = 80;
+                            const Q = 0.707;
                             const Fs = sampleRate;
                             const K = Math.tan(Math.PI * Fc / Fs);
                             const norm = 1 / (1 + K / Q + K * K);
@@ -387,7 +393,7 @@
                             this.maxLag = 50;
                             this.leftBuf = new Float32Array(this.windowSize);
                             this.rightBuf = new Float32Array(this.windowSize);
-                            this.writePos = 0;
+                            this.inputPos = 0;
                             this.d = 0.17;
                         }
 
@@ -400,7 +406,6 @@
                             const rightInput = input[1];
 
                             for (let i = 0; i < leftInput.length; i++) {
-                                // Filter left channel (biquad highpass)
                                 let x = leftInput[i];
                                 let left_y = (
                                     this.b0 * x +
@@ -414,7 +419,6 @@
                                 this.leftFilter.y2 = this.leftFilter.y1;
                                 this.leftFilter.y1 = left_y;
 
-                                // Filter right channel (biquad highpass)
                                 x = rightInput[i];
                                 let right_y = (
                                     this.b0 * x +
@@ -428,14 +432,11 @@
                                 this.rightFilter.y2 = this.rightFilter.y1;
                                 this.rightFilter.y1 = right_y;
 
-                                // Store filtered samples in buffers
-                                this.leftBuf[this.writePos] = left_y;
-                                this.rightBuf[this.writePos] = right_y;
-                                this.writePos++;
+                                this.leftBuf[this.inputPos] = left_y;
+                                this.rightBuf[this.inputPos] = right_y;
+                                this.inputPos++;
 
-                                // Compute correlation and RMS when buffer is full
-                                if (this.writePos >= this.windowSize) {
-                                    // Frequency domain correlation
+                                if (this.inputPos >= this.windowSize) {
                                     const fftLeft = fft(Array.from(this.leftBuf));
                                     const fftRight = fft(Array.from(this.rightBuf));
                                     const corrFreq = new Array(this.windowSize);
@@ -454,7 +455,6 @@
                                         }
                                     }
 
-                                    // Compute RMS for left and right
                                     let sumL = 0;
                                     let sumR = 0;
                                     for (let j = 0; j < this.windowSize; j++) {
@@ -464,9 +464,8 @@
                                     let leftRMS = Math.sqrt(sumL / this.windowSize);
                                     let rightRMS = Math.sqrt(sumR / this.windowSize);
 
-                                    // Estimate angle (ITD approximation, clamped)
                                     let tau = bestLag / sampleRate;
-                                    let c = 343;  // Speed of sound m/s
+                                    let c = 343;
                                     let maxTau = this.d / c;
                                     if (Math.abs(tau) > maxTau) {
                                         tau = Math.sign(tau) * maxTau;
@@ -479,12 +478,10 @@
                                         rightRMS: rightRMS 
                                     });
 
-                                    // Reset buffer
-                                    this.writePos = 0;
+                                    this.inputPos = 0;
                                 }
                             }
 
-                            // Passthrough to output (optional)
                             for (let channel = 0; channel < outputs[0].length; channel++) {
                                 outputs[0][channel].set(input[channel]);
                             }
@@ -514,9 +511,8 @@
                     }
                     draw();
                 };
-                mergedSource.connect(processor).connect(audioContext.destination);  // Connect to speakers if desired
+                mergedSource.connect(processor).connect(audioContext.destination);
 
-                // Initial distance update
                 updateMicDistance();
             } catch (error) {
                 console.error('Error starting audio:', error);
@@ -534,14 +530,12 @@
             ctx.save();
             ctx.translate(width / 2, headCenterY);
 
-            // Draw head (circle)
             ctx.beginPath();
             ctx.arc(0, 0, 50, 0, 2 * Math.PI);
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // Draw baseline between mics (dashed)
             ctx.setLineDash([5, 5]);
             ctx.strokeStyle = 'gray';
             ctx.lineWidth = 1;
@@ -551,7 +545,6 @@
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Draw microphone icons
             ctx.fillStyle = 'blue';
             mics.forEach(mic => {
                 ctx.beginPath();
@@ -565,7 +558,6 @@
                 ctx.fillStyle = 'blue';
             });
 
-            // Draw sound source direction (line from head center)
             if (angle !== undefined && !isNaN(angle)) {
                 const rad = angle * (Math.PI / 180);
                 const length = 100;
@@ -579,7 +571,6 @@
 
             ctx.restore();
 
-            // Draw RMS line chart in bottom (moving ticker)
             const numPoints = leftHistory.length;
             if (numPoints > 0) {
                 const chartTop = height * 0.65;
@@ -587,13 +578,12 @@
                 const chartH = chartBottom - chartTop;
                 const chartScaleX = (width - 1) / Math.max(1, numPoints - 1);
 
-                // Left RMS (blue)
                 ctx.strokeStyle = 'blue';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 for (let i = 0; i < numPoints; i++) {
                     const x = i * chartScaleX;
-                    const rmsVal = Math.max(0, Math.min(1, leftHistory[i]));  // Clamp 0-1
+                    const rmsVal = Math.max(0, Math.min(1, leftHistory[i]));
                     const y = chartBottom - (rmsVal * chartH);
                     if (i === 0) {
                         ctx.moveTo(x, y);
@@ -603,12 +593,11 @@
                 }
                 ctx.stroke();
 
-                // Right RMS (green)
                 ctx.strokeStyle = 'green';
                 ctx.beginPath();
                 for (let i = 0; i < numPoints; i++) {
                     const x = i * chartScaleX;
-                    const rmsVal = Math.max(0, Math.min(1, rightHistory[i]));  // Clamp 0-1
+                    const rmsVal = Math.max(0, Math.min(1, rightHistory[i]));
                     const y = chartBottom - (rmsVal * chartH);
                     if (i === 0) {
                         ctx.moveTo(x, y);
@@ -618,7 +607,6 @@
                 }
                 ctx.stroke();
 
-                // Optional: draw baseline
                 ctx.strokeStyle = 'gray';
                 ctx.lineWidth = 0.5;
                 ctx.beginPath();
@@ -630,4 +618,4 @@
     </script>
 </body>
 </html>
-```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
+```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
