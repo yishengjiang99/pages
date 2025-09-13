@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Audio Piano Roll</title>
+<title>Goertzel Piano Roll with Hann Window</title>
 <style>
   body { margin: 0; overflow: hidden; font-family: sans-serif; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
   #controls { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; background: #222; color: #fff; align-items: center; }
@@ -62,7 +62,6 @@ const noiseGateValue = document.getElementById("noiseGateValue");
 
 function log(msg){ logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
 
-// Catch all JS errors
 window.addEventListener("error", e => log("JS Error: " + e.message + " @ " + e.filename + ":" + e.lineno));
 window.addEventListener("unhandledrejection", e => log("Unhandled Promise Rejection: " + e.reason));
 
@@ -85,7 +84,6 @@ noiseGateSlider.oninput = () => {
   if(workletNode) workletNode.port.postMessage({type:"threshold",value:noiseThreshold});
 };
 
-// Piano axis drawing
 function drawAxis(){
   const NS = "http://www.w3.org/2000/svg";
   const axisSvg = document.getElementById("axisSvg");
@@ -109,7 +107,6 @@ function drawAxis(){
   }
 }
 
-// Piano roll drawing
 function drawPianoRoll(){
   roll.innerHTML="";
   const NS="http://www.w3.org/2000/svg";
@@ -136,16 +133,52 @@ function drawPianoRoll(){
   }
 }
 
-// Audio Worklet setup
 async function setup(){
   const workletCode = `
     let threshold=${noiseThreshold};
-    class FFTProcessor extends AudioWorkletProcessor{
-      constructor(){super();this.buf=new Float32Array(2048);this.i=0;this.hpBuf=0;this.alpha=2*Math.PI*70/sampleRate;this.port.postMessage({type:"ready"});}
-      process(inputs){let input=inputs[0];if(!input||!input[0])return true;let ch=input[0];for(let s of ch){this.hpBuf+=this.alpha*(s-this.hpBuf);let x=this.hpBuf;if(Math.abs(x)>threshold){this.buf[this.i++]=x;if(this.i>=this.buf.length){let fftSize=this.buf.length;let re=new Float32Array(fftSize),im=new Float32Array(fftSize);for(let j=0;j<fftSize;j++){re[j]=this.buf[j];im[j]=0;}for(let step=1;step<fftSize;step<<=1){let jump=step<<1;for(let grp=0;grp<step;grp++){let ang=-Math.PI*grp/step;let wr=Math.cos(ang),wi=Math.sin(ang);for(let k=grp;k<fftSize;k+=jump){let l=k+step;let tr=wr*re[l]-wi*im[l];let ti=wr*im[l]+wi*re[l];re[l]=re[k]-tr;im[l]=im[k]-ti;re[k]+=tr;im[k]+=ti;}}}let mags=new Float32Array(fftSize/2);for(let j=0;j<mags.length;j++)mags[j]=Math.sqrt(re[j]*re[j]+im[j]*im[j]);let peaks=[];for(let j=1;j<mags.length-1;j++){if(mags[j]>mags[j-1]&&mags[j]>mags[j+1]&&mags[j]>50){let freq=j*sampleRate/fftSize;let midi=Math.round(69+12*Math.log2(freq/440));peaks.push(midi);}}if(peaks.length)this.port.postMessage({type:"notes",notes:peaks,time=currentTime});this.i=0;}}}return true;}
+    const notesFreqs = [];
+    for(let m=40;m<=84;m++){ notesFreqs[m]=440*Math.pow(2,(m-69)/12); }
+    function hann(n,N){ return 0.5*(1-Math.cos(2*Math.PI*n/(N-1))); }
+    class GoertzelProcessor extends AudioWorkletProcessor{
+      constructor(){
+        super();
+        this.buf = new Float32Array(1024);
+        this.i=0;
+        this.hpBuf=0;
+        this.alpha=2*Math.PI*70/sampleRate;
+        this.port.postMessage({type:"ready"});
+        this.port.onmessage = e => { if(e.data.type==="threshold") threshold=e.data.value; };
+      }
+      process(inputs){ 
+        let input=inputs[0]; if(!input||!input[0]) return true; 
+        let ch=input[0]; 
+        for(let s of ch){ 
+          this.hpBuf += this.alpha*(s-this.hpBuf);
+          let x=this.hpBuf; 
+          if(Math.abs(x)>threshold){ 
+            this.buf[this.i++]=x;
+            if(this.i>=this.buf.length){
+              let detected=[];
+              for(let m=40;m<=84;m++){
+                let coeff=2*Math.cos(2*Math.PI*notesFreqs[m]/sampleRate*this.buf.length);
+                let s1=0,s2=0;
+                for(let j=0;j<this.buf.length;j++){
+                  let win=this.buf[j]*0.5*(1-Math.cos(2*Math.PI*j/(this.buf.length-1)));
+                  let s0 = win + coeff*s1 - s2;
+                  s2=s1; s1=s0;
+                }
+                let power=s1*s1+s2*s2-coeff*s1*s2;
+                if(power>0.01) detected.push(m);
+              }
+              if(detected.length) this.port.postMessage({type:"notes",notes:detected,time=currentTime});
+              this.i=0;
+            }
+          }
+        }
+        return true;
+      }
     }
-    registerProcessor("fft-processor",FFTProcessor);
-    this.port.onmessage = e => { if(e.data.type==="threshold") threshold=e.data.value; };
+    registerProcessor("goertzel-processor",GoertzelProcessor);
   `;
   const blob = new Blob([workletCode], { type: 'text/javascript' });
   const moduleURL = URL.createObjectURL(blob);
@@ -156,7 +189,7 @@ async function setup(){
   highpass=audioContext.createBiquadFilter();
   highpass.type="highpass";highpass.frequency.value=70;
   analyser=audioContext.createAnalyser();
-  workletNode=new AudioWorkletNode(audioContext,"fft-processor");
+  workletNode=new AudioWorkletNode(audioContext,"goertzel-processor");
   const source=audioContext.createMediaStreamSource(mic);
   source.connect(highpass).connect(workletNode).connect(analyser);
 
@@ -169,7 +202,6 @@ async function setup(){
   visualizeVolume();
 }
 
-// Volume Meter
 function visualizeVolume(){
   const data=new Uint8Array(analyser.fftSize);
   function draw(){
@@ -183,7 +215,6 @@ function visualizeVolume(){
   draw();
 }
 
-// Note Handling
 function handleNotes(notes,time){
   for(let m of notes){
     if(!noteState.has(m)){ noteState.set(m,{start:time}); log("NoteOn "+m); }
@@ -194,7 +225,6 @@ function handleNotes(notes,time){
   drawPianoRoll();
 }
 
-// Buttons
 document.getElementById("startBtn").onclick = async () => {
   try {
     if (!audioContext) { audioContext = new AudioContext(); await audioContext.resume(); await setup(); }
@@ -208,8 +238,7 @@ document.getElementById("stopBtn").onclick = () => {
 };
 document.getElementById("exportBtn").onclick = () => { try { exportMIDI(); } catch(e){ log("ExportBtn Error: "+e.message); } };
 
-// MIDI Export
-function exportMIDI(){ /* implement MIDI export as before */ }
+function exportMIDI(){ /* implement MIDI export */ }
 
 drawAxis();
 </script>
