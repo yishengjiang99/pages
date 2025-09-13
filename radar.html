@@ -39,10 +39,17 @@
             max-width: 300px;
             margin-top: 1rem;
         }
+        .mic-group {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            gap: 0.25rem;
+        }
         label {
             font-weight: 600;
             color: #333;
             align-self: flex-start;
+            font-size: 0.9rem;
         }
         select {
             width: 100%;
@@ -91,13 +98,21 @@
 </head>
 <body>
     <canvas id="canvas" width="400" height="400"></canvas>
-    <p>Note: This assumes stereo audio input from AirPods microphones (left/right channels). In practice, Bluetooth headsets may provide mono input; test with your setup. Processing uses time-domain correlation for simplicity. Updated for iOS Safari compatibility: dynamic biquad coefficients based on sample rate, omitted fixed sample rate in AudioContext. Added left/right RMS computation and scrolling line chart display in bottom of canvas.</p>
+    <p>Drag the microphone icons (L and R) on the canvas to position them relative to your head (top-down view). The inter-microphone distance will be used for localization. Select two microphones for left and right channels. This assumes mono input from each; they will be merged into stereo for processing. In practice, test with your setup. Processing uses frequency-domain correlation via custom FFT implementation. Updated for iOS Safari compatibility: dynamic biquad coefficients based on sample rate, omitted fixed sample rate in AudioContext. Added left/right RMS computation and scrolling line chart display in bottom of canvas.</p>
     <div class="controls">
-        <label for="micSelect">Microphone:</label>
-        <select id="micSelect">
-            <option value="">Default</option>
-        </select>
-        <button class="secondary-btn" onclick="initMicrophones()">Detect Microphones</button>
+        <div class="mic-group">
+            <label for="micLeft">Left Microphone:</label>
+            <select id="micLeft">
+                <option value="">Select...</option>
+            </select>
+        </div>
+        <div class="mic-group">
+            <label for="micRight">Right Microphone:</label>
+            <select id="micRight">
+                <option value="">Select...</option>
+            </select>
+        </div>
+        <button class="secondary-btn" onclick="detectMicrophones()">Detect Microphones</button>
         <button onclick="start()">Start Listening</button>
     </div>
     <script>
@@ -110,6 +125,16 @@
         let chartHeight;
         let chartY;
         let audioDevices = [];
+        let audioContext;
+        let processor;
+        let draggingMic = null;
+        const micRadius = 5;
+        const hitRadius = 10;
+        const mics = [
+            {id: 'left', x: -50, y: 0, label: 'L'},
+            {id: 'right', x: 50, y: 0, label: 'R'}
+        ];
+        const pixelToMeterScale = 0.17 / 100;  // 100px initial distance = 0.17m
 
         // Make canvas responsive
         function resizeCanvas() {
@@ -118,25 +143,86 @@
             canvas.width = rect.width * dpr;
             canvas.height = rect.height * dpr;
             ctx.scale(dpr, dpr);
-            chartHeight = (canvas.height / dpr) * 0.45;  // 45% for chart
-            chartY = (canvas.height / dpr) - chartHeight;
             draw();
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();  // Initial resize
 
-        async function initMicrophones() {
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+        }
+
+        function updateMicDistance() {
+            const dx = mics[0].x - mics[1].x;
+            const dy = mics[0].y - mics[1].y;
+            const pixelDist = Math.sqrt(dx * dx + dy * dy);
+            const newD = pixelDist * pixelToMeterScale;
+            if (processor && processor.port) {
+                processor.port.postMessage({ type: 'update-d', d: newD });
+            }
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const pos = getMousePos(e);
+            const width = canvas.width / (window.devicePixelRatio || 1);
+            const height = canvas.height / (window.devicePixelRatio || 1);
+            const headCenterX = width / 2;
+            const headCenterY = height * 0.3;
+            const relX = pos.x - headCenterX;
+            const relY = pos.y - headCenterY;
+            for (let mic of mics) {
+                const dx = relX - mic.x;
+                const dy = relY - mic.y;
+                if (dx * dx + dy * dy < hitRadius * hitRadius) {
+                    draggingMic = mic;
+                    break;
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (draggingMic) {
+                e.preventDefault();
+                const pos = getMousePos(e);
+                const width = canvas.width / (window.devicePixelRatio || 1);
+                const height = canvas.height / (window.devicePixelRatio || 1);
+                const headCenterX = width / 2;
+                const headCenterY = height * 0.3;
+                draggingMic.x = pos.x - headCenterX;
+                draggingMic.y = pos.y - headCenterY;
+                updateMicDistance();
+                draw();
+            }
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            e.preventDefault();
+            draggingMic = null;
+        });
+
+        canvas.addEventListener('mouseleave', (e) => {
+            draggingMic = null;
+        });
+
+        async function detectMicrophones() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 const devices = await navigator.mediaDevices.enumerateDevices();
                 audioDevices = devices.filter(device => device.kind === 'audioinput');
-                const select = document.getElementById('micSelect');
-                select.innerHTML = '<option value="">Default</option>';
+                const leftSelect = document.getElementById('micLeft');
+                const rightSelect = document.getElementById('micRight');
+                leftSelect.innerHTML = '<option value="">Select...</option>';
+                rightSelect.innerHTML = '<option value="">Select...</option>';
                 audioDevices.forEach((device, index) => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.text = device.label || `Microphone ${index + 1}`;
-                    select.appendChild(option);
+                    const optionLeft = new Option(device.label || `Microphone ${index + 1}`, device.deviceId);
+                    const optionRight = new Option(device.label || `Microphone ${index + 1}`, device.deviceId);
+                    leftSelect.add(optionLeft);
+                    rightSelect.add(optionRight);
                 });
                 stream.getTracks().forEach(track => track.stop());
             } catch (error) {
@@ -145,31 +231,143 @@
             }
         }
 
+        async function getMicStream(deviceId) {
+            const constraints = {
+                audio: {
+                    deviceId: { exact: deviceId },
+                    channelCount: { ideal: 1 },
+                    echoCancellation: false,
+                    noiseSuppression: false
+                }
+            };
+            return await navigator.mediaDevices.getUserMedia(constraints);
+        }
+
         async function start() {
             try {
-                const select = document.getElementById('micSelect');
-                let constraints = {
-                    audio: {
-                        channelCount: { ideal: 2 },
-                        channelCountMode: 'explicit',
-                        sampleRate: { ideal: 44100 },
-                        echoCancellation: false,
-                        noiseSuppression: false
-                    }
-                };
-                if (select.value) {
-                    constraints.audio.deviceId = { exact: select.value };
+                const leftSelect = document.getElementById('micLeft');
+                const rightSelect = document.getElementById('micRight');
+                const leftId = leftSelect.value;
+                const rightId = rightSelect.value;
+                if (!leftId || !rightId) {
+                    alert('Please select both left and right microphones.');
+                    return;
                 }
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                const ac = new AudioContext();  // Omit sampleRate for iOS compatibility (defaults to 48000 Hz on Safari iOS)
-                if (ac.state === 'suspended') {
-                    await ac.resume();
+                if (leftId === rightId) {
+                    alert('Please select different microphones for left and right.');
+                    return;
                 }
 
+                audioContext = new AudioContext();  // Omit sampleRate for iOS compatibility (defaults to 48000 Hz on Safari iOS)
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+
+                // Get streams for each selected microphone.
+                const stream1 = await getMicStream(leftId);
+                const stream2 = await getMicStream(rightId);
+
+                // Create audio source nodes from each stream.
+                const source1 = audioContext.createMediaStreamSource(stream1);
+                const source2 = audioContext.createMediaStreamSource(stream2);
+
+                // Create a ChannelMergerNode to combine the streams.
+                const merger = audioContext.createChannelMerger(2); // Merge to 2 channels.
+                
+                // Connect each microphone source to a specific channel on the merger.
+                source1.connect(merger, 0, 0); // Connect left mic to the first channel (index 0).
+                source2.connect(merger, 0, 1); // Connect right mic to the second channel (index 1).
+
+                // Connect the merged audio to the destination (e.g., speakers).
+                // This allows you to hear the combined audio.
+                merger.connect(audioContext.destination);
+
+                // Create a destination stream for further processing.
+                const destination = audioContext.createMediaStreamDestination();
+                merger.connect(destination);
+                
+                console.log('Combined mic stream:', destination.stream);
+
                 const workletCode = `
+                    // Simple Complex number class
+                    class Complex {
+                        constructor(re = 0, im = 0) {
+                            this.re = re;
+                            this.im = im;
+                        }
+                        mul(other) {
+                            return new Complex(
+                                this.re * other.re - this.im * other.im,
+                                this.re * other.im + this.im * other.re
+                            );
+                        }
+                        conj() {
+                            return new Complex(this.re, -this.im);
+                        }
+                        mag() {
+                            return Math.sqrt(this.re * this.re + this.im * this.im);
+                        }
+                        add(other) {
+                            return new Complex(this.re + other.re, this.im + other.im);
+                        }
+                        sub(other) {
+                            return new Complex(this.re - other.re, this.im - other.im);
+                        }
+                    }
+
+                    // Bit reversal permutation
+                    function bitReverse(n, bits) {
+                        let rev = 0;
+                        for (let i = 0; i < bits; i++) {
+                            if (n & (1 << i)) {
+                                rev |= (1 << (bits - 1 - i));
+                            }
+                        }
+                        return rev;
+                    }
+
+                    // Cooley-Tukey radix-2 FFT
+                    function fft(signal, inverse = false) {
+                        const N = signal.length;
+                        const bits = Math.log2(N);
+                        let out = new Array(N);
+                        for (let i = 0; i < N; i++) {
+                            out[bitReverse(i, bits)] = new Complex(signal[i], 0);
+                        }
+                        for (let size = 2; size <= N; size *= 2) {
+                            const half = size / 2;
+                            const step = Math.PI / half * (inverse ? -1 : 1);
+                            for (let i = 0; i < N; i += size) {
+                                let w = new Complex(1, 0);
+                                const ws = Math.sin(step);
+                                const wc = Math.cos(step);
+                                for (let j = 0; j < half; j++) {
+                                    const u = out[i + j];
+                                    const v = out[i + j + half].mul(w);
+                                    out[i + j] = u.add(v);
+                                    out[i + j + half] = u.sub(v);
+                                    w = new Complex(w.re * wc - w.im * ws, w.re * ws + w.im * wc);
+                                }
+                            }
+                        }
+                        if (inverse) {
+                            const invN = 1 / N;
+                            for (let i = 0; i < N; i++) {
+                                out[i].re *= invN;
+                                out[i].im *= invN;
+                            }
+                        }
+                        return out;
+                    }
+
                     class SoundLocalizerProcessor extends AudioWorkletProcessor {
                         constructor() {
                             super();
+                            this.port.onmessage = (e) => {
+                                if (e.data.type === 'update-d') {
+                                    this.d = e.data.d;
+                                }
+                            };
                             // Compute biquad coefficients dynamically based on sample rate (highpass to filter low freq noise)
                             const Fc = 80;  // Cutoff frequency in Hz
                             const Q = 0.707;  // Butterworth Q
@@ -190,6 +388,7 @@
                             this.leftBuf = new Float32Array(this.windowSize);
                             this.rightBuf = new Float32Array(this.windowSize);
                             this.writePos = 0;
+                            this.d = 0.17;
                         }
 
                         process(inputs, outputs, parameters) {
@@ -236,15 +435,19 @@
 
                                 // Compute correlation and RMS when buffer is full
                                 if (this.writePos >= this.windowSize) {
+                                    // Frequency domain correlation
+                                    const fftLeft = fft(Array.from(this.leftBuf));
+                                    const fftRight = fft(Array.from(this.rightBuf));
+                                    const corrFreq = new Array(this.windowSize);
+                                    for (let k = 0; k < this.windowSize; k++) {
+                                        corrFreq[k] = fftLeft[k].mul(fftRight[k].conj());
+                                    }
+                                    const corrTime = fft(corrFreq, true);
                                     let maxCorr = -Infinity;
                                     let bestLag = 0;
                                     for (let lag = -this.maxLag; lag <= this.maxLag; lag++) {
-                                        let corr = 0;
-                                        for (let j = 0; j < this.windowSize; j++) {
-                                            let r_idx = j + lag;
-                                            if (r_idx < 0 || r_idx >= this.windowSize) continue;
-                                            corr += this.leftBuf[j] * this.rightBuf[r_idx];
-                                        }
+                                        const idx = (this.windowSize + lag) % this.windowSize;
+                                        const corr = corrTime[idx].mag();
                                         if (corr > maxCorr) {
                                             maxCorr = corr;
                                             bestLag = lag;
@@ -264,12 +467,11 @@
                                     // Estimate angle (ITD approximation, clamped)
                                     let tau = bestLag / sampleRate;
                                     let c = 343;  // Speed of sound m/s
-                                    let d = 0.17;  // Head width in meters
-                                    let maxTau = d / c;
+                                    let maxTau = this.d / c;
                                     if (Math.abs(tau) > maxTau) {
                                         tau = Math.sign(tau) * maxTau;
                                     }
-                                    let theta = Math.asin(c * tau / d) * (180 / Math.PI);
+                                    let theta = Math.asin(c * tau / this.d) * (180 / Math.PI);
 
                                     this.port.postMessage({ 
                                         angle: theta, 
@@ -296,10 +498,10 @@
 
                 const workletBlob = new Blob([workletCode], { type: 'application/javascript' });
                 const workletUrl = URL.createObjectURL(workletBlob);
-                await ac.audioWorklet.addModule(workletUrl);
+                await audioContext.audioWorklet.addModule(workletUrl);
 
-                const source = ac.createMediaStreamSource(stream);
-                const processor = new AudioWorkletNode(ac, 'sound-localizer');
+                const mergedSource = audioContext.createMediaStreamSource(destination.stream);
+                processor = new AudioWorkletNode(audioContext, 'sound-localizer');
                 processor.port.onmessage = (event) => {
                     angle = event.data.angle;
                     leftHistory.push(event.data.leftRMS || 0);
@@ -312,7 +514,10 @@
                     }
                     draw();
                 };
-                source.connect(processor).connect(ac.destination);  // Connect to speakers if desired
+                mergedSource.connect(processor).connect(audioContext.destination);  // Connect to speakers if desired
+
+                // Initial distance update
+                updateMicDistance();
             } catch (error) {
                 console.error('Error starting audio:', error);
                 alert('Failed to start audio. Ensure microphone permissions and stereo input support. On iOS Safari, ensure iOS 14.5+ and user gesture.');
@@ -320,26 +525,50 @@
         }
 
         function draw() {
-            const width = canvas.width / (window.devicePixelRatio || 1);
-            const height = canvas.height / (window.devicePixelRatio || 1);
+            const dpr = window.devicePixelRatio || 1;
+            const width = canvas.width / dpr;
+            const height = canvas.height / dpr;
             ctx.clearRect(0, 0, width, height);
 
-            // Draw head and angle at top half
-            const headCenterY = height * 0.25;
+            const headCenterY = height * 0.3;
             ctx.save();
             ctx.translate(width / 2, headCenterY);
 
             // Draw head (circle)
             ctx.beginPath();
-            ctx.arc(0, 0, Math.min(50, width * 0.1), 0, 2 * Math.PI);
+            ctx.arc(0, 0, 50, 0, 2 * Math.PI);
             ctx.strokeStyle = 'black';
             ctx.lineWidth = 2;
             ctx.stroke();
 
+            // Draw baseline between mics (dashed)
+            ctx.setLineDash([5, 5]);
+            ctx.strokeStyle = 'gray';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(mics[0].x, mics[0].y);
+            ctx.lineTo(mics[1].x, mics[1].y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Draw microphone icons
+            ctx.fillStyle = 'blue';
+            mics.forEach(mic => {
+                ctx.beginPath();
+                ctx.arc(mic.x, mic.y, micRadius, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillStyle = 'white';
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(mic.label, mic.x + 8, mic.y);
+                ctx.fillStyle = 'blue';
+            });
+
             // Draw sound source direction (line from head center)
             if (angle !== undefined && !isNaN(angle)) {
                 const rad = angle * (Math.PI / 180);
-                const length = Math.min(100, width * 0.2);
+                const length = 100;
                 ctx.beginPath();
                 ctx.moveTo(0, 0);
                 ctx.lineTo(length * Math.cos(rad), length * Math.sin(rad));
@@ -353,8 +582,9 @@
             // Draw RMS line chart in bottom (moving ticker)
             const numPoints = leftHistory.length;
             if (numPoints > 0) {
-                const chartTop = height * 0.55;
+                const chartTop = height * 0.65;
                 const chartBottom = height;
+                const chartH = chartBottom - chartTop;
                 const chartScaleX = (width - 1) / Math.max(1, numPoints - 1);
 
                 // Left RMS (blue)
@@ -364,7 +594,7 @@
                 for (let i = 0; i < numPoints; i++) {
                     const x = i * chartScaleX;
                     const rmsVal = Math.max(0, Math.min(1, leftHistory[i]));  // Clamp 0-1
-                    const y = chartBottom - (rmsVal * (chartBottom - chartTop));
+                    const y = chartBottom - (rmsVal * chartH);
                     if (i === 0) {
                         ctx.moveTo(x, y);
                     } else {
@@ -379,7 +609,7 @@
                 for (let i = 0; i < numPoints; i++) {
                     const x = i * chartScaleX;
                     const rmsVal = Math.max(0, Math.min(1, rightHistory[i]));  // Clamp 0-1
-                    const y = chartBottom - (rmsVal * (chartBottom - chartTop));
+                    const y = chartBottom - (rmsVal * chartH);
                     if (i === 0) {
                         ctx.moveTo(x, y);
                     } else {
@@ -400,4 +630,4 @@
     </script>
 </body>
 </html>
-```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
+```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
