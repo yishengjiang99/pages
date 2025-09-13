@@ -2,29 +2,47 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>AudioWorklet → MIDI notes → VexFlow → MIDI export + NoiseGate UI</title>
+  <title>Realtime Pitch → MIDI → VexFlow</title>
   <style>
     body { font-family: Arial, Helvetica, sans-serif; margin: 12px; }
     #controls { margin-bottom: 12px; }
-    button { margin-right: 8px; padding: 8px 12px; }
+    button {
+      margin: 6px;
+      padding: 14px 20px;
+      font-size: 18px;
+      border-radius: 6px;
+      border: 1px solid #444;
+      background: #f2f2f2;
+    }
+    button:disabled { opacity: 0.5; }
     #status { margin-left: 8px; font-weight: bold; }
     #sheet { border:1px solid #ddd; padding: 8px; min-height: 160px; margin-top:12px;}
-    #log { font-family: monospace; white-space: pre-wrap; margin-top: 10px; max-height: 200px; overflow:auto; background:#fafafa; padding:8px; border-radius:6px; }
-    .sliderRow { margin: 8px 0; }
+    .sliderRow { margin: 12px 0; }
     .sliderRow label { display:inline-block; width: 120px; }
-    #volumeBar { width:200px; height:16px; background:#eee; display:inline-block; vertical-align:middle; margin-left:8px; border-radius:3px; overflow:hidden;}
+    #volumeBar { width:200px; height:18px; background:#eee; display:inline-block; vertical-align:middle; margin-left:8px; border-radius:3px; overflow:hidden;}
     #volumeFill { height:100%; width:0; background:green; }
     #timeDisplay { margin-left:8px; }
+    #log {
+      font-family: monospace;
+      white-space: pre-wrap;
+      margin-top: 16px;
+      max-height: 200px;
+      overflow-y: auto;
+      background:#fafafa;
+      padding:8px;
+      border-radius:6px;
+      border:1px solid #ddd;
+    }
   </style>
   <script src="https://unpkg.com/vexflow/releases/vexflow-min.js"></script>
   <script src="https://unpkg.com/midiwriter-js/dist/MidiWriter.min.js"></script>
 </head>
 <body>
-  <h2>Real-time polyphonic pitch → MIDI → VexFlow (demo with Noise Gate + UI)</h2>
+  <h2>Realtime polyphonic pitch → MIDI → VexFlow</h2>
   <div id="controls">
-    <button id="startBtn">Start</button>
-    <button id="stopBtn" disabled>Stop</button>
-    <button id="exportBtn" disabled>Export MIDI</button>
+    <button id="startBtn">▶ Start</button>
+    <button id="stopBtn" disabled>⏹ Stop</button>
+    <button id="exportBtn" disabled>💾 Export MIDI</button>
     <span id="status">idle</span>
   </div>
 
@@ -42,7 +60,7 @@
   </div>
 
   <div id="sheet"></div>
-  <div id="log"></div>
+  <pre id="log"></pre>
 
 <script>
 /* -----------------------------
@@ -70,6 +88,7 @@ class GoertzelPitchProcessor extends AudioWorkletProcessor {
     this.port.onmessage = e => {
       if (e.data.type === 'setGate') this.gateThreshold = e.data.value;
     };
+    this.port.postMessage({type:'ready'});
   }
 
   hann(n, N) { return 0.5 * (1 - Math.cos(2*Math.PI*n/(N-1))); }
@@ -118,7 +137,7 @@ const startBtn=document.getElementById('startBtn');
 const stopBtn=document.getElementById('stopBtn');
 const exportBtn=document.getElementById('exportBtn');
 const statusSpan=document.getElementById('status');
-const logDiv=document.getElementById('log');
+const logPre=document.getElementById('log');
 const sheetDiv=document.getElementById('sheet');
 const gateSlider=document.getElementById('gateThreshold');
 const gateVal=document.getElementById('gateVal');
@@ -130,15 +149,19 @@ let audioContext=null, micStream=null, workletNode=null;
 let noteState=new Map(), capturedNotes=[];
 let rafId=null;
 
-function log(txt){ logDiv.textContent=txt+"\\n"+logDiv.textContent; }
+function logMessage(obj){
+  logPre.textContent += JSON.stringify(obj)+"\\n";
+  logPre.scrollTop = logPre.scrollHeight;
+}
 
 async function startAudio(){
   audioContext=new (window.AudioContext||window.webkitAudioContext)();
   const blob=new Blob([workletSource],{type:'application/javascript'});
   const url=URL.createObjectURL(blob);
   await audioContext.audioWorklet.addModule(url);
-  workletNode=new AudioWorkletNode(audioContext,'goertzel-pitch-processor',{processorOptions:{midiLow:40,midiHigh:84,blockSize:1024,gateThreshold:parseFloat(gateSlider.value)}});
-  workletNode.port.onmessage=handleMessage;
+  workletNode=new AudioWorkletNode(audioContext,'goertzel-pitch-processor',
+    {processorOptions:{midiLow:40,midiHigh:84,blockSize:1024,gateThreshold:parseFloat(gateSlider.value)}});
+  workletNode.port.onmessage=e=>handleMessage(e.data);
   micStream=await navigator.mediaDevices.getUserMedia({audio:true});
   audioContext.createMediaStreamSource(micStream).connect(workletNode).connect(audioContext.destination);
   statusSpan.textContent="running";
@@ -160,13 +183,15 @@ function stopAudio(){
   renderScore();
 }
 
-function handleMessage(e){
-  const msg=e.data;
+function handleMessage(msg){
+  logMessage(msg);
   if(msg.type==='rms'){
     const pct=Math.min(1,msg.value/0.1);
     volumeFill.style.width=(pct*200)+"px";
   }
-  if(msg.type==='detections') handleDetections(msg.detections,msg.timestamp);
+  if(msg.type==='detections'){
+    handleDetections(msg.detections,msg.timestamp);
+  }
 }
 
 function handleDetections(dets,t){
