@@ -30,8 +30,8 @@
 
   <div class="sliderRow">
     <label for="gateThreshold">Noise Gate:</label>
-    <input type="range" id="gateThreshold" min="0" max="0.05" step="0.001" value="0.005">
-    <span id="gateVal">0.005</span>
+    <input type="range" id="gateThreshold" min="0" max="0.05" step="0.001" value="0.001">
+    <span id="gateVal">0.001</span>
     <div id="volumeBar"><div id="volumeFill"></div></div>
   </div>
 
@@ -46,7 +46,7 @@
 
 <script>
 /* -----------------------------
-   AudioWorklet processor with NoiseGate and RMS meter
+   Worklet processor
    ----------------------------- */
 const workletSource = `
 class GoertzelPitchProcessor extends AudioWorkletProcessor {
@@ -57,84 +57,58 @@ class GoertzelPitchProcessor extends AudioWorkletProcessor {
     this.midiHigh = opt.midiHigh || 88;
     this.sampleRate = sampleRate;
     this.blockSize = opt.blockSize || 1024;
-    this.gateThreshold = opt.gateThreshold || 0.005;
-    this.gateAttack = opt.gateAttack || 0.02;
-    this.gateRelease = opt.gateRelease || 0.1;
-    this.gateState = 0;
-    this.gateLevel = 0;
+    this.gateThreshold = opt.gateThreshold || 0.001;
     this.notes = [];
     for (let midi = this.midiLow; midi <= this.midiHigh; ++midi) {
       const freq = 440 * Math.pow(2, (midi - 69)/12);
-      const normalized = freq / this.sampleRate;
-      const omega = 2 * Math.PI * normalized;
+      const omega = 2 * Math.PI * (freq/this.sampleRate);
       const coeff = 2 * Math.cos(omega);
-      this.notes.push({ midi, freq, coeff, smooth: 0 });
+      this.notes.push({ midi, coeff, smooth: 0 });
     }
     this.buf = new Float32Array(this.blockSize);
     this.bufIndex = 0;
     this.port.onmessage = e => {
       if (e.data.type === 'setGate') this.gateThreshold = e.data.value;
     };
-    this.port.postMessage({ type: 'ready' });
   }
 
   hann(n, N) { return 0.5 * (1 - Math.cos(2*Math.PI*n/(N-1))); }
 
   goertzel(block, coeff) {
-    let s0 = 0, s1 = 0, s2 = 0;
-    for (let i = 0; i < block.length; ++i) {
-      s0 = block[i] + coeff * s1 - s2;
-      s2 = s1;
-      s1 = s0;
-    }
-    const mag2 = s1*s1 + s2*s2 - coeff*s1*s2;
-    return mag2 > 0 ? mag2 : 0;
+    let s0=0,s1=0,s2=0;
+    for(let i=0;i<block.length;++i){ s0=block[i]+coeff*s1-s2; s2=s1; s1=s0; }
+    return s1*s1+s2*s2-coeff*s1*s2;
   }
 
   process(inputs) {
     const input = inputs[0];
-    if (!input || input.length === 0) return true;
-    const channelData = input[0];
-    // RMS
-    let sum=0;
-    for (let i=0;i<channelData.length;++i) sum+=channelData[i]*channelData[i];
-    const rms = Math.sqrt(sum/channelData.length);
-    this.port.postMessage({type:'rms', value:rms});
-    // Gate state smoothing
-    this.gateLevel = 0.9*this.gateLevel + 0.1*rms;
-    const isAbove = this.gateLevel > this.gateThreshold;
-    const stepA = 1/(this.sampleRate*this.gateAttack);
-    const stepR = 1/(this.sampleRate*this.gateRelease);
-    if(isAbove) this.gateState = Math.min(1,this.gateState+stepA*channelData.length);
-    else this.gateState = Math.max(0,this.gateState-stepR*channelData.length);
-    const gated = this.gateState>0.2;
-    for (let i=0;i<channelData.length;++i) {
-      const sample=gated?channelData[i]:0;
-      this.buf[this.bufIndex++]=sample;
+    if (!input || input.length===0) return true;
+    const ch = input[0];
+    let sum=0; for(let i=0;i<ch.length;i++) sum+=ch[i]*ch[i];
+    const rms=Math.sqrt(sum/ch.length);
+    this.port.postMessage({type:'rms',value:rms});
+    for(let i=0;i<ch.length;i++){
+      this.buf[this.bufIndex++]=ch[i];
       if(this.bufIndex>=this.blockSize){
         const block=new Float32Array(this.blockSize);
-        for(let j=0;j<this.blockSize;++j) block[j]=this.buf[j]*this.hann(j,this.blockSize);
-        const hop=Math.floor(this.blockSize/2);
-        for(let j=0;j<this.blockSize-hop;++j) this.buf[j]=this.buf[j+hop];
-        this.bufIndex=this.blockSize-hop;
+        for(let j=0;j<this.blockSize;j++) block[j]=this.buf[j]*this.hann(j,this.blockSize);
+        this.bufIndex=0;
         const detections=[];
         let maxE=0;
-        for(let note of this.notes){
-          const mag2=this.goertzel(block,note.coeff);
-          note.smooth=0.6*note.smooth+0.4*Math.sqrt(mag2);
-          if(note.smooth>maxE) maxE=note.smooth;
+        for(let n of this.notes){
+          const mag2=this.goertzel(block,n.coeff);
+          n.smooth=0.7*n.smooth+0.3*Math.sqrt(mag2);
+          if(n.smooth>maxE) maxE=n.smooth;
         }
-        const thresh=Math.max(1e-4,maxE*0.25);
-        for(let note of this.notes){
-          if(note.smooth>thresh) detections.push({midi:note.midi, amp:note.smooth});
-        }
-        this.port.postMessage({type:'detections', detections, timestamp:currentTime});
+        const thresh=Math.max(this.gateThreshold,maxE*0.25);
+        for(let n of this.notes){ if(n.smooth>thresh) detections.push({midi:n.midi}); }
+        if(detections.length>0) this.port.postMessage({type:'detections',detections,timestamp:currentTime});
       }
     }
     return true;
   }
 }
-registerProcessor('goertzel-pitch-processor', GoertzelPitchProcessor);
+registerProcessor('goertzel-pitch-processor',GoertzelPitchProcessor);
 `;
 
 /* -----------------------------
@@ -153,107 +127,85 @@ const timeSlider=document.getElementById('timeSlider');
 const timeDisplay=document.getElementById('timeDisplay');
 
 let audioContext=null, micStream=null, workletNode=null;
-let noteState=new Map();
-let capturedNotes=[];
-function log(...args){ logDiv.textContent=(new Date()).toISOString()+" "+args.join(" ")+"\\n"+logDiv.textContent;}
+let noteState=new Map(), capturedNotes=[];
+let rafId=null;
+
+function log(txt){ logDiv.textContent=txt+"\\n"+logDiv.textContent; }
 
 async function startAudio(){
-  if(audioContext)return;
   audioContext=new (window.AudioContext||window.webkitAudioContext)();
   const blob=new Blob([workletSource],{type:'application/javascript'});
   const url=URL.createObjectURL(blob);
   await audioContext.audioWorklet.addModule(url);
-  workletNode=new AudioWorkletNode(audioContext,'goertzel-pitch-processor',{processorOptions:{midiLow:40,midiHigh:88,blockSize:1024,gateThreshold:parseFloat(gateSlider.value)}});
-  workletNode.port.onmessage=handleWorkletMessage;
+  workletNode=new AudioWorkletNode(audioContext,'goertzel-pitch-processor',{processorOptions:{midiLow:40,midiHigh:84,blockSize:1024,gateThreshold:parseFloat(gateSlider.value)}});
+  workletNode.port.onmessage=handleMessage;
   micStream=await navigator.mediaDevices.getUserMedia({audio:true});
-  const src=audioContext.createMediaStreamSource(micStream);
-  src.connect(workletNode);
-  workletNode.connect(audioContext.destination);
-  statusSpan.textContent='running';
+  audioContext.createMediaStreamSource(micStream).connect(workletNode).connect(audioContext.destination);
+  statusSpan.textContent="running";
   startBtn.disabled=true; stopBtn.disabled=false; exportBtn.disabled=false;
+  tickTimeline();
 }
 
 function stopAudio(){
-  if(!audioContext)return;
-  const t=audioContext.currentTime;
-  for(let [m,st] of noteState){
-    if(!st.end){st.end=t; capturedNotes.push({midi:m,start:st.start,end:st.end});}
+  cancelAnimationFrame(rafId);
+  if(audioContext){
+    const t=audioContext.currentTime;
+    for(let [m,st] of noteState){ if(!st.end){st.end=t; capturedNotes.push({midi:m,start:st.start,end:st.end});} }
+    noteState.clear();
+    audioContext.close(); audioContext=null;
   }
-  noteState.clear();
-  if(micStream){micStream.getTracks().forEach(t=>t.stop()); micStream=null;}
-  if(workletNode){workletNode.port.onmessage=null; workletNode.disconnect(); workletNode=null;}
-  audioContext.close(); audioContext=null;
-  statusSpan.textContent='stopped';
+  if(micStream){ micStream.getTracks().forEach(tr=>tr.stop()); micStream=null; }
+  statusSpan.textContent="stopped";
   startBtn.disabled=false; stopBtn.disabled=true;
   renderScore();
 }
 
-function handleWorkletMessage(ev){
-  const msg=ev.data;
-  if(msg.type==='ready'){log('worklet ready');}
+function handleMessage(e){
+  const msg=e.data;
   if(msg.type==='rms'){
-    const val=msg.value;
-    const pct=Math.min(1,val/0.1); // scale
-    volumeFill.style.width=(pct*200)+'px';
+    const pct=Math.min(1,msg.value/0.1);
+    volumeFill.style.width=(pct*200)+"px";
   }
-  if(msg.type==='detections'){
-    handleDetections(msg.detections,msg.timestamp);
-  }
+  if(msg.type==='detections') handleDetections(msg.detections,msg.timestamp);
 }
 
-function handleDetections(detections,timestamp){
-  if(!audioContext)return;
+function handleDetections(dets,t){
   const now=audioContext.currentTime;
-  const detectedSet=new Set(detections.map(d=>d.midi));
-  const hold=0.15;
-  for(let midi of detectedSet){
-    if(!noteState.has(midi)){
-      noteState.set(midi,{start:now,lastSeen:now,end:null});
-    }else{
-      noteState.get(midi).lastSeen=now;
-    }
+  const detected=new Set(dets.map(d=>d.midi));
+  for(let midi of detected){
+    if(!noteState.has(midi)) noteState.set(midi,{start:now,lastSeen:now});
+    else noteState.get(midi).lastSeen=now;
   }
-  for(let [m,st] of Array.from(noteState.entries())){
-    if(!detectedSet.has(m)){
-      if(now-st.lastSeen>hold){
-        st.end=st.lastSeen; capturedNotes.push({midi:m,start:st.start,end:st.end}); noteState.delete(m);
-      }
+  for(let [m,st] of [...noteState]){
+    if(!detected.has(m) && now-st.lastSeen>0.15){
+      st.end=st.lastSeen; capturedNotes.push({midi:m,start:st.start,end:st.end});
+      noteState.delete(m);
     }
   }
   renderScore();
-  // update timeline slider
-  const endTime=capturedNotes.length?capturedNotes[capturedNotes.length-1].end:now;
-  timeSlider.max=endTime.toFixed(2);
-  timeSlider.value=endTime.toFixed(2);
-  timeDisplay.textContent=endTime.toFixed(2)+'s';
 }
 
 function renderScore(){
-  sheetDiv.innerHTML='';
+  sheetDiv.innerHTML="";
   const VF=Vex.Flow;
   const renderer=new VF.Renderer(sheetDiv,VF.Renderer.Backends.SVG);
-  renderer.resize(900,220);
+  renderer.resize(800,200);
   const context=renderer.getContext();
-  const stave=new VF.Stave(10,10,860);
-  stave.addClef('treble').addTimeSignature('4/4');
+  const stave=new VF.Stave(10,10,760).addClef("treble").addTimeSignature("4/4");
   stave.setContext(context).draw();
-  const now=audioContext?audioContext.currentTime:(capturedNotes.length?capturedNotes[capturedNotes.length-1].end:0);
-  const events=capturedNotes.slice();
-  for(let [m,st] of noteState){events.push({midi:m,start:st.start,end:now});}
-  events.sort((a,b)=>a.start-b.start);
+  const events=[...capturedNotes];
+  for(let [m,st] of noteState){ events.push({midi:m,start:st.start,end:audioContext?audioContext.currentTime:st.start}); }
   if(events.length===0){
-    const rest=new VF.StaveNote({keys:['b/4'],duration:'w'});
-    VF.Formatter.FormatAndDraw(context,stave,[rest]);
+    VF.Formatter.FormatAndDraw(context,stave,[new VF.StaveNote({keys:["b/4"],duration:"w"})]);
     return;
   }
   const vfNotes=[];
   for(let ev of events){
-    const names=['c','c#','d','d#','e','f','f#','g','g#','a','a#','b'];
+    const names=["c","c#","d","d#","e","f","f#","g","g#","a","a#","b"];
     const nm=names[ev.midi%12]; const oct=Math.floor(ev.midi/12)-1;
-    const vfKey=nm+'/'+oct;
-    const dur='q';
-    const note=new VF.StaveNote({keys:[vfKey],duration:dur});
-    if(vfKey.includes('#')) note.addAccidental(0,new VF.Accidental('#'));
+    const vfKey=nm+"/"+oct;
+    const note=new VF.StaveNote({keys:[vfKey],duration:"q"});
+    if(vfKey.includes("#")) note.addAccidental(0,new VF.Accidental("#"));
     vfNotes.push(note);
   }
   const voice=new VF.Voice({num_beats:4,beat_value:4});
@@ -262,22 +214,32 @@ function renderScore(){
   voice.draw(context,stave);
 }
 
+function tickTimeline(){
+  if(audioContext){
+    const now=audioContext.currentTime;
+    timeSlider.max=now.toFixed(2);
+    timeSlider.value=now.toFixed(2);
+    timeDisplay.textContent=now.toFixed(2)+"s";
+  }
+  rafId=requestAnimationFrame(tickTimeline);
+}
+
 function exportMidi(){
-  if(capturedNotes.length===0){alert('No notes'); return;}
+  if(capturedNotes.length===0){alert("No notes");return;}
   const track=new MidiWriter.Track(); track.setTempo(100);
   for(let ev of capturedNotes){
-    const durSec=ev.end-ev.start; const ticks=Math.round(durSec/(60/100)*128);
-    track.addEvent(new MidiWriter.NoteEvent({pitch:[midiToName(ev.midi)],duration:'T'+ticks}));
+    const durSec=ev.end-ev.start; const ticks=Math.max(1,Math.round(durSec/(60/100)*128));
+    track.addEvent(new MidiWriter.NoteEvent({pitch:[midiToName(ev.midi)],duration:"T"+ticks}));
   }
-  const write=new MidiWriter.Writer(track);
-  const a=document.createElement('a'); a.href=write.dataUri(); a.download='capture.mid'; a.click();
+  const writer=new MidiWriter.Writer(track);
+  const a=document.createElement("a"); a.href=writer.dataUri(); a.download="capture.mid"; a.click();
 }
-function midiToName(m){const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];return names[m%12]+(Math.floor(m/12)-1);}
-startBtn.onclick=()=>startAudio();
-stopBtn.onclick=()=>stopAudio();
-exportBtn.onclick=()=>exportMidi();
-gateSlider.oninput=()=>{gateVal.textContent=gateSlider.value; if(workletNode) workletNode.port.postMessage({type:'setGate',value:parseFloat(gateSlider.value)});}
-timeSlider.oninput=()=>{timeDisplay.textContent=timeSlider.value+'s';}
+function midiToName(m){const names=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]; return names[m%12]+(Math.floor(m/12)-1);}
+
+startBtn.onclick=startAudio;
+stopBtn.onclick=stopAudio;
+exportBtn.onclick=exportMidi;
+gateSlider.oninput=()=>{ gateVal.textContent=gateSlider.value; if(workletNode) workletNode.port.postMessage({type:"setGate",value:parseFloat(gateSlider.value)}); };
 </script>
 </body>
 </html>
