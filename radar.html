@@ -104,7 +104,7 @@
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    <p>Drag the microphone icons (L and R) on the canvas to position them relative to your head (top-down view). The inter-microphone distance will be used for localization. Select two microphones for left and right channels. This assumes mono input from each; they will be merged into stereo for processing. In practice, test with your setup. Processing uses frequency-domain correlation via custom FFT implementation. Updated for iOS Safari compatibility: dynamic biquad coefficients based on sample rate, omitted fixed sample rate in AudioContext. Added left/right RMS computation and scrolling line chart display in bottom of canvas.</p>
+    <p>Drag the microphone icons (L and R) on the canvas to position them relative to your head (top-down view). The inter-microphone distance will be used for localization. Select two microphones for left and right channels. This assumes mono input from each; they will be merged into stereo for processing. In practice, test with your setup. Processing uses frequency-domain correlation via custom FFT implementation. Updated for iOS Safari compatibility: dynamic biquad coefficients based on sample rate, omitted fixed sample rate in AudioContext. Displays left (blue) and right (green) RMS as separate lines in the chart.</p>
     <div class="controls">
         <div class="mic-group">
             <label for="micLeft">Left Microphone:</label>
@@ -134,15 +134,14 @@
         let audioContext;
         let processor;
         let draggingMic = null;
-        const micRadius = 10; // Increased for better touch target
-        const hitRadius = 20; // Larger hit area for touch
+        const micRadius = 10;
+        const hitRadius = 20;
         const mics = [
             {id: 'left', x: -50, y: 0, label: 'L'},
             {id: 'right', x: 50, y: 0, label: 'R'}
         ];
-        const pixelToMeterScale = 0.17 / 100;  // 100px initial distance = 0.17m
+        const pixelToMeterScale = 0.17 / 100;
 
-        // Make canvas responsive
         function resizeCanvas() {
             const dpr = window.devicePixelRatio || 1;
             const rect = canvas.getBoundingClientRect();
@@ -215,13 +214,10 @@
             draggingMic = null;
         }
 
-        // Mouse events
         canvas.addEventListener('mousedown', handleStart);
         canvas.addEventListener('mousemove', handleMove);
         canvas.addEventListener('mouseup', handleEnd);
         canvas.addEventListener('mouseleave', handleEnd);
-
-        // Touch events
         canvas.addEventListener('touchstart', handleStart, { passive: false });
         canvas.addEventListener('touchmove', handleMove, { passive: false });
         canvas.addEventListener('touchend', handleEnd, { passive: false });
@@ -290,8 +286,6 @@
                 const merger = audioContext.createChannelMerger(2);
                 source1.connect(merger, 0, 0);
                 source2.connect(merger, 0, 1);
-
-                merger.connect(audioContext.destination);
 
                 const destination = audioContext.createMediaStreamDestination();
                 merger.connect(destination);
@@ -482,10 +476,6 @@
                                 }
                             }
 
-                            for (let channel = 0; channel < outputs[0].length; channel++) {
-                                outputs[0][channel].set(input[channel]);
-                            }
-
                             return true;
                         }
                     }
@@ -511,7 +501,7 @@
                     }
                     draw();
                 };
-                mergedSource.connect(processor).connect(audioContext.destination);
+                mergedSource.connect(processor);
 
                 updateMicDistance();
             } catch (error) {
@@ -618,4 +608,3 @@
     </script>
 </body>
 </html>
-```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
