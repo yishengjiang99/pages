@@ -354,4 +354,19 @@ document.getElementById("stopBtn").onclick = () => {
     log("Stopped");
     drawPianoRoll();
   } catch(e) {
-    log("
+    log("StopBtn Error: " + e.message);
+  }
+};
+
+document.getElementById("exportBtn").onclick = () => {
+  try {
+    exportMIDI();
+  } catch(e) {
+    log("ExportBtn Error: " + e.message);
+  }
+};
+
+drawAxis();
+</script>
+</body>
+</html>
