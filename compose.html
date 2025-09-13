@@ -4,42 +4,209 @@
 <meta charset="UTF-8">
 <title>Goertzel Piano Roll with Hann Window</title>
 <style>
-  body { margin: 0; overflow: hidden; font-family: sans-serif; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
-  #controls { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px; background: #222; color: #fff; align-items: center; }
-  button, input[type=range] { font-size: 18px; padding: 10px; border-radius: 6px; border: none; }
-  button { background: #4CAF50; color: white; }
-  .volumeContainer, .noiseGateContainer { display: flex; flex-direction: column; align-items: flex-start; margin-left: 8px; }
-  #volume { width: 150px; height: 20px; background: #555; position: relative; }
-  #volumeLevel { height: 100%; width: 0%; background: lime; }
-  #volumeText { font-size: 12px; color: #fff; margin-top: 2px; }
-  #noiseGateSlider { width: 150px; }
-  #pianoContainer { display: flex; height: 600px; overflow: hidden; border-top: 1px solid #ccc; }
-  #pianoAxis { width: 60px; background: #eee; border-right: 1px solid #ccc; }
-  #pianoAxis svg { width: 60px; height: 100%; display: block; }
-  #pianoRollWrapper { flex: 1; overflow-x: scroll; overflow-y: hidden; background: #111; }
-  #pianoRoll { height: 600px; }
-  #log { height: 120px; overflow-y: scroll; background: #000; color: #0f0; padding: 4px; font-size: 12px; white-space: pre-wrap; }
+  body { 
+    margin: 0; 
+    overflow: hidden; 
+    font-family: sans-serif; 
+    user-select: none; 
+    -webkit-user-select: none; 
+    touch-action: manipulation; 
+    background: #1a1a1a;
+    color: #eee;
+  }
+  
+  #controls { 
+    display: flex; 
+    flex-wrap: wrap; 
+    gap: 12px; 
+    padding: 12px; 
+    background: #222; 
+    align-items: center; 
+    border-bottom: 1px solid #444;
+  }
+  
+  button, input[type=range] { 
+    font-size: 16px; 
+    padding: 10px 16px; 
+    border-radius: 6px; 
+    border: none; 
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  button { 
+    background: #4CAF50; 
+    color: white; 
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  }
+  
+  button:hover {
+    background: #3e8e41;
+    transform: translateY(-2px);
+  }
+  
+  button:active {
+    transform: translateY(0);
+  }
+  
+  button:disabled {
+    background: #666;
+    cursor: not-allowed;
+    transform: none;
+  }
+  
+  .control-group { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: flex-start; 
+    padding: 8px;
+    background: #2a2a2a;
+    border-radius: 8px;
+    min-width: 160px;
+  }
+  
+  .control-group label {
+    font-size: 14px;
+    margin-bottom: 6px;
+    color: #ccc;
+  }
+  
+  #volume { 
+    width: 150px; 
+    height: 20px; 
+    background: #555; 
+    position: relative; 
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  
+  #volumeLevel { 
+    height: 100%; 
+    width: 0%; 
+    background: linear-gradient(to right, #4CAF50, #8BC34A, #CDDC39, #FFEB3B, #FFC107, #FF9800, #FF5722);
+    transition: width 0.1s ease;
+  }
+  
+  #volumeText { 
+    font-size: 12px; 
+    color: #fff; 
+    margin-top: 4px; 
+    text-align: center;
+  }
+  
+  #noiseGateSlider { 
+    width: 150px; 
+    accent-color: #4CAF50;
+  }
+  
+  #pianoContainer { 
+    display: flex; 
+    height: 600px; 
+    overflow: hidden; 
+  }
+  
+  #pianoAxis { 
+    width: 60px; 
+    background: #2a2a2a; 
+    border-right: 1px solid #444; 
+  }
+  
+  #pianoAxis svg { 
+    width: 60px; 
+    height: 100%; 
+    display: block; 
+  }
+  
+  #pianoRollWrapper { 
+    flex: 1; 
+    overflow-x: scroll; 
+    overflow-y: hidden; 
+    background: #111; 
+    position: relative;
+  }
+  
+  #pianoRoll { 
+    height: 600px; 
+  }
+  
+  #timeIndicator {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    background: #f00;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+  }
+  
+  #log { 
+    height: 120px; 
+    overflow-y: scroll; 
+    background: #000; 
+    color: #0f0; 
+    padding: 8px; 
+    font-family: monospace;
+    font-size: 12px; 
+    white-space: pre-wrap; 
+    border-top: 1px solid #444;
+  }
+  
+  .status {
+    padding: 8px 12px;
+    border-radius: 20px;
+    background: #333;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #f00;
+  }
+  
+  .status-dot.recording {
+    background: #f00;
+    animation: pulse 1s infinite;
+  }
+  
+  .status-dot.ready {
+    background: #4CAF50;
+  }
+  
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
+  }
 </style>
 </head>
 <body>
 <div id="controls">
   <button id="startBtn">Start</button>
-  <button id="stopBtn">Stop</button>
+  <button id="stopBtn" disabled>Stop</button>
   <button id="exportBtn">Export MIDI</button>
 
-  <div class="volumeContainer">
-    <label>Volume:</label>
+  <div class="control-group">
+    <label>Volume Level</label>
     <div id="volume"><div id="volumeLevel"></div></div>
     <div id="volumeText">0.00</div>
   </div>
 
-  <div class="noiseGateContainer">
-    <label for="noiseGateSlider">Noise Gate Threshold:</label>
+  <div class="control-group">
+    <label for="noiseGateSlider">Noise Gate Threshold</label>
     <input type="range" id="noiseGateSlider" min="0" max="0.1" step="0.001" value="0.02">
     <div id="noiseGateValue">0.02</div>
   </div>
-
-  <input id="timeSlider" type="range" min="0" max="60" value="0" step="1">
+  
+  <div class="status">
+    <div id="statusDot" class="status-dot"></div>
+    <span id="statusText">Ready</span>
+  </div>
 </div>
 
 <div id="pianoContainer">
@@ -47,6 +214,7 @@
     <svg id="axisSvg" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
   <div id="pianoRollWrapper">
+    <div id="timeIndicator"></div>
     <svg id="pianoRoll" xmlns="http://www.w3.org/2000/svg"></svg>
   </div>
 </div>
@@ -59,8 +227,22 @@ const volumeLevel = document.getElementById("volumeLevel");
 const volumeText = document.getElementById("volumeText");
 const noiseGateSlider = document.getElementById("noiseGateSlider");
 const noiseGateValue = document.getElementById("noiseGateValue");
+const startBtn = document.getElementById("startBtn");
+const stopBtn = document.getElementById("stopBtn");
+const statusDot = document.getElementById("statusDot");
+const statusText = document.getElementById("statusText");
+const timeIndicator = document.getElementById("timeIndicator");
 
-function log(msg){ logEl.textContent += msg + "\n"; logEl.scrollTop = logEl.scrollHeight; }
+function log(msg) { 
+  const timestamp = new Date().toLocaleTimeString();
+  logEl.textContent += `[${timestamp}] ${msg}\n`; 
+  logEl.scrollTop = logEl.scrollHeight; 
+}
+
+function updateStatus(status, isRecording = false) {
+  statusText.textContent = status;
+  statusDot.className = isRecording ? "status-dot recording" : "status-dot ready";
+}
 
 window.addEventListener("error", e => log("JS Error: " + e.message + " @ " + e.filename + ":" + e.lineno));
 window.addEventListener("unhandledrejection", e => log("Unhandled Promise Rejection: " + e.reason));
@@ -70,6 +252,7 @@ let running = false;
 let capturedNotes = [];
 let noteState = new Map();
 let startTime = 0;
+let currentTimePosition = 0;
 const roll = document.getElementById("pianoRoll");
 const timeSlider = document.getElementById("timeSlider");
 
@@ -77,6 +260,7 @@ const minMidi = 40, maxMidi = 84;
 const keyHeight = 12;
 const widthPerSec = 100;
 let noiseThreshold = parseFloat(noiseGateSlider.value);
+let animationFrame;
 
 noiseGateSlider.oninput = () => {
   noiseThreshold = parseFloat(noiseGateSlider.value);
@@ -89,158 +273,370 @@ function drawAxis(){
   const axisSvg = document.getElementById("axisSvg");
   axisSvg.innerHTML = "";
   axisSvg.setAttribute("height",(maxMidi-minMidi+1)*keyHeight);
-  for(let m=maxMidi; m>=minMidi; m--){
-    const y = (maxMidi-m)*keyHeight;
-    const rect = document.createElementNS(NS,"rect");
-    rect.setAttribute("x",0); rect.setAttribute("y",y);
-    rect.setAttribute("width",60); rect.setAttribute("height",keyHeight);
-    rect.setAttribute("fill", [1,3,6,8,10].includes(m%12)?"#333":"#fff");
-    rect.setAttribute("stroke","#000");
+  
+  for(let m = maxMidi; m >= minMidi; m--){
+    const y = (maxMidi - m) * keyHeight;
+    const rect = document.createElementNS(NS, "rect");
+    rect.setAttribute("x", 0); 
+    rect.setAttribute("y", y);
+    rect.setAttribute("width", 60); 
+    rect.setAttribute("height", keyHeight);
+    rect.setAttribute("fill", [1,3,6,8,10].includes(m % 12) ? "#333" : "#2a2a2a");
+    rect.setAttribute("stroke", "#444");
     axisSvg.appendChild(rect);
-    if(![1,3,6,8,10].includes(m%12)){
-      const text = document.createElementNS(NS,"text");
-      text.setAttribute("x",5); text.setAttribute("y",y+keyHeight-2);
-      text.setAttribute("font-size","10");
-      text.textContent = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"][m%12]+Math.floor(m/12);
+    
+    if(![1,3,6,8,10].includes(m % 12)){
+      const text = document.createElementNS(NS, "text");
+      text.setAttribute("x", 5); 
+      text.setAttribute("y", y + keyHeight - 2);
+      text.setAttribute("font-size", "10");
+      text.setAttribute("fill", "#eee");
+      text.textContent = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"][m % 12] + Math.floor(m / 12);
       axisSvg.appendChild(text);
     }
   }
 }
 
 function drawPianoRoll(){
-  roll.innerHTML="";
-  const NS="http://www.w3.org/2000/svg";
-  const totalW = (parseFloat(timeSlider.max)||1)*widthPerSec + 200;
-  const totalH = (maxMidi-minMidi+1)*keyHeight;
-  roll.setAttribute("width",totalW);
-  roll.setAttribute("height",totalH);
+  roll.innerHTML = "";
+  const NS = "http://www.w3.org/2000/svg";
+  const totalW = Math.max((parseFloat(timeSlider?.max) || 1) * widthPerSec + 200, window.innerWidth - 60);
+  const totalH = (maxMidi - minMidi + 1) * keyHeight;
+  roll.setAttribute("width", totalW);
+  roll.setAttribute("height", totalH);
 
-  let notes=[...capturedNotes];
-  if(running){ for(let [m,st] of noteState){ notes.push({midi:m,start:st.start,end:audioContext.currentTime}); } }
+  // Draw grid lines
+  for (let i = 0; i < totalW / widthPerSec; i++) {
+    const line = document.createElementNS(NS, "line");
+    line.setAttribute("x1", i * widthPerSec);
+    line.setAttribute("y1", 0);
+    line.setAttribute("x2", i * widthPerSec);
+    line.setAttribute("y2", totalH);
+    line.setAttribute("stroke", i % 4 === 0 ? "#444" : "#333");
+    line.setAttribute("stroke-width", i % 4 === 0 ? "1" : "0.5");
+    roll.appendChild(line);
+  }
+
+  let notes = [...capturedNotes];
+  if(running) { 
+    for(let [m, st] of noteState) { 
+      notes.push({midi: m, start: st.start, end: audioContext.currentTime}); 
+    } 
+  }
 
   for(let ev of notes){
-    if(!ev.end||ev.end<=ev.start) continue;
-    const x = ev.start*widthPerSec;
-    const w = (ev.end-ev.start)*widthPerSec;
-    const y = (maxMidi-ev.midi)*keyHeight;
-    const rect = document.createElementNS(NS,"rect");
-    rect.setAttribute("x",x);
-    rect.setAttribute("y",y);
-    rect.setAttribute("width",w);
-    rect.setAttribute("height",keyHeight-1);
-    rect.setAttribute("fill","#4CAF50");
+    if(!ev.end || ev.end <= ev.start) continue;
+    const x = ev.start * widthPerSec;
+    const w = (ev.end - ev.start) * widthPerSec;
+    const y = (maxMidi - ev.midi) * keyHeight;
+    const rect = document.createElementNS(NS, "rect");
+    rect.setAttribute("x", x);
+    rect.setAttribute("y", y);
+    rect.setAttribute("width", w);
+    rect.setAttribute("height", keyHeight - 1);
+    rect.setAttribute("fill", "#4CAF50");
+    rect.setAttribute("rx", "2");
+    rect.setAttribute("ry", "2");
     roll.appendChild(rect);
+    
+    // Add note label
+    if (w > 30) {
+      const text = document.createElementNS(NS, "text");
+      text.setAttribute("x", x + 5);
+      text.setAttribute("y", y + keyHeight/2 + 3);
+      text.setAttribute("font-size", "10");
+      text.setAttribute("fill", "#000");
+      text.textContent = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"][ev.midi % 12] + Math.floor(ev.midi / 12);
+      roll.appendChild(text);
+    }
+  }
+  
+  // Update time indicator position
+  if (running) {
+    currentTimePosition = (audioContext.currentTime - startTime) * widthPerSec;
+    timeIndicator.style.left = currentTimePosition + 'px';
+    
+    // Auto-scroll to keep current time in view
+    const wrapper = document.getElementById('pianoRollWrapper');
+    if (currentTimePosition > wrapper.scrollLeft + wrapper.clientWidth - 100) {
+      wrapper.scrollLeft = currentTimePosition - wrapper.clientWidth + 100;
+    }
   }
 }
 
 async function setup(){
   const workletCode = `
-    let threshold=${noiseThreshold};
+    let threshold = ${noiseThreshold};
     const notesFreqs = [];
-    for(let m=40;m<=84;m++){ notesFreqs[m]=440*Math.pow(2,(m-69)/12); }
-    function hann(n,N){ return 0.5*(1-Math.cos(2*Math.PI*n/(N-1))); }
-    class GoertzelProcessor extends AudioWorkletProcessor{
-      constructor(){
+    for(let m = 40; m <= 84; m++) { 
+      notesFreqs[m] = 440 * Math.pow(2, (m - 69) / 12); 
+    }
+    
+    // Precompute window function and coefficients for better performance
+    const N = 1024;
+    const hannWindow = new Float32Array(N);
+    const coefficients = new Float32Array(85); // 40 to 84 inclusive
+    
+    for (let j = 0; j < N; j++) {
+      hannWindow[j] = 0.5 * (1 - Math.cos(2 * Math.PI * j / (N - 1)));
+    }
+    
+    for (let m = 40; m <= 84; m++) {
+      coefficients[m] = 2 * Math.cos(2 * Math.PI * notesFreqs[m] / sampleRate * N);
+    }
+    
+    class GoertzelProcessor extends AudioWorkletProcessor {
+      constructor() {
         super();
-        this.buf = new Float32Array(1024);
-        this.i=0;
-        this.hpBuf=0;
-        this.alpha=2*Math.PI*70/sampleRate;
-        this.port.postMessage({type:"ready"});
-        this.port.onmessage = e => { if(e.data.type==="threshold") threshold=e.data.value; };
+        this.buf = new Float32Array(N);
+        this.i = 0;
+        this.hpBuf = 0;
+        this.alpha = 2 * Math.PI * 70 / sampleRate;
+        this.port.postMessage({type: "ready"});
+        this.port.onmessage = e => { 
+          if (e.data.type === "threshold") threshold = e.data.value; 
+        };
       }
-      process(inputs){ 
-        let input=inputs[0]; if(!input||!input[0]) return true; 
-        let ch=input[0]; 
-        for(let s of ch){ 
-          this.hpBuf += this.alpha*(s-this.hpBuf);
-          let x=this.hpBuf; 
-          if(Math.abs(x)>threshold){ 
-            this.buf[this.i++]=x;
-            if(this.i>=this.buf.length){
-              let detected=[];
-              for(let m=40;m<=84;m++){
-                let coeff=2*Math.cos(2*Math.PI*notesFreqs[m]/sampleRate*this.buf.length);
-                let s1=0,s2=0;
-                for(let j=0;j<this.buf.length;j++){
-                  let win=this.buf[j]*0.5*(1-Math.cos(2*Math.PI*j/(this.buf.length-1)));
-                  let s0 = win + coeff*s1 - s2;
-                  s2=s1; s1=s0;
+      
+      process(inputs) { 
+        let input = inputs[0]; 
+        if (!input || !input[0]) return true; 
+        
+        let ch = input[0]; 
+        for (let s of ch) { 
+          this.hpBuf += this.alpha * (s - this.hpBuf);
+          let x = this.hpBuf; 
+          
+          if (Math.abs(x) > threshold) { 
+            this.buf[this.i++] = x;
+            
+            if (this.i >= N) {
+              let detected = [];
+              
+              for (let m = 40; m <= 84; m++) {
+                let coeff = coefficients[m];
+                let s1 = 0, s2 = 0;
+                
+                for (let j = 0; j < N; j++) {
+                  let win = this.buf[j] * hannWindow[j];
+                  let s0 = win + coeff * s1 - s2;
+                  s2 = s1;
+                  s1 = s0;
                 }
-                let power=s1*s1+s2*s2-coeff*s1*s2;
-                if(power>0.01) detected.push(m);
+                
+                let power = s1 * s1 + s2 * s2 - coeff * s1 * s2;
+                if (power > 0.01) detected.push(m);
               }
-              if(detected.length) this.port.postMessage({type:"notes",notes:detected,time=currentTime});
-              this.i=0;
+              
+              if (detected.length) {
+                this.port.postMessage({type: "notes", notes: detected, time: currentTime});
+              }
+              
+              this.i = 0;
             }
           }
         }
+        
         return true;
       }
     }
-    registerProcessor("goertzel-processor",GoertzelProcessor);
+    
+    registerProcessor("goertzel-processor", GoertzelProcessor);
   `;
-  const blob = new Blob([workletCode], { type: 'text/javascript' });
-  const moduleURL = URL.createObjectURL(blob);
-  await audioContext.audioWorklet.addModule(moduleURL);
-  URL.revokeObjectURL(moduleURL);
+  
+  try {
+    const blob = new Blob([workletCode], { type: 'text/javascript' });
+    const moduleURL = URL.createObjectURL(blob);
+    await audioContext.audioWorklet.addModule(moduleURL);
+    URL.revokeObjectURL(moduleURL);
 
-  mic=await navigator.mediaDevices.getUserMedia({audio:true});
-  highpass=audioContext.createBiquadFilter();
-  highpass.type="highpass";highpass.frequency.value=70;
-  analyser=audioContext.createAnalyser();
-  workletNode=new AudioWorkletNode(audioContext,"goertzel-processor");
-  const source=audioContext.createMediaStreamSource(mic);
-  source.connect(highpass).connect(workletNode).connect(analyser);
+    mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+    highpass = audioContext.createBiquadFilter();
+    highpass.type = "highpass";
+    highpass.frequency.value = 70;
+    
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 2048;
+    
+    workletNode = new AudioWorkletNode(audioContext, "goertzel-processor");
+    const source = audioContext.createMediaStreamSource(mic);
+    source.connect(highpass).connect(workletNode).connect(analyser);
 
-  workletNode.port.onmessage = e => {
-    let msg = e.data;
-    if(msg.type==="ready") log("Worklet ready");
-    if(msg.type==="notes"&&running) handleNotes(msg.notes,msg.time);
-  };
+    workletNode.port.onmessage = e => {
+      let msg = e.data;
+      if (msg.type === "ready") {
+        log("Audio processing worklet ready");
+        updateStatus("Ready to start");
+      }
+      if (msg.type === "notes" && running) handleNotes(msg.notes, msg.time);
+    };
 
-  visualizeVolume();
+    visualizeVolume();
+    return true;
+  } catch (error) {
+    log("Error setting up audio: " + error.message);
+    updateStatus("Setup failed");
+    return false;
+  }
 }
 
 function visualizeVolume(){
-  const data=new Uint8Array(analyser.fftSize);
+  if (!analyser) return;
+  
+  const data = new Uint8Array(analyser.fftSize);
+  
   function draw(){
+    if (!analyser) return;
+    
     requestAnimationFrame(draw);
     analyser.getByteTimeDomainData(data);
-    let sum=0;for(let v of data){let d=v-128;sum+=d*d;}
-    let rms=Math.sqrt(sum/data.length)/128;
-    volumeLevel.style.width = (rms*100)+"%";
+    
+    let sum = 0;
+    for (let v of data) {
+      let d = v - 128;
+      sum += d * d;
+    }
+    
+    let rms = Math.sqrt(sum / data.length) / 128;
+    volumeLevel.style.width = (rms * 100) + "%";
     volumeText.textContent = rms.toFixed(2);
   }
+  
   draw();
 }
 
-function handleNotes(notes,time){
-  for(let m of notes){
-    if(!noteState.has(m)){ noteState.set(m,{start:time}); log("NoteOn "+m); }
+function handleNotes(notes, time){
+  for (let m of notes) {
+    if (!noteState.has(m)) { 
+      noteState.set(m, { start: time }); 
+      log("NoteOn " + m + " (" + ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"][m % 12] + Math.floor(m / 12) + ")"); 
+    }
   }
-  for(let [m,st] of [...noteState]){
-    if(!notes.includes(m)){ capturedNotes.push({midi:m,start:st.start,end:time}); noteState.delete(m); log("NoteOff "+m); }
+  
+  for (let [m, st] of [...noteState]) {
+    if (!notes.includes(m)) { 
+      capturedNotes.push({ midi: m, start: st.start, end: time }); 
+      noteState.delete(m); 
+      log("NoteOff " + m + " (" + ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"][m % 12] + Math.floor(m / 12) + ")"); 
+    }
   }
+  
   drawPianoRoll();
 }
 
-document.getElementById("startBtn").onclick = async () => {
+startBtn.onclick = async () => {
   try {
-    if (!audioContext) { audioContext = new AudioContext(); await audioContext.resume(); await setup(); }
-    else if (audioContext.state==="suspended") await audioContext.resume();
-    running=true; startTime=audioContext.currentTime; log("Recording started");
-  } catch(e){ log("StartBtn Error: "+e.message); }
+    if (!audioContext) {
+      audioContext = new AudioContext();
+      updateStatus("Setting up audio...");
+      
+      const success = await setup();
+      if (!success) return;
+    }
+    
+    if (audioContext.state === "suspended") {
+      await audioContext.resume();
+    }
+    
+    running = true; 
+    startTime = audioContext.currentTime; 
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    
+    log("Recording started");
+    updateStatus("Recording", true);
+    
+    // Animation loop for UI updates
+    function updateUI() {
+      if (running) {
+        drawPianoRoll();
+        animationFrame = requestAnimationFrame(updateUI);
+      }
+    }
+    
+    animationFrame = requestAnimationFrame(updateUI);
+  } catch (e) { 
+    log("StartBtn Error: " + e.message); 
+    updateStatus("Error starting");
+  }
 };
-document.getElementById("stopBtn").onclick = () => {
-  try { if(audioContext && audioContext.state==="running") audioContext.suspend(); running=false; log("Stopped"); drawPianoRoll(); }
-  catch(e){ log("StopBtn Error: "+e.message); }
+
+stopBtn.onclick = () => {
+  try { 
+    if (audioContext && audioContext.state === "running") {
+      audioContext.suspend(); 
+    }
+    
+    running = false; 
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    
+    log("Recording stopped");
+    updateStatus("Stopped");
+    
+    if (animationFrame) {
+      cancelAnimationFrame(animationFrame);
+    }
+    
+    drawPianoRoll();
+  } catch (e) { 
+    log("StopBtn Error: " + e.message); 
+    updateStatus("Error stopping");
+  }
 };
-document.getElementById("exportBtn").onclick = () => { try { exportMIDI(); } catch(e){ log("ExportBtn Error: "+e.message); } };
 
-function exportMIDI(){ /* implement MIDI export */ }
+document.getElementById("exportBtn").onclick = () => { 
+  try { 
+    exportMIDI(); 
+  } catch (e) { 
+    log("ExportBtn Error: " + e.message); 
+  } 
+};
 
+function exportMIDI() { 
+  if (capturedNotes.length === 0 && noteState.size === 0) {
+    log("No notes to export");
+    return;
+  }
+  
+  // Simple implementation for MIDI export
+  let midiData = "MIDI data would be generated here\n";
+  midiData += "Format: 1\n";
+  midiData += "Tracks: 1\n";
+  midiData += "Time division: 480\n";
+  midiData += "Notes: " + (capturedNotes.length + noteState.size) + "\n\n";
+  
+  for (let note of capturedNotes) {
+    midiData += `Note: ${note.midi}, Start: ${note.start.toFixed(2)}, End: ${note.end.toFixed(2)}\n`;
+  }
+  
+  for (let [m, st] of noteState) {
+    midiData += `Note: ${m}, Start: ${st.start.toFixed(2)}, End: (ongoing)\n`;
+  }
+  
+  // Create download link
+  const blob = new Blob([midiData], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'piano-roll.mid';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  
+  log("MIDI data exported (simulated)");
+};
+
+// Initialize the application
 drawAxis();
+drawPianoRoll();
+updateStatus("Ready");
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  drawPianoRoll();
+});
 </script>
 </body>
 </html>
