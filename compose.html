@@ -187,19 +187,19 @@
 </head>
 <body>
 <div id="controls">
-  <button id="startBtn">Start</button>
-  <button id="stopBtn" disabled>Stop</button>
-  <button id="exportBtn">Export MIDI</button>
+  <button id="startBtn" aria-label="Start recording">Start</button>
+  <button id="stopBtn" disabled aria-label="Stop recording">Stop</button>
+  <button id="exportBtn" aria-label="Export MIDI file">Export MIDI</button>
 
   <div class="control-group">
-    <label>Volume Level</label>
+    <label for="volume">Volume Level</label>
     <div id="volume"><div id="volumeLevel"></div></div>
     <div id="volumeText">0.00</div>
   </div>
 
   <div class="control-group">
     <label for="noiseGateSlider">Noise Gate Threshold</label>
-    <input type="range" id="noiseGateSlider" min="0" max="0.1" step="0.001" value="0.02">
+    <input type="range" id="noiseGateSlider" min="0" max="0.1" step="0.001" value="0.02" aria-label="Adjust noise gate threshold">
     <div id="noiseGateValue">0.02</div>
   </div>
   
@@ -254,7 +254,6 @@ let noteState = new Map();
 let startTime = 0;
 let currentTimePosition = 0;
 const roll = document.getElementById("pianoRoll");
-const timeSlider = document.getElementById("timeSlider");
 
 const minMidi = 40, maxMidi = 84;
 const keyHeight = 12;
@@ -265,67 +264,75 @@ let animationFrame;
 noiseGateSlider.oninput = () => {
   noiseThreshold = parseFloat(noiseGateSlider.value);
   noiseGateValue.textContent = noiseThreshold.toFixed(3);
-  if(workletNode) workletNode.port.postMessage({type:"threshold",value:noiseThreshold});
+  if (workletNode) workletNode.port.postMessage({type: "threshold", value: noiseThreshold});
 };
 
-function drawAxis(){
+function drawAxis() {
   const NS = "http://www.w3.org/2000/svg";
   const axisSvg = document.getElementById("axisSvg");
   axisSvg.innerHTML = "";
-  axisSvg.setAttribute("height",(maxMidi-minMidi+1)*keyHeight);
+  axisSvg.setAttribute("height", (maxMidi - minMidi + 1) * keyHeight);
   
-  for(let m = maxMidi; m >= minMidi; m--){
+  for (let m = maxMidi; m >= minMidi; m--) {
     const y = (maxMidi - m) * keyHeight;
     const rect = document.createElementNS(NS, "rect");
     rect.setAttribute("x", 0); 
     rect.setAttribute("y", y);
     rect.setAttribute("width", 60); 
     rect.setAttribute("height", keyHeight);
-    rect.setAttribute("fill", [1,3,6,8,10].includes(m % 12) ? "#333" : "#2a2a2a");
+    rect.setAttribute("fill", [1, 3, 6, 8, 10].includes(m % 12) ? "#333" : "#2a2a2a");
     rect.setAttribute("stroke", "#444");
     axisSvg.appendChild(rect);
     
-    if(![1,3,6,8,10].includes(m % 12)){
+    if (![1, 3, 6, 8, 10].includes(m % 12)) {
       const text = document.createElementNS(NS, "text");
       text.setAttribute("x", 5); 
       text.setAttribute("y", y + keyHeight - 2);
       text.setAttribute("font-size", "10");
       text.setAttribute("fill", "#eee");
-      text.textContent = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"][m % 12] + Math.floor(m / 12);
+      text.textContent = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][m % 12] + Math.floor(m / 12);
       axisSvg.appendChild(text);
     }
   }
 }
 
-function drawPianoRoll(){
-  roll.innerHTML = "";
+function drawPianoRoll() {
   const NS = "http://www.w3.org/2000/svg";
-  const totalW = Math.max((parseFloat(timeSlider?.max) || 1) * widthPerSec + 200, window.innerWidth - 60);
+  const maxDuration = capturedNotes.length > 0 
+    ? Math.max(...capturedNotes.map(note => note.end || 0)) + 5 
+    : 10; // Default to 10 seconds if no notes
+  const totalW = Math.max(maxDuration * widthPerSec + 200, window.innerWidth - 60);
   const totalH = (maxMidi - minMidi + 1) * keyHeight;
   roll.setAttribute("width", totalW);
   roll.setAttribute("height", totalH);
 
-  // Draw grid lines
-  for (let i = 0; i < totalW / widthPerSec; i++) {
-    const line = document.createElementNS(NS, "line");
-    line.setAttribute("x1", i * widthPerSec);
-    line.setAttribute("y1", 0);
-    line.setAttribute("x2", i * widthPerSec);
-    line.setAttribute("y2", totalH);
-    line.setAttribute("stroke", i % 4 === 0 ? "#444" : "#333");
-    line.setAttribute("stroke-width", i % 4 === 0 ? "1" : "0.5");
-    roll.appendChild(line);
+  // Only clear notes, not grid lines
+  const existingNotes = roll.querySelectorAll("rect.note, text.note-label");
+  existingNotes.forEach(el => el.remove());
+
+  // Draw grid lines only once, unless totalW changes
+  if (!roll.querySelector("line")) {
+    for (let i = 0; i < totalW / widthPerSec; i++) {
+      const line = document.createElementNS(NS, "line");
+      line.setAttribute("x1", i * widthPerSec);
+      line.setAttribute("y1", 0);
+      line.setAttribute("x2", i * widthPerSec);
+      line.setAttribute("y2", totalH);
+      line.setAttribute("stroke", i % 4 === 0 ? "#444" : "#333");
+      line.setAttribute("stroke-width", i % 4 === 0 ? "1" : "0.5");
+      roll.appendChild(line);
+    }
   }
 
   let notes = [...capturedNotes];
-  if(running) { 
-    for(let [m, st] of noteState) { 
-      notes.push({midi: m, start: st.start, end: audioContext.currentTime}); 
+  if (running) { 
+    for (let [m, st] of noteState) { 
+      notes.push({ midi: m, start: st.start, end: audioContext.currentTime }); 
     } 
   }
 
-  for(let ev of notes){
-    if(!ev.end || ev.end <= ev.start) continue;
+  for (let ev of notes) {
+    if (!ev.end || ev.end <= ev.start) continue;
     const x = ev.start * widthPerSec;
     const w = (ev.end - ev.start) * widthPerSec;
     const y = (maxMidi - ev.midi) * keyHeight;
@@ -337,26 +344,25 @@ function drawPianoRoll(){
     rect.setAttribute("fill", "#4CAF50");
     rect.setAttribute("rx", "2");
     rect.setAttribute("ry", "2");
+    rect.classList.add("note");
     roll.appendChild(rect);
     
-    // Add note label
     if (w > 30) {
       const text = document.createElementNS(NS, "text");
       text.setAttribute("x", x + 5);
-      text.setAttribute("y", y + keyHeight/2 + 3);
+      text.setAttribute("y", y + keyHeight / 2 + 3);
       text.setAttribute("font-size", "10");
       text.setAttribute("fill", "#000");
-      text.textContent = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"][ev.midi % 12] + Math.floor(ev.midi / 12);
+      text.textContent = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][ev.midi % 12] + Math.floor(ev.midi / 12);
+      text.classList.add("note-label");
       roll.appendChild(text);
     }
   }
   
-  // Update time indicator position
   if (running) {
     currentTimePosition = (audioContext.currentTime - startTime) * widthPerSec;
     timeIndicator.style.left = currentTimePosition + 'px';
     
-    // Auto-scroll to keep current time in view
     const wrapper = document.getElementById('pianoRollWrapper');
     if (currentTimePosition > wrapper.scrollLeft + wrapper.clientWidth - 100) {
       wrapper.scrollLeft = currentTimePosition - wrapper.clientWidth + 100;
@@ -364,18 +370,17 @@ function drawPianoRoll(){
   }
 }
 
-async function setup(){
+async function setup() {
   const workletCode = `
     let threshold = ${noiseThreshold};
     const notesFreqs = [];
-    for(let m = 40; m <= 84; m++) { 
+    for (let m = 40; m <= 84; m++) { 
       notesFreqs[m] = 440 * Math.pow(2, (m - 69) / 12); 
     }
     
-    // Precompute window function and coefficients for better performance
     const N = 1024;
     const hannWindow = new Float32Array(N);
-    const coefficients = new Float32Array(85); // 40 to 84 inclusive
+    const coefficients = new Float32Array(85);
     
     for (let j = 0; j < N; j++) {
       hannWindow[j] = 0.5 * (1 - Math.cos(2 * Math.PI * j / (N - 1)));
@@ -474,18 +479,22 @@ async function setup(){
     visualizeVolume();
     return true;
   } catch (error) {
+    if (mic) {
+      mic.getTracks().forEach(track => track.stop());
+      mic = null;
+    }
     log("Error setting up audio: " + error.message);
     updateStatus("Setup failed");
     return false;
   }
 }
 
-function visualizeVolume(){
+function visualizeVolume() {
   if (!analyser) return;
   
   const data = new Uint8Array(analyser.fftSize);
   
-  function draw(){
+  function draw() {
     if (!analyser) return;
     
     requestAnimationFrame(draw);
@@ -505,11 +514,11 @@ function visualizeVolume(){
   draw();
 }
 
-function handleNotes(notes, time){
+function handleNotes(notes, time) {
   for (let m of notes) {
     if (!noteState.has(m)) { 
       noteState.set(m, { start: time }); 
-      log("NoteOn " + m + " (" + ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"][m % 12] + Math.floor(m / 12) + ")"); 
+      log("NoteOn " + m + " (" + ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][m % 12] + Math.floor(m / 12) + ")"); 
     }
   }
   
@@ -517,7 +526,7 @@ function handleNotes(notes, time){
     if (!notes.includes(m)) { 
       capturedNotes.push({ midi: m, start: st.start, end: time }); 
       noteState.delete(m); 
-      log("NoteOff " + m + " (" + ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"][m % 12] + Math.floor(m / 12) + ")"); 
+      log("NoteOff " + m + " (" + ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][m % 12] + Math.floor(m / 12) + ")"); 
     }
   }
   
@@ -529,7 +538,6 @@ startBtn.onclick = async () => {
     if (!audioContext) {
       audioContext = new AudioContext();
       updateStatus("Setting up audio...");
-      
       const success = await setup();
       if (!success) return;
     }
@@ -538,15 +546,14 @@ startBtn.onclick = async () => {
       await audioContext.resume();
     }
     
-    running = true; 
-    startTime = audioContext.currentTime; 
+    startTime = audioContext.currentTime;
     startBtn.disabled = true;
     stopBtn.disabled = false;
+    running = true;
     
     log("Recording started");
     updateStatus("Recording", true);
     
-    // Animation loop for UI updates
     function updateUI() {
       if (running) {
         drawPianoRoll();
@@ -564,7 +571,12 @@ startBtn.onclick = async () => {
 stopBtn.onclick = () => {
   try { 
     if (audioContext && audioContext.state === "running") {
-      audioContext.suspend(); 
+      audioContext.suspend();
+    }
+    
+    if (mic) {
+      mic.getTracks().forEach(track => track.stop());
+      mic = null;
     }
     
     running = false; 
@@ -599,23 +611,38 @@ function exportMIDI() {
     return;
   }
   
-  // Simple implementation for MIDI export
-  let midiData = "MIDI data would be generated here\n";
-  midiData += "Format: 1\n";
-  midiData += "Tracks: 1\n";
-  midiData += "Time division: 480\n";
-  midiData += "Notes: " + (capturedNotes.length + noteState.size) + "\n\n";
-  
+  let midiData = new Uint8Array([
+    0x4D, 0x54, 0x68, 0x64, // "MThd"
+    0x00, 0x00, 0x00, 0x06, // Header length
+    0x00, 0x01, // Format 1
+    0x00, 0x01, // 1 track
+    0x01, 0xE0  // 480 ticks per quarter note
+  ]);
+
+  let trackData = [
+    0x4D, 0x54, 0x72, 0x6B, // "MTrk"
+    0x00, 0x00, 0x00, 0x00  // Placeholder for track length
+  ];
+
+  const ticksPerSecond = 480;
   for (let note of capturedNotes) {
-    midiData += `Note: ${note.midi}, Start: ${note.start.toFixed(2)}, End: ${note.end.toFixed(2)}\n`;
+    if (!note.end || note.end <= note.start) continue;
+    const startTicks = Math.round(note.start * ticksPerSecond);
+    const endTicks = Math.round(note.end * ticksPerSecond);
+    trackData.push(...[0x00, 0x90, note.midi, 0x64]); // Note On, velocity 100
+    trackData.push(...[endTicks - startTicks, 0x80, note.midi, 0x00]); // Note Off
   }
-  
-  for (let [m, st] of noteState) {
-    midiData += `Note: ${m}, Start: ${st.start.toFixed(2)}, End: (ongoing)\n`;
-  }
-  
-  // Create download link
-  const blob = new Blob([midiData], { type: 'application/octet-stream' });
+
+  trackData.push(0x00, 0xFF, 0x2F, 0x00); // End of track
+
+  const trackLength = trackData.length - 8;
+  trackData[4] = (trackLength >> 24) & 0xFF;
+  trackData[5] = (trackLength >> 16) & 0xFF;
+  trackData[6] = (trackLength >> 8) & 0xFF;
+  trackData[7] = trackLength & 0xFF;
+
+  const midiArray = new Uint8Array([...midiData, ...trackData]);
+  const blob = new Blob([midiArray], { type: 'application/octet-stream' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -625,15 +652,13 @@ function exportMIDI() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   
-  log("MIDI data exported (simulated)");
-};
+  log("MIDI file exported");
+}
 
-// Initialize the application
 drawAxis();
 drawPianoRoll();
 updateStatus("Ready");
 
-// Handle window resize
 window.addEventListener('resize', () => {
   drawPianoRoll();
 });
