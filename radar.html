@@ -246,15 +246,19 @@
         }
 
         async function getMicStream(deviceId) {
-            const constraints = {
-                audio: {
-                    deviceId: { exact: deviceId },
-                    channelCount: { ideal: 1 },
-                    echoCancellation: false,
-                    noiseSuppression: false
-                }
-            };
-            return await navigator.mediaDevices.getUserMedia(constraints);
+            try {
+                const constraints = {
+                    audio: {
+                        deviceId: { exact: deviceId },
+                        echoCancellation: false,
+                        noiseSuppression: false
+                    }
+                };
+                return await navigator.mediaDevices.getUserMedia(constraints);
+            } catch (error) {
+                console.error(`Error accessing microphone with deviceId ${deviceId}:`, error);
+                throw error; // Re-throw to be handled by the caller
+            }
         }
 
         async function start() {
