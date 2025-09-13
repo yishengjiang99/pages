@@ -2,43 +2,57 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Realtime Pitch → MIDI → VexFlow</title>
+  <title>Realtime Piano Roll Recorder</title>
   <style>
-    body { font-family: Arial, Helvetica, sans-serif; margin: 12px; }
-    #controls { margin-bottom: 12px; }
-    button {
-      margin: 6px;
-      padding: 14px 20px;
-      font-size: 18px;
-      border-radius: 6px;
-      border: 1px solid #444;
-      background: #f2f2f2;
+    html, body {
+      margin:0; padding:0; overflow:hidden;
+      font-family: Arial, sans-serif;
     }
-    button:disabled { opacity: 0.5; }
-    #status { margin-left: 8px; font-weight: bold; }
-    #sheet { border:1px solid #ddd; padding: 8px; min-height: 160px; margin-top:12px;}
-    .sliderRow { margin: 12px 0; }
-    .sliderRow label { display:inline-block; width: 120px; }
-    #volumeBar { width:200px; height:18px; background:#eee; display:inline-block; vertical-align:middle; margin-left:8px; border-radius:3px; overflow:hidden;}
+    #controls {
+      padding:8px;
+      background:#f8f8f8;
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    button {
+      margin:4px;
+      padding:14px 20px;
+      font-size:18px;
+      border-radius:6px;
+      border:1px solid #444;
+      background:#f2f2f2;
+    }
+    button:disabled { opacity:0.5; }
+    #status { margin-left:8px; font-weight:bold; }
+    #pianoRollWrapper {
+      position:absolute; top:70px; left:0; right:0; bottom:220px;
+      overflow-x:auto; overflow-y:hidden;
+      background:white;
+    }
+    #pianoRoll {
+      height:100%;
+    }
+    .sliderRow { padding:8px; background:#fafafa; }
+    .sliderRow label { display:inline-block; width:120px; }
+    #volumeBar { width:200px; height:18px; background:#eee; display:inline-block;
+      vertical-align:middle; margin-left:8px; border-radius:3px; overflow:hidden;}
     #volumeFill { height:100%; width:0; background:green; }
     #timeDisplay { margin-left:8px; }
     #log {
       font-family: monospace;
       white-space: pre-wrap;
-      margin-top: 16px;
-      max-height: 200px;
-      overflow-y: auto;
+      position:absolute; bottom:0; left:0; right:0;
+      height:200px;
+      overflow-y:auto;
       background:#fafafa;
       padding:8px;
-      border-radius:6px;
-      border:1px solid #ddd;
+      border-top:1px solid #ccc;
     }
+    rect.note { stroke:black; stroke-width:1; }
   </style>
-  <script src="https://unpkg.com/vexflow/releases/vexflow-min.js"></script>
-  <script src="https://unpkg.com/midiwriter-js/dist/MidiWriter.min.js"></script>
 </head>
 <body>
-  <h2>Realtime polyphonic pitch → MIDI → VexFlow</h2>
   <div id="controls">
     <button id="startBtn">▶ Start</button>
     <button id="stopBtn" disabled>⏹ Stop</button>
@@ -59,9 +73,13 @@
     <span id="timeDisplay">0.0s</span>
   </div>
 
-  <div id="sheet"></div>
+  <div id="pianoRollWrapper">
+    <svg id="pianoRoll" width="2000" height="600"></svg>
+  </div>
+
   <pre id="log"></pre>
 
+<script src="https://unpkg.com/midiwriter-js/dist/MidiWriter.min.js"></script>
 <script>
 /* -----------------------------
    Worklet processor
@@ -138,16 +156,16 @@ const stopBtn=document.getElementById('stopBtn');
 const exportBtn=document.getElementById('exportBtn');
 const statusSpan=document.getElementById('status');
 const logPre=document.getElementById('log');
-const sheetDiv=document.getElementById('sheet');
 const gateSlider=document.getElementById('gateThreshold');
 const gateVal=document.getElementById('gateVal');
 const volumeFill=document.getElementById('volumeFill');
 const timeSlider=document.getElementById('timeSlider');
 const timeDisplay=document.getElementById('timeDisplay');
+const roll=document.getElementById('pianoRoll');
 
-let audioContext=null, micStream=null, workletNode=null;
+let audioContext=null, micStream=null, workletNode=null, highpass=null;
 let noteState=new Map(), capturedNotes=[];
-let rafId=null;
+let rafId=null, running=false;
 
 function logMessage(obj){
   logPre.textContent += JSON.stringify(obj)+"\\n";
@@ -163,13 +181,18 @@ async function startAudio(){
     {processorOptions:{midiLow:40,midiHigh:84,blockSize:1024,gateThreshold:parseFloat(gateSlider.value)}});
   workletNode.port.onmessage=e=>handleMessage(e.data);
   micStream=await navigator.mediaDevices.getUserMedia({audio:true});
-  audioContext.createMediaStreamSource(micStream).connect(workletNode).connect(audioContext.destination);
+  const src=audioContext.createMediaStreamSource(micStream);
+  highpass=audioContext.createBiquadFilter();
+  highpass.type="highpass"; highpass.frequency.value=70;
+  src.connect(highpass).connect(workletNode).connect(audioContext.destination);
   statusSpan.textContent="running";
   startBtn.disabled=true; stopBtn.disabled=false; exportBtn.disabled=false;
+  running=true;
   tickTimeline();
 }
 
 function stopAudio(){
+  running=false;
   cancelAnimationFrame(rafId);
   if(audioContext){
     const t=audioContext.currentTime;
@@ -180,7 +203,7 @@ function stopAudio(){
   if(micStream){ micStream.getTracks().forEach(tr=>tr.stop()); micStream=null; }
   statusSpan.textContent="stopped";
   startBtn.disabled=false; stopBtn.disabled=true;
-  renderScore();
+  drawPianoRoll();
 }
 
 function handleMessage(msg){
@@ -189,6 +212,7 @@ function handleMessage(msg){
     const pct=Math.min(1,msg.value/0.1);
     volumeFill.style.width=(pct*200)+"px";
   }
+  if(!running) return; // ignore detections after stop
   if(msg.type==='detections'){
     handleDetections(msg.detections,msg.timestamp);
   }
@@ -207,36 +231,32 @@ function handleDetections(dets,t){
       noteState.delete(m);
     }
   }
-  renderScore();
+  drawPianoRoll();
 }
 
-function renderScore(){
-  sheetDiv.innerHTML="";
-  const VF=Vex.Flow;
-  const renderer=new VF.Renderer(sheetDiv,VF.Renderer.Backends.SVG);
-  renderer.resize(800,200);
-  const context=renderer.getContext();
-  const stave=new VF.Stave(10,10,760).addClef("treble").addTimeSignature("4/4");
-  stave.setContext(context).draw();
-  const events=[...capturedNotes];
-  for(let [m,st] of noteState){ events.push({midi:m,start:st.start,end:audioContext?audioContext.currentTime:st.start}); }
-  if(events.length===0){
-    VF.Formatter.FormatAndDraw(context,stave,[new VF.StaveNote({keys:["b/4"],duration:"w"})]);
-    return;
+function drawPianoRoll(){
+  roll.innerHTML="";
+  const widthPerSec=100; // px per second
+  const keyHeight=12;    // px per MIDI semitone
+  const yOffset=0;
+  const minMidi=40, maxMidi=84;
+  roll.setAttribute("width",(timeSlider.max*widthPerSec+200));
+  roll.setAttribute("height",(maxMidi-minMidi+1)*keyHeight);
+  const notes=[...capturedNotes];
+  if(running){
+    for(let [m,st] of noteState){ notes.push({midi:m,start:st.start,end:audioContext.currentTime}); }
   }
-  const vfNotes=[];
-  for(let ev of events){
-    const names=["c","c#","d","d#","e","f","f#","g","g#","a","a#","b"];
-    const nm=names[ev.midi%12]; const oct=Math.floor(ev.midi/12)-1;
-    const vfKey=nm+"/"+oct;
-    const note=new VF.StaveNote({keys:[vfKey],duration:"q"});
-    if(vfKey.includes("#")) note.addAccidental(0,new VF.Accidental("#"));
-    vfNotes.push(note);
+  for(let ev of notes){
+    const x=ev.start*widthPerSec;
+    const w=(ev.end-ev.start)*widthPerSec;
+    const y=(maxMidi-ev.midi)*keyHeight+yOffset;
+    const rect=document.createElementNS("http://www.w3.org/2000/svg","rect");
+    rect.setAttribute("x",x); rect.setAttribute("y",y);
+    rect.setAttribute("width",w); rect.setAttribute("height",keyHeight-1);
+    rect.setAttribute("class","note");
+    rect.setAttribute("fill","#4CAF50");
+    roll.appendChild(rect);
   }
-  const voice=new VF.Voice({num_beats:4,beat_value:4});
-  voice.addTickables(vfNotes);
-  new VF.Formatter().joinVoices([voice]).format([voice],700);
-  voice.draw(context,stave);
 }
 
 function tickTimeline(){
@@ -245,6 +265,7 @@ function tickTimeline(){
     timeSlider.max=now.toFixed(2);
     timeSlider.value=now.toFixed(2);
     timeDisplay.textContent=now.toFixed(2)+"s";
+    drawPianoRoll();
   }
   rafId=requestAnimationFrame(tickTimeline);
 }
