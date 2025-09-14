@@ -140,6 +140,15 @@
     z-index: 10;
   }
   
+  .note {
+    transition: fill 0.2s ease, transform 0.2s ease;
+  }
+  
+  .note.active {
+    fill: #2196F3;
+    transform: scale(1.05);
+  }
+
   #log { 
     height: 120px; 
     overflow-y: scroll; 
@@ -189,6 +198,7 @@
 <div id="controls">
   <button id="startBtn">Start</button>
   <button id="stopBtn" disabled>Stop</button>
+  <button id="clearBtn">Clear</button>
   <button id="exportBtn">Export MIDI</button>
 
   <div class="control-group">
@@ -229,10 +239,30 @@ const noiseGateSlider = document.getElementById("noiseGateSlider");
 const noiseGateValue = document.getElementById("noiseGateValue");
 const startBtn = document.getElementById("startBtn");
 const stopBtn = document.getElementById("stopBtn");
+const clearBtn = document.getElementById("clearBtn");
+const exportBtn = document.getElementById("exportBtn");
 const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
 const timeIndicator = document.getElementById("timeIndicator");
+const roll = document.getElementById("pianoRoll");
 
+// Constants for note range and display
+const minMidi = 40, maxMidi = 84;
+const keyHeight = 12;
+const widthPerSec = 100;
+const NS = "http://www.w3.org/2000/svg";
+
+// State variables
+let audioContext, mic, noiseGateNode, workletNode, rmsNode;
+let running = false;
+let capturedNotes = [];
+let noteState = new Map();
+let startTime = 0;
+let animationFrame;
+let noiseThreshold = parseFloat(noiseGateSlider.value);
+let dynamicThreshold = -100;
+
+// Utility functions
 function log(msg) { 
   const timestamp = new Date().toLocaleTimeString();
   logEl.textContent += `[${timestamp}] ${msg}\n`; 
@@ -247,20 +277,6 @@ function updateStatus(status, isRecording = false) {
 window.addEventListener("error", e => log("JS Error: " + e.message + " @ " + e.filename + ":" + e.lineno));
 window.addEventListener("unhandledrejection", e => log("Unhandled Promise Rejection: " + e.reason));
 
-let audioContext, mic, noiseGateNode, workletNode, rmsNode;
-let running = false;
-let capturedNotes = [];
-let noteState = new Map();
-let startTime = 0;
-let currentTimePosition = 0;
-const roll = document.getElementById("pianoRoll");
-
-const minMidi = 40, maxMidi = 84;
-const keyHeight = 12;
-const widthPerSec = 100;
-let noiseThreshold = parseFloat(noiseGateSlider.value);
-let animationFrame;
-
 noiseGateSlider.oninput = () => {
   noiseThreshold = parseFloat(noiseGateSlider.value);
   noiseGateValue.textContent = noiseThreshold.toFixed(0);
@@ -269,8 +285,8 @@ noiseGateSlider.oninput = () => {
   }
 };
 
+// UI drawing functions
 function drawAxis(){
-  const NS = "http://www.w3.org/2000/svg";
   const axisSvg = document.getElementById("axisSvg");
   axisSvg.innerHTML = "";
   axisSvg.setAttribute("height",(maxMidi-minMidi+1)*keyHeight);
@@ -299,26 +315,20 @@ function drawAxis(){
 }
 
 function drawPianoRoll(){
-  const NS = "http://www.w3.org/2000/svg";
-  let notes = [...capturedNotes];
+  const notes = [...capturedNotes];
   if(running) { 
     for(let [m, st] of noteState) { 
-      notes.push({midi: m, start: st.start, end: audioContext.currentTime}); 
+      notes.push({midi: m, start: st.start, end: audioContext.currentTime, velocity: st.velocity, noteId: st.noteId}); 
     } 
   }
-  let maxTime = 0;
-  for (let ev of notes) {
-    const endRel = (ev.end || 0) - startTime;
-    if (endRel > maxTime) maxTime = endRel;
-  }
-  const totalW = Math.max((maxTime + 5) * widthPerSec + 200, window.innerWidth - 60);
+  
+  const totalW = Math.max((notes.length > 0 ? (Math.max(...notes.map(n => n.end || n.start)) - startTime + 5) * widthPerSec : 200), window.innerWidth - 60);
   const totalH = (maxMidi - minMidi + 1) * keyHeight;
   roll.setAttribute("width", totalW);
   roll.setAttribute("height", totalH);
 
-  // Only clear notes, not grid lines
-  const existingNotes = roll.querySelectorAll("rect.note, text.note-label");
-  existingNotes.forEach(el => el.remove());
+  // Clear all previous notes
+  roll.querySelectorAll(".note, .note-label").forEach(el => el.remove());
 
   // Add grid lines if needed
   const neededLines = Math.ceil(totalW / widthPerSec);
@@ -336,9 +346,10 @@ function drawPianoRoll(){
       roll.insertBefore(line, roll.firstChild);
     }
   }
-
-  for(let ev of notes){
-    if(!ev.end || ev.end <= ev.start) continue;
+  
+  // Draw all notes
+  notes.forEach(ev => {
+    if(!ev.end || ev.end <= ev.start) return;
     const x = (ev.start - startTime) * widthPerSec;
     const w = (ev.end - ev.start) * widthPerSec;
     const y = (maxMidi - ev.midi) * keyHeight;
@@ -347,7 +358,8 @@ function drawPianoRoll(){
     rect.setAttribute("y", y);
     rect.setAttribute("width", w);
     rect.setAttribute("height", keyHeight - 1);
-    rect.setAttribute("fill", "#4CAF50");
+    const color = `hsl(${Math.round((ev.midi - minMidi) / (maxMidi - minMidi) * 360)}, 100%, 50%)`;
+    rect.setAttribute("fill", color);
     rect.setAttribute("rx", "2");
     rect.setAttribute("ry", "2");
     rect.classList.add("note");
@@ -363,12 +375,11 @@ function drawPianoRoll(){
       text.classList.add("note-label");
       roll.appendChild(text);
     }
-  }
+  });
   
   if (running) {
-    currentTimePosition = (audioContext.currentTime - startTime) * widthPerSec;
+    const currentTimePosition = (audioContext.currentTime - startTime) * widthPerSec;
     timeIndicator.style.left = currentTimePosition + 'px';
-    
     const wrapper = document.getElementById('pianoRollWrapper');
     if (currentTimePosition > wrapper.scrollLeft + wrapper.clientWidth - 100) {
       wrapper.scrollLeft = currentTimePosition - wrapper.clientWidth + 100;
@@ -376,8 +387,8 @@ function drawPianoRoll(){
   }
 }
 
-async function setup(){
-  const workletCode = `
+// Audio Worklet processors
+const workletCode = `
     const notesFreqs = [];
     for(let m = 40; m <= 84; m++) { 
       notesFreqs[m] = 440 * Math.pow(2, (m - 69) / 12); 
@@ -400,11 +411,10 @@ async function setup(){
         super();
         this.buf = new Float32Array(N);
         this.i = 0;
-        this.port.postMessage({type: "ready"});
         this.port.onmessage = e => { 
-          if (e.data.type === "threshold") this.threshold = e.data.value; 
+          if (e.data.type === "dynamicThreshold") this.dynamicThreshold = e.data.value; 
         };
-        this.threshold = -60; // Initial threshold in dBFS
+        this.dynamicThreshold = -100;
       }
       
       process(inputs) { 
@@ -416,8 +426,7 @@ async function setup(){
           this.buf[this.i++] = s;
           
           if (this.i >= N) {
-            let maxPower = 0;
-            let maxMidi = -1;
+            const detectedNotes = [];
             
             for (let m = 40; m <= 84; m++) {
               let coeff = coefficients[m];
@@ -431,16 +440,14 @@ async function setup(){
               }
               
               let power = s1 * s1 + s2 * s2 - coeff * s1 * s2;
-              if (power > maxPower && power > 0.05) {
-                maxPower = power;
-                maxMidi = m;
+              let db = 10 * Math.log10(power / (N*N) + 1e-12); // Normalize power and convert to dB
+              
+              if (db > this.dynamicThreshold) {
+                detectedNotes.push({midi: m, velocity: Math.min(127, Math.max(0, 100 + db))}); // Basic velocity calculation
               }
             }
             
-            if (maxMidi !== -1) {
-              this.port.postMessage({type: "notes", notes: [maxMidi], time: currentTime});
-            }
-            
+            this.port.postMessage({type: "notes", notes: detectedNotes, time: currentTime});
             this.i = 0;
           }
         }
@@ -452,7 +459,6 @@ async function setup(){
     class RMSProcessor extends AudioWorkletProcessor {
       constructor() {
         super();
-        this.port.postMessage({type: "ready"});
       }
       
       process(inputs) { 
@@ -520,71 +526,89 @@ async function setup(){
     registerProcessor("goertzel-processor", GoertzelProcessor);
     registerProcessor("rms-processor", RMSProcessor);
     registerProcessor("noise-gate-processor", NoiseGateProcessor);
-  `;
+`;
   
-  const blob = new Blob([workletCode], {type: "application/javascript"});
-  const url = URL.createObjectURL(blob);
-  audioContext = new AudioContext();
-  await audioContext.audioWorklet.addModule(url);
+// Audio setup and processing
+async function setup(){
+  try {
+    const blob = new Blob([workletCode], {type: "application/javascript"});
+    const url = URL.createObjectURL(blob);
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    await audioContext.audioWorklet.addModule(url);
 
-  mic = await navigator.mediaDevices.getUserMedia({audio: true});
-  const source = audioContext.createMediaStreamSource(mic);
+    mic = await navigator.mediaDevices.getUserMedia({audio: true});
+    const source = audioContext.createMediaStreamSource(mic);
 
-  noiseGateNode = new AudioWorkletNode(audioContext, "noise-gate-processor");
-  noiseGateNode.port.postMessage({ type: "threshold", value: noiseThreshold });
-  noiseGateNode.port.postMessage({ type: "attack", value: 0.01 });
-  noiseGateNode.port.postMessage({ type: "release", value: 0.05 });
+    noiseGateNode = new AudioWorkletNode(audioContext, "noise-gate-processor");
+    noiseGateNode.port.postMessage({ type: "threshold", value: noiseThreshold });
+    
+    workletNode = new AudioWorkletNode(audioContext, "goertzel-processor");
+    rmsNode = new AudioWorkletNode(audioContext, "rms-processor");
 
-  workletNode = new AudioWorkletNode(audioContext, "goertzel-processor");
-  rmsNode = new AudioWorkletNode(audioContext, "rms-processor");
+    source.connect(noiseGateNode);
+    noiseGateNode.connect(workletNode);
+    noiseGateNode.connect(rmsNode);
 
-  source.connect(noiseGateNode);
-  noiseGateNode.connect(workletNode);
-  noiseGateNode.connect(rmsNode);
+    workletNode.port.onmessage = e => { 
+      if(e.data.type === "notes"){ 
+        handleNotes(e.data.notes, e.data.time); 
+      }
+    };
+    
+    rmsNode.port.onmessage = e => { 
+      if(e.data.type === "rms"){ 
+        let rms = e.data.value; 
+        let db = 20 * Math.log10(rms + 1e-12);
+        dynamicThreshold = Math.max(-100, db - 10); // 10dB below current level
+        workletNode.port.postMessage({ type: "dynamicThreshold", value: dynamicThreshold });
 
-  workletNode.port.onmessage = e => { 
-    if(e.data.type === "notes"){ 
-      handleNotes(e.data.notes, e.data.time); 
-    }
-  };
-  
-  rmsNode.port.onmessage = e => { 
-    if(e.data.type === "rms"){ 
-      let rms = e.data.value; 
-      let db = 20 * Math.log10(rms + 1e-12);
-      let pct = Math.min(100, Math.max(0, (db + 100) / 80 * 100));
-      volumeLevel.style.width = pct + "%"; 
-      volumeText.textContent = db.toFixed(2); 
-    } 
-  };
+        let pct = Math.min(100, Math.max(0, (db + 100) / 80 * 100));
+        volumeLevel.style.width = pct + "%"; 
+        volumeText.textContent = db.toFixed(2); 
+      } 
+    };
+    
+    updateStatus("Ready", false);
+    log("Audio engine ready.");
+  } catch(e) {
+    log("Error setting up audio: " + e.message);
+    updateStatus("Error", false);
+  }
 }
 
-function handleNotes(notes, time){
-  for(let m of notes){
-    if(!noteState.has(m)){ 
-      noteState.set(m, {start: audioContext.currentTime}); 
-      log("Note on " + m);
+function handleNotes(detected, time){
+  const detectedMidies = detected.map(n => n.midi);
+  
+  // Handle new notes (note-on)
+  for(let n of detected){
+    if(!noteState.has(n.midi)){ 
+      noteState.set(n.midi, {start: audioContext.currentTime, velocity: n.velocity, noteId: performance.now()}); 
+      log(`Note on: ${n.midi} (Velocity: ${n.velocity})`);
     }
   }
   
-  for(let [m, st] of [...noteState]) {
-    if(!notes.includes(m)) {
-      capturedNotes.push({midi: m, start: st.start, end: audioContext.currentTime});
-      noteState.delete(m);
-      log("Note off " + m);
+  // Handle ended notes (note-off)
+  for(let [midi, st] of [...noteState]) {
+    if(!detectedMidies.includes(midi)) {
+      capturedNotes.push({midi: midi, start: st.start, end: audioContext.currentTime, velocity: st.velocity, noteId: st.noteId});
+      noteState.delete(midi);
+      log(`Note off: ${midi}`);
     }
   }
 }
 
 function start(){
+  if(audioContext.state === 'suspended') {
+    audioContext.resume();
+  }
   running = true;
   startBtn.disabled = true;
   stopBtn.disabled = false;
+  clearBtn.disabled = true;
   capturedNotes = [];
   noteState.clear();
   startTime = audioContext.currentTime;
   updateStatus("Recording", true);
-  drawAxis();
   
   function loop(){
     drawPianoRoll();
@@ -597,30 +621,31 @@ function stop(){
   running = false;
   startBtn.disabled = false;
   stopBtn.disabled = true;
+  clearBtn.disabled = false;
   for(let [m, st] of noteState) {
-    capturedNotes.push({midi: m, start: st.start, end: audioContext.currentTime});
+    capturedNotes.push({midi: m, start: st.start, end: audioContext.currentTime, velocity: st.velocity, noteId: st.noteId});
   }
   noteState.clear();
   cancelAnimationFrame(animationFrame);
+  drawPianoRoll(); // Final draw to render all notes
   updateStatus("Stopped", false);
 }
 
-startBtn.onclick = async () => {
-  try { 
-    if(!audioContext){ await setup(); }
-    start(); 
-  } catch(e){ 
-    log("Start error: " + e); 
-  }
-};
-stopBtn.onclick = () => { try { stop(); } catch(e){ log("Stop error: " + e); } };
+function clearRoll() {
+  stop();
+  capturedNotes = [];
+  noteState.clear();
+  drawPianoRoll();
+  log("Piano roll cleared.");
+}
 
+// MIDI export function (unchanged)
 function exportMIDI(){
   const events = [];
   const push = arr => events.push(...arr);
   
   const notes = [...capturedNotes];
-  push(notes.map(n => ({type:"on", time: Math.round((n.start - startTime) * 1000), midi: n.midi})));
+  push(notes.map(n => ({type:"on", time: Math.round((n.start - startTime) * 1000), midi: n.midi, velocity: n.velocity || 100})));
   push(notes.map(n => ({type:"off", time: Math.round((n.end - startTime) * 1000), midi: n.midi})));
   
   events.sort((a,b)=>a.time-b.time);
@@ -647,7 +672,7 @@ function exportMIDI(){
   }
   
   events.forEach(ev=>{
-    if(ev.type==="on") writeEvent(ev.time,[0x90, ev.midi, 100]);
+    if(ev.type==="on") writeEvent(ev.time,[0x90, ev.midi, ev.velocity]);
     if(ev.type==="off") writeEvent(ev.time,[0x80, ev.midi, 64]);
   });
   writeEvent(events.length>0 ? events[events.length-1].time+200 : 0,[0xFF,0x2F,0x00]);
@@ -665,10 +690,22 @@ function exportMIDI(){
   a.download="output.mid";
   a.click();
   URL.revokeObjectURL(url);
+  log("MIDI exported.");
 }
 
-document.getElementById("exportBtn").onclick = () => { try { exportMIDI(); } catch(e){ log("Export error: " + e); } };
+// Event listeners
+startBtn.onclick = async () => {
+  if(!audioContext){
+    await setup();
+  }
+  start();
+};
 
+stopBtn.onclick = () => stop();
+clearBtn.onclick = () => clearRoll();
+exportBtn.onclick = () => exportMIDI();
+
+// Initial setup
 drawAxis();
 updateStatus("Ready", false);
 </script>
