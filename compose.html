@@ -424,7 +424,8 @@ async function setup(){
             this.buf[this.i++] = x;
             
             if (this.i >= N) {
-              let detected = [];
+              let maxPower = 0;
+              let maxMidi = -1;
               
               for (let m = 40; m <= 84; m++) {
                 let coeff = coefficients[m];
@@ -438,11 +439,14 @@ async function setup(){
                 }
                 
                 let power = s1 * s1 + s2 * s2 - coeff * s1 * s2;
-                if (power > 0.05) detected.push(m);
+                if (power > maxPower && power > 0.05) {
+                  maxPower = power;
+                  maxMidi = m;
+                }
               }
               
-              if (detected.length) {
-                this.port.postMessage({type: "notes", notes: detected, time: currentTime});
+              if (maxMidi !== -1) {
+                this.port.postMessage({type: "notes", notes: [maxMidi], time: currentTime});
               }
               
               this.i = 0;
