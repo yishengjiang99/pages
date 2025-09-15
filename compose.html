@@ -19,17 +19,17 @@
   #controls {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
-    padding: 12px;
+    gap: 8px;
+    padding: 8px;
     background: #222;
     align-items: center;
     border-bottom: 1px solid #444;
   }
 
   button, input[type=range] {
-    font-size: 16px;
-    padding: 10px 16px;
-    border-radius: 6px;
+    font-size: 14px;
+    padding: 6px 12px;
+    border-radius: 4px;
     border: none;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -39,12 +39,12 @@
     background: #4CAF50;
     color: white;
     font-weight: bold;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.3);
   }
 
   button:hover {
     background: #3e8e41;
-    transform: translateY(-2px);
+    transform: translateY(-1px);
   }
 
   button:active {
@@ -59,7 +59,7 @@
 
   .play-controls {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     align-items: center;
   }
 
@@ -73,16 +73,16 @@
 
   #playback-seeker-container {
     flex: 1;
-    min-width: 150px;
-    padding: 0 12px;
+    min-width: 120px;
+    padding: 0 8px;
   }
 
   #playback-seeker {
     width: 100%;
-    height: 6px;
+    height: 4px;
     -webkit-appearance: none;
     background: #555;
-    border-radius: 5px;
+    border-radius: 3px;
     outline: none;
     transition: background 0.2s;
     touch-action: pan-x;
@@ -90,16 +90,16 @@
 
   #playback-seeker::-webkit-slider-thumb {
     -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     background: #FF9800;
     border-radius: 50%;
     cursor: grab;
   }
 
   #playback-seeker::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
+    width: 16px;
+    height: 16px;
     background: #FF9800;
     border-radius: 50%;
     cursor: grab;
@@ -109,24 +109,24 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    padding: 8px;
+    padding: 6px;
     background: #2a2a2a;
-    border-radius: 8px;
-    min-width: 160px;
+    border-radius: 6px;
+    min-width: 120px;
   }
 
   .control-group label {
-    font-size: 14px;
-    margin-bottom: 6px;
+    font-size: 12px;
+    margin-bottom: 4px;
     color: #ccc;
   }
 
   #volume {
-    width: 150px;
-    height: 20px;
+    width: 120px;
+    height: 16px;
     background: #555;
     position: relative;
-    border-radius: 3px;
+    border-radius: 2px;
     overflow: hidden;
   }
 
@@ -138,31 +138,31 @@
   }
 
   #volumeText {
-    font-size: 12px;
+    font-size: 10px;
     color: #fff;
-    margin-top: 4px;
+    margin-top: 3px;
     text-align: center;
   }
 
   #noiseGateSlider {
-    width: 150px;
+    width: 120px;
     accent-color: #4CAF50;
   }
 
   #pianoContainer {
     display: flex;
-    height: 600px;
+    height: calc(100vh - 48px - 80px);
     overflow: hidden;
   }
 
   #pianoAxis {
-    width: 60px;
+    width: 50px;
     background: #2a2a2a;
     border-right: 1px solid #444;
   }
 
   #pianoAxis svg {
-    width: 60px;
+    width: 50px;
     height: 100%;
     display: block;
   }
@@ -176,7 +176,7 @@
   }
 
   #pianoRoll {
-    height: 600px;
+    height: 100%;
   }
 
   #timeIndicator {
@@ -199,30 +199,30 @@
   }
 
   #log {
-    height: 120px;
+    height: 80px;
     overflow-y: scroll;
     background: #000;
     color: #0f0;
-    padding: 8px;
+    padding: 6px;
     font-family: monospace;
-    font-size: 12px;
+    font-size: 11px;
     white-space: pre-wrap;
     border-top: 1px solid #444;
   }
 
   .status {
-    padding: 8px 12px;
-    border-radius: 20px;
+    padding: 6px 10px;
+    border-radius: 16px;
     background: #333;
-    font-size: 14px;
+    font-size: 12px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
 
   .status-dot {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
     border-radius: 50%;
     background: #f00;
   }
@@ -246,7 +246,6 @@
     100% { opacity: 1; }
   }
 
-  /* Modal Styles */
   .modal {
     display: none;
     position: fixed;
@@ -260,33 +259,65 @@
     justify-content: center;
     align-items: center;
   }
+
   .modal-content {
     background-color: #2a2a2a;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    padding: 15px;
+    border-radius: 6px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.5);
     width: 90%;
-    max-width: 800px;
+    max-width: 700px;
     position: relative;
-    max-height: 90%;
+    max-height: 85%;
     overflow-y: auto;
   }
+
   .close-btn {
     color: #aaa;
     float: right;
-    font-size: 28px;
+    font-size: 24px;
     font-weight: bold;
     cursor: pointer;
   }
+
   .close-btn:hover, .close-btn:focus {
     color: #fff;
     text-decoration: none;
     cursor: pointer;
   }
+
   #sheetMusicContainer {
     background-color: #fff;
-    padding: 10px;
-    border-radius: 4px;
+    padding: 8px;
+    border-radius: 3px;
+  }
+
+  @media (max-height: 600px) {
+    #controls {
+      gap: 6px;
+      padding: 6px;
+    }
+    button, input[type=range] {
+      font-size: 12px;
+      padding: 5px 10px;
+    }
+    .control-group {
+      min-width: 100px;
+      padding: 5px;
+    }
+    #volume, #noiseGateSlider {
+      width: 100px;
+    }
+    #log {
+      height: 60px;
+      font-size: 10px;
+    }
+    #pianoAxis {
+      width: 40px;
+    }
+    #pianoAxis svg {
+      width: 40px;
+    }
   }
 </style>
 </head>
@@ -369,7 +400,7 @@ const closeModalBtn = document.querySelector("#sheetMusicModal .close-btn");
 
 // Constants
 const minMidi = 40, maxMidi = 84;
-const keyHeight = 12;
+const keyHeight = 10;
 const widthPerSec = 100;
 const NS = "http://www.w3.org/2000/svg";
 
@@ -436,7 +467,7 @@ function drawAxis(){
     const rect = document.createElementNS(NS, "rect");
     rect.setAttribute("x", 0);
     rect.setAttribute("y", y);
-    rect.setAttribute("width", 60);
+    rect.setAttribute("width", 50);
     rect.setAttribute("height", keyHeight);
     rect.setAttribute("fill", [1,3,6,8,10].includes(m % 12) ? "#333" : "#2a2a2a");
     rect.setAttribute("stroke", "#444");
@@ -444,9 +475,9 @@ function drawAxis(){
 
     if(![1,3,6,8,10].includes(m % 12)){
       const text = document.createElementNS(NS, "text");
-      text.setAttribute("x", 5);
+      text.setAttribute("x", 4);
       text.setAttribute("y", y + keyHeight - 2);
-      text.setAttribute("font-size", "10");
+      text.setAttribute("font-size", "9");
       text.setAttribute("fill", "#eee");
       text.textContent = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"][m % 12] + Math.floor(m / 12);
       axisSvg.appendChild(text);
@@ -463,7 +494,7 @@ function drawPianoRoll(){
   }
 
   let maxTime = notesToDraw.length > 0 ? Math.max(...notesToDraw.map(n => n.end || n.start)) : 0;
-  const totalW = Math.max((maxTime - startTime + 5) * widthPerSec, window.innerWidth - 60);
+  const totalW = Math.max((maxTime - startTime + 5) * widthPerSec, window.innerWidth - 50);
   const totalH = (maxMidi - minMidi + 1) * keyHeight;
   roll.setAttribute("width", totalW);
   roll.setAttribute("height", totalH);
@@ -684,7 +715,6 @@ const workletCode = `
 
         this.port.onmessage=(e)=>{
           const d=e.data;
-          // Immediately relay message to main thread
           this.port.postMessage(d);
 
           if(d.type==='event'){
@@ -873,7 +903,7 @@ function startPlayback() {
 
   playbackTimeouts = events.map(event => {
     const relativeTime = event.time - playbackPosition;
-    if (relativeTime < 0) return null; // Skip events that are already passed
+    if (relativeTime < 0) return null;
     return setTimeout(() => {
       synthNode.port.postMessage({ type: 'event', event });
     }, relativeTime);
@@ -970,7 +1000,6 @@ function exportMIDI(){
   log("MIDI exported.");
 }
 
-// Sheet Music Logic
 const midiToAbc = {
   36: "C,,", 37: "^C,,", 38: "D,,", 39: "^D,,", 40: "E,,", 41: "F,,", 42: "^F,,", 43: "G,,", 44: "^G,,", 45: "A,,", 46: "^A,,", 47: "B,,",
   48: "C,", 49: "^C,", 50: "D,", 51: "^D,", 52: "E,", 53: "F,", 54: "^F,", 55: "G,", 56: "^G,", 57: "A,", 58: "^A,", 59: "B,",
@@ -998,7 +1027,7 @@ function displaySheetMusic() {
     const restDuration = note.start - lastTime;
     
     if (restDuration > 0) {
-      const beats = Math.round(restDuration * 2); // Assuming 1/8 note length = 0.5s
+      const beats = Math.round(restDuration * 2);
       if (beats > 0) {
         abcString += "z" + beats;
         measureBeats += beats;
