@@ -5,52 +5,52 @@
 <title>Goertzel Piano Roll with MIDI Playback</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-  body { 
-    margin: 0; 
-    overflow: hidden; 
-    font-family: sans-serif; 
-    user-select: none; 
-    -webkit-user-select: none; 
-    touch-action: manipulation; 
+  body {
+    margin: 0;
+    overflow: hidden;
+    font-family: sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
     background: #1a1a1a;
     color: #eee;
   }
-  
-  #controls { 
-    display: flex; 
-    flex-wrap: wrap; 
-    gap: 12px; 
-    padding: 12px; 
-    background: #222; 
-    align-items: center; 
+
+  #controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 12px;
+    background: #222;
+    align-items: center;
     border-bottom: 1px solid #444;
   }
-  
-  button, input[type=range] { 
-    font-size: 16px; 
-    padding: 10px 16px; 
-    border-radius: 6px; 
-    border: none; 
+
+  button, input[type=range] {
+    font-size: 16px;
+    padding: 10px 16px;
+    border-radius: 6px;
+    border: none;
     cursor: pointer;
     transition: all 0.2s ease;
   }
-  
-  button { 
-    background: #4CAF50; 
-    color: white; 
+
+  button {
+    background: #4CAF50;
+    color: white;
     font-weight: bold;
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
   }
-  
+
   button:hover {
     background: #3e8e41;
     transform: translateY(-2px);
   }
-  
+
   button:active {
     transform: translateY(0);
   }
-  
+
   button:disabled {
     background: #666;
     cursor: not-allowed;
@@ -70,7 +70,7 @@
   #playBtn:hover, #pauseBtn:hover {
     background: #1976D2;
   }
-  
+
   #playback-seeker-container {
     flex: 1;
     min-width: 150px;
@@ -87,7 +87,7 @@
     transition: background 0.2s;
     touch-action: pan-x;
   }
-  
+
   #playback-seeker::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 20px;
@@ -105,80 +105,80 @@
     cursor: grab;
   }
 
-  .control-group { 
-    display: flex; 
-    flex-direction: column; 
-    align-items: flex-start; 
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
     padding: 8px;
     background: #2a2a2a;
     border-radius: 8px;
     min-width: 160px;
   }
-  
+
   .control-group label {
     font-size: 14px;
     margin-bottom: 6px;
     color: #ccc;
   }
-  
-  #volume { 
-    width: 150px; 
-    height: 20px; 
-    background: #555; 
-    position: relative; 
+
+  #volume {
+    width: 150px;
+    height: 20px;
+    background: #555;
+    position: relative;
     border-radius: 3px;
     overflow: hidden;
   }
-  
-  #volumeLevel { 
-    height: 100%; 
-    width: 0%; 
+
+  #volumeLevel {
+    height: 100%;
+    width: 0%;
     background: linear-gradient(to right, #4CAF50, #8BC34A, #CDDC39, #FFEB3B, #FFC107, #FF9800, #FF5722);
     transition: width 0.1s ease;
   }
-  
-  #volumeText { 
-    font-size: 12px; 
-    color: #fff; 
-    margin-top: 4px; 
+
+  #volumeText {
+    font-size: 12px;
+    color: #fff;
+    margin-top: 4px;
     text-align: center;
   }
-  
-  #noiseGateSlider { 
-    width: 150px; 
+
+  #noiseGateSlider {
+    width: 150px;
     accent-color: #4CAF50;
   }
-  
-  #pianoContainer { 
-    display: flex; 
-    height: 600px; 
-    overflow: hidden; 
+
+  #pianoContainer {
+    display: flex;
+    height: 600px;
+    overflow: hidden;
   }
-  
-  #pianoAxis { 
-    width: 60px; 
-    background: #2a2a2a; 
-    border-right: 1px solid #444; 
+
+  #pianoAxis {
+    width: 60px;
+    background: #2a2a2a;
+    border-right: 1px solid #444;
   }
-  
-  #pianoAxis svg { 
-    width: 60px; 
-    height: 100%; 
-    display: block; 
+
+  #pianoAxis svg {
+    width: 60px;
+    height: 100%;
+    display: block;
   }
-  
-  #pianoRollWrapper { 
-    flex: 1; 
-    overflow-x: scroll; 
-    overflow-y: hidden; 
-    background: #111; 
+
+  #pianoRollWrapper {
+    flex: 1;
+    overflow-x: scroll;
+    overflow-y: hidden;
+    background: #111;
     position: relative;
   }
-  
-  #pianoRoll { 
-    height: 600px; 
+
+  #pianoRoll {
+    height: 600px;
   }
-  
+
   #timeIndicator {
     position: absolute;
     top: 0;
@@ -188,28 +188,28 @@
     pointer-events: none;
     z-index: 10;
   }
-  
+
   .note {
     transition: fill 0.2s ease, transform 0.2s ease;
   }
-  
+
   .note.active {
     fill: #2196F3;
     transform: scale(1.05);
   }
 
-  #log { 
-    height: 120px; 
-    overflow-y: scroll; 
-    background: #000; 
-    color: #0f0; 
-    padding: 8px; 
+  #log {
+    height: 120px;
+    overflow-y: scroll;
+    background: #000;
+    color: #0f0;
+    padding: 8px;
     font-family: monospace;
-    font-size: 12px; 
-    white-space: pre-wrap; 
+    font-size: 12px;
+    white-space: pre-wrap;
     border-top: 1px solid #444;
   }
-  
+
   .status {
     padding: 8px 12px;
     border-radius: 20px;
@@ -219,19 +219,19 @@
     align-items: center;
     gap: 8px;
   }
-  
+
   .status-dot {
     width: 10px;
     height: 10px;
     border-radius: 50%;
     background: #f00;
   }
-  
+
   .status-dot.recording {
     background: #f00;
     animation: pulse 1s infinite;
   }
-  
+
   .status-dot.ready {
     background: #4CAF50;
   }
@@ -239,11 +239,54 @@
   .status-dot.playing {
     background: #FFC107;
   }
-  
+
   @keyframes pulse {
     0% { opacity: 1; }
     50% { opacity: 0.4; }
     100% { opacity: 1; }
+  }
+
+  /* Modal Styles */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 20;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.7);
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-content {
+    background-color: #2a2a2a;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    width: 90%;
+    max-width: 800px;
+    position: relative;
+    max-height: 90%;
+    overflow-y: auto;
+  }
+  .close-btn {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .close-btn:hover, .close-btn:focus {
+    color: #fff;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  #sheetMusicContainer {
+    background-color: #fff;
+    padding: 10px;
+    border-radius: 4px;
   }
 </style>
 </head>
@@ -253,6 +296,7 @@
   <button id="stopBtn" disabled>Stop</button>
   <button id="clearBtn">Clear</button>
   <button id="exportBtn">Export MIDI</button>
+  <button id="sheetMusicBtn">Sheet Music</button>
   <div class="play-controls">
     <button id="playBtn" disabled>Play</button>
     <button id="pauseBtn" disabled>Pause</button>
@@ -269,7 +313,7 @@
     <input type="range" id="noiseGateSlider" min="-100" max="-20" step="1" value="-60">
     <div id="noiseGateValue">-60</div>
   </div>
-  
+
   <div class="status">
     <div id="statusDot" class="status-dot"></div>
     <span id="statusText">Ready</span>
@@ -290,8 +334,17 @@
   </div>
 </div>
 
+<div id="sheetMusicModal" class="modal">
+  <div class="modal-content">
+    <span class="close-btn">&times;</span>
+    <h3 style="color:white;">Sheet Music</h3>
+    <div id="sheetMusicContainer"></div>
+  </div>
+</div>
+
 <pre id="log"></pre>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/abcjs/6.5.2/abcjs-basic-min.js"></script>
 <script>
 const logEl = document.getElementById("log");
 const volumeLevel = document.getElementById("volumeLevel");
@@ -302,6 +355,7 @@ const recordBtn = document.getElementById("recordBtn");
 const stopBtn = document.getElementById("stopBtn");
 const clearBtn = document.getElementById("clearBtn");
 const exportBtn = document.getElementById("exportBtn");
+const sheetMusicBtn = document.getElementById("sheetMusicBtn");
 const playBtn = document.getElementById("playBtn");
 const pauseBtn = document.getElementById("pauseBtn");
 const playbackSeeker = document.getElementById("playback-seeker");
@@ -309,6 +363,9 @@ const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
 const timeIndicator = document.getElementById("timeIndicator");
 const roll = document.getElementById("pianoRoll");
+const sheetMusicModal = document.getElementById("sheetMusicModal");
+const sheetMusicContainer = document.getElementById("sheetMusicContainer");
+const closeModalBtn = document.querySelector("#sheetMusicModal .close-btn");
 
 // Constants
 const minMidi = 40, maxMidi = 84;
@@ -331,10 +388,10 @@ let noiseThreshold = parseFloat(noiseGateSlider.value);
 let dynamicThreshold = -100;
 
 // Utility functions
-function log(msg) { 
+function log(msg) {
   const timestamp = new Date().toLocaleTimeString();
-  logEl.textContent += `[${timestamp}] ${msg}\n`; 
-  logEl.scrollTop = logEl.scrollHeight; 
+  logEl.textContent += `[${timestamp}] ${msg}\n`;
+  logEl.scrollTop = logEl.scrollHeight;
 }
 
 function updateStatus(status, state) {
@@ -373,21 +430,21 @@ function drawAxis(){
   const axisSvg = document.getElementById("axisSvg");
   axisSvg.innerHTML = "";
   axisSvg.setAttribute("height",(maxMidi-minMidi+1)*keyHeight);
-  
+
   for(let m = maxMidi; m >= minMidi; m--){
     const y = (maxMidi - m) * keyHeight;
     const rect = document.createElementNS(NS, "rect");
-    rect.setAttribute("x", 0); 
+    rect.setAttribute("x", 0);
     rect.setAttribute("y", y);
-    rect.setAttribute("width", 60); 
+    rect.setAttribute("width", 60);
     rect.setAttribute("height", keyHeight);
     rect.setAttribute("fill", [1,3,6,8,10].includes(m % 12) ? "#333" : "#2a2a2a");
     rect.setAttribute("stroke", "#444");
     axisSvg.appendChild(rect);
-    
+
     if(![1,3,6,8,10].includes(m % 12)){
       const text = document.createElementNS(NS, "text");
-      text.setAttribute("x", 5); 
+      text.setAttribute("x", 5);
       text.setAttribute("y", y + keyHeight - 2);
       text.setAttribute("font-size", "10");
       text.setAttribute("fill", "#eee");
@@ -399,19 +456,19 @@ function drawAxis(){
 
 function drawPianoRoll(){
   const notesToDraw = [...capturedNotes];
-  if(recording) { 
-    for(let [m, st] of noteState) { 
-      notesToDraw.push({midi: m, start: st.start, end: audioContext.currentTime, velocity: st.velocity, noteId: st.noteId}); 
-    } 
+  if(recording) {
+    for(let [m, st] of noteState) {
+      notesToDraw.push({midi: m, start: st.start, end: audioContext.currentTime, velocity: st.velocity, noteId: st.noteId});
+    }
   }
-  
+
   let maxTime = notesToDraw.length > 0 ? Math.max(...notesToDraw.map(n => n.end || n.start)) : 0;
   const totalW = Math.max((maxTime - startTime + 5) * widthPerSec, window.innerWidth - 60);
   const totalH = (maxMidi - minMidi + 1) * keyHeight;
   roll.setAttribute("width", totalW);
   roll.setAttribute("height", totalH);
   playbackSeeker.max = totalW;
-  
+
   roll.querySelectorAll(".note, .note-label").forEach(el => el.remove());
 
   const neededLines = Math.ceil(totalW / widthPerSec);
@@ -429,7 +486,7 @@ function drawPianoRoll(){
       roll.insertBefore(line, roll.firstChild);
     }
   }
-  
+
   notesToDraw.forEach(ev => {
     if(!ev.end || ev.end <= ev.start) return;
     const x = (ev.start - startTime) * widthPerSec;
@@ -446,7 +503,7 @@ function drawPianoRoll(){
     rect.setAttribute("ry", "2");
     rect.classList.add("note");
     roll.appendChild(rect);
-    
+
     if (w > 30) {
       const text = document.createElementNS(NS, "text");
       text.setAttribute("x", x + 5);
@@ -458,7 +515,7 @@ function drawPianoRoll(){
       roll.appendChild(text);
     }
   });
-  
+
   const wrapper = document.getElementById('pianoRollWrapper');
   if (recording) {
     const currentTimePosition = (audioContext.currentTime - startTime) * widthPerSec;
@@ -482,68 +539,68 @@ function drawPianoRoll(){
 // Audio Worklet processors
 const workletCode = `
     const notesFreqs = [];
-    for(let m = 40; m <= 84; m++) { 
-      notesFreqs[m] = 440 * Math.pow(2, (m - 69) / 12); 
+    for(let m = 40; m <= 84; m++) {
+      notesFreqs[m] = 440 * Math.pow(2, (m - 69) / 12);
     }
-    
+
     const N = 1024;
     const hannWindow = new Float32Array(N);
     const coefficients = new Float32Array(85);
-    
+
     for (let j = 0; j < N; j++) {
       hannWindow[j] = 0.5 * (1 - Math.cos(2 * Math.PI * j / (N - 1)));
     }
-    
+
     for (let m = 40; m <= 84; m++) {
       coefficients[m] = 2 * Math.cos(2 * Math.PI * notesFreqs[m] / sampleRate * N);
     }
-    
+
     class GoertzelProcessor extends AudioWorkletProcessor {
       constructor() {
         super();
         this.buf = new Float32Array(N);
         this.i = 0;
-        this.port.onmessage = e => { 
-          if (e.data.type === "dynamicThreshold") this.dynamicThreshold = e.data.value; 
+        this.port.onmessage = e => {
+          if (e.data.type === "dynamicThreshold") this.dynamicThreshold = e.data.value;
         };
         this.dynamicThreshold = -100;
       }
-      
-      process(inputs) { 
-        let input = inputs[0]; 
-        if (!input || !input[0]) return true; 
-        
-        let ch = input[0]; 
-        for (let s of ch) { 
+
+      process(inputs) {
+        let input = inputs[0];
+        if (!input || !input[0]) return true;
+
+        let ch = input[0];
+        for (let s of ch) {
           this.buf[this.i++] = s;
-          
+
           if (this.i >= N) {
             const detectedNotes = [];
-            
+
             for (let m = 40; m <= 84; m++) {
               let coeff = coefficients[m];
               let s1 = 0, s2 = 0;
-              
+
               for (let j = 0; j < N; j++) {
                 let win = this.buf[j] * hannWindow[j];
                 let s0 = win + coeff * s1 - s2;
                 s2 = s1;
                 s1 = s0;
               }
-              
+
               let power = s1 * s1 + s2 * s2 - coeff * s1 * s2;
               let db = 10 * Math.log10(power / (N*N) + 1e-12);
-              
+
               if (db > this.dynamicThreshold) {
                 detectedNotes.push({midi: m, velocity: Math.min(127, Math.max(0, 100 + db))});
               }
             }
-            
+
             this.port.postMessage({type: "notes", notes: detectedNotes, time: currentTime});
             this.i = 0;
           }
         }
-        
+
         return true;
       }
     }
@@ -552,14 +609,14 @@ const workletCode = `
       constructor() {
         super();
       }
-      
-      process(inputs) { 
-        let input = inputs[0]; 
-        if (!input || !input[0]) return true; 
-        
-        let ch = input[0]; 
+
+      process(inputs) {
+        let input = inputs[0];
+        if (!input || !input[0]) return true;
+
+        let ch = input[0];
         let sum = 0;
-        for (let s of ch) { 
+        for (let s of ch) {
           sum += s * s;
         }
         let rms = Math.sqrt(sum / ch.length);
@@ -614,7 +671,7 @@ const workletCode = `
         return true;
       }
     }
-    
+
     class MidiSynthProcessor extends AudioWorkletProcessor{
       constructor(){
         super();
@@ -666,7 +723,7 @@ const workletCode = `
     registerProcessor("noise-gate-processor", NoiseGateProcessor);
     registerProcessor('midi-synth-processor',MidiSynthProcessor);
 `;
-  
+
 // Audio setup and processing
 async function setup(){
   try {
@@ -677,13 +734,13 @@ async function setup(){
 
     micSource = await navigator.mediaDevices.getUserMedia({audio: true});
     const source = audioContext.createMediaStreamSource(micSource);
-    
+
     synthNode = new AudioWorkletNode(audioContext, 'midi-synth-processor', { numberOfOutputs: 1, outputChannelCount: [2] });
     synthNode.connect(audioContext.destination);
 
     noiseGateNode = new AudioWorkletNode(audioContext, "noise-gate-processor");
     noiseGateNode.port.postMessage({ type: "threshold", value: noiseThreshold });
-    
+
     goertzelNode = new AudioWorkletNode(audioContext, "goertzel-processor");
     rmsNode = new AudioWorkletNode(audioContext, "rms-processor");
 
@@ -691,23 +748,23 @@ async function setup(){
     noiseGateNode.connect(goertzelNode);
     noiseGateNode.connect(rmsNode);
 
-    goertzelNode.port.onmessage = e => { 
-      if(e.data.type === "notes" && recording){ 
-        handleNotes(e.data.notes, e.data.time); 
+    goertzelNode.port.onmessage = e => {
+      if(e.data.type === "notes" && recording){
+        handleNotes(e.data.notes, e.data.time);
       }
     };
-    
-    rmsNode.port.onmessage = e => { 
-      if(e.data.type === "rms"){ 
-        let rms = e.data.value; 
+
+    rmsNode.port.onmessage = e => {
+      if(e.data.type === "rms"){
+        let rms = e.data.value;
         let db = 20 * Math.log10(rms + 1e-12);
         dynamicThreshold = Math.max(-100, db - 10);
         goertzelNode.port.postMessage({ type: "dynamicThreshold", value: dynamicThreshold });
 
         let pct = Math.min(100, Math.max(0, (db + 100) / 80 * 100));
-        volumeLevel.style.width = pct + "%"; 
-        volumeText.textContent = db.toFixed(2); 
-      } 
+        volumeLevel.style.width = pct + "%";
+        volumeText.textContent = db.toFixed(2);
+      }
     };
 
     updateStatus("Ready", "ready");
@@ -720,14 +777,14 @@ async function setup(){
 
 function handleNotes(detected, time){
   const detectedMidies = detected.map(n => n.midi);
-  
+
   for(let n of detected){
-    if(!noteState.has(n.midi)){ 
-      noteState.set(n.midi, {start: audioContext.currentTime, velocity: n.velocity, noteId: performance.now()}); 
+    if(!noteState.has(n.midi)){
+      noteState.set(n.midi, {start: audioContext.currentTime, velocity: n.velocity, noteId: performance.now()});
       log(`Note on: ${n.midi} (Velocity: ${n.velocity})`);
     }
   }
-  
+
   for(let [midi, st] of [...noteState]) {
     if(!detectedMidies.includes(midi)) {
       capturedNotes.push({midi: midi, start: st.start, end: audioContext.currentTime, velocity: st.velocity, noteId: st.noteId});
@@ -749,7 +806,7 @@ function startRecording(){
   noteState.clear();
   startTime = audioContext.currentTime;
   updateStatus("Recording...", "recording");
-  
+
   function loop(){
     drawPianoRoll();
     animationFrame = requestAnimationFrame(loop);
@@ -762,7 +819,7 @@ function stopRecording(){
   recordBtn.disabled = false;
   stopBtn.disabled = true;
   clearBtn.disabled = false;
-  
+
   for(let [m, st] of noteState) {
     capturedNotes.push({midi: m, start: st.start, end: audioContext.currentTime, velocity: st.velocity, noteId: st.noteId});
   }
@@ -793,7 +850,7 @@ function clearRoll() {
 function startPlayback() {
   if (recording) stopRecording();
   if (playing) return;
-  
+
   playing = true;
   recordBtn.disabled = true;
   stopBtn.disabled = true;
@@ -805,7 +862,7 @@ function startPlayback() {
   log("Playback started.");
 
   playbackStartTime = performance.now();
-  
+
   const events = [];
   capturedNotes.forEach(note => {
     events.push({type: 'noteOn', time: (note.start - startTime) * 1000, note: note.midi, velocity: note.velocity});
@@ -813,7 +870,7 @@ function startPlayback() {
   });
 
   events.sort((a,b) => a.time - b.time);
-  
+
   playbackTimeouts = events.map(event => {
     const relativeTime = event.time - playbackPosition;
     if (relativeTime < 0) return null; // Skip events that are already passed
@@ -821,7 +878,7 @@ function startPlayback() {
       synthNode.port.postMessage({ type: 'event', event });
     }, relativeTime);
   });
-  
+
   function loop(){
     drawPianoRoll();
     animationFrame = requestAnimationFrame(loop);
@@ -863,26 +920,26 @@ function clearTimeouts() {
 function exportMIDI(){
   const events = [];
   const push = arr => events.push(...arr);
-  
+
   const notes = [...capturedNotes];
   push(notes.map(n => ({type:"on", time: Math.round((n.start - startTime) * 1000), midi: n.midi, velocity: n.velocity || 100})));
   push(notes.map(n => ({type:"off", time: Math.round((n.end - startTime) * 1000), midi: n.midi})));
-  
-  events.sort((a,b)=>a.time-b.time);
-  
+
+  events.sort((a,b) => a.time - b.time);
+
   function encodeVLQ(val){
     const bytes=[]; let v=val;
     do{ let b=v&0x7F; v>>=7; if(bytes.length>0) b|=0x80; bytes.unshift(b);}while(v>0);
     return bytes;
   }
-  
+
   const chunks=[];
   const pushBytes=(...bytes)=>chunks.push(...bytes);
   const textEncoder=new TextEncoder();
-  
+
   chunks.push(...textEncoder.encode("MThd"));
   pushBytes(0,0,0,6, 0,0, 0,1, 0,96);
-  
+
   const track=[];
   let lastTime=0;
   function writeEvent(time, data){
@@ -890,27 +947,91 @@ function exportMIDI(){
     lastTime=time;
     track.push(...encodeVLQ(delta),...data);
   }
-  
+
   events.forEach(ev=>{
     if(ev.type==="on") writeEvent(ev.time,[0x90, ev.midi, ev.velocity]);
     if(ev.type==="off") writeEvent(ev.time,[0x80, ev.midi, 64]);
   });
   writeEvent(events.length>0 ? events[events.length-1].time+200 : 0,[0xFF,0x2F,0x00]);
-  
+
   const trackHeader=textEncoder.encode("MTrk");
   const trackLength=track.length;
   const lenBytes=[(trackLength>>>24)&0xFF,(trackLength>>>16)&0xFF,(trackLength>>>8)&0xFF,trackLength&0xFF];
-  
+
   const midiFile=new Uint8Array([...chunks, ...trackHeader, ...lenBytes, ...track]);
   const blob=new Blob([midiFile],{type:"audio/midi"});
   const url=URL.createObjectURL(blob);
-  
+
   const a=document.createElement("a");
   a.href=url;
   a.download="output.mid";
   a.click();
   URL.revokeObjectURL(url);
   log("MIDI exported.");
+}
+
+// Sheet Music Logic
+const midiToAbc = {
+  36: "C,,", 37: "^C,,", 38: "D,,", 39: "^D,,", 40: "E,,", 41: "F,,", 42: "^F,,", 43: "G,,", 44: "^G,,", 45: "A,,", 46: "^A,,", 47: "B,,",
+  48: "C,", 49: "^C,", 50: "D,", 51: "^D,", 52: "E,", 53: "F,", 54: "^F,", 55: "G,", 56: "^G,", 57: "A,", 58: "^A,", 59: "B,",
+  60: "C", 61: "^C", 62: "D", 63: "^D", 64: "E", 65: "F", 66: "^F", 67: "G", 68: "^G", 69: "A", 70: "^A", 71: "B",
+  72: "c", 73: "^c", 74: "d", 75: "^d", 76: "e", 77: "f", 78: "^f", 79: "g", 80: "^g", 81: "a", 82: "^a", 83: "b",
+  84: "c'", 85: "^c'", 86: "d'", 87: "^d'", 88: "e'", 89: "f'", 90: "^f'", 91: "g'", 92: "^g'", 93: "a'", 94: "^a'", 95: "b'"
+};
+
+function displaySheetMusic() {
+  if(capturedNotes.length === 0) {
+    alert("No notes recorded to display as sheet music.");
+    return;
+  }
+  
+  const events = [...capturedNotes].sort((a, b) => a.start - b.start);
+  
+  let abcString = "X:1\nT:Recorded Performance\n" +
+                  "M:4/4\nL:1/8\nK:C\n";
+                  
+  let lastTime = startTime;
+  let measureBeats = 0;
+  
+  events.forEach(note => {
+    const duration = note.end - note.start;
+    const restDuration = note.start - lastTime;
+    
+    if (restDuration > 0) {
+      const beats = Math.round(restDuration * 2); // Assuming 1/8 note length = 0.5s
+      if (beats > 0) {
+        abcString += "z" + beats;
+        measureBeats += beats;
+      }
+    }
+    
+    const noteBeats = Math.round(duration * 2);
+    if (noteBeats > 0) {
+      const abcNote = midiToAbc[note.midi] || "c";
+      abcString += abcNote + noteBeats;
+      measureBeats += noteBeats;
+    }
+    
+    while(measureBeats >= 8) {
+      abcString += "|";
+      measureBeats -= 8;
+    }
+    
+    lastTime = note.end;
+  });
+  
+  if (measureBeats > 0) {
+      while(measureBeats < 8) {
+          abcString += "z";
+          measureBeats++;
+      }
+      abcString += "|";
+  }
+
+  log("Generating sheet music with ABC Notation:\n" + abcString);
+  
+  ABCJS.renderAbc(sheetMusicContainer, abcString, {staffwidth: 750});
+  sheetMusicModal.style.display = "flex";
 }
 
 // Event listeners
@@ -924,8 +1045,19 @@ recordBtn.onclick = async () => {
 stopBtn.onclick = () => stopRecording();
 clearBtn.onclick = () => clearRoll();
 exportBtn.onclick = () => exportMIDI();
+sheetMusicBtn.onclick = () => displaySheetMusic();
 playBtn.onclick = () => startPlayback();
 pauseBtn.onclick = () => pause();
+
+closeModalBtn.onclick = () => {
+  sheetMusicModal.style.display = "none";
+};
+
+window.onclick = (event) => {
+  if (event.target === sheetMusicModal) {
+    sheetMusicModal.style.display = "none";
+  }
+};
 
 // Initial setup
 drawAxis();
