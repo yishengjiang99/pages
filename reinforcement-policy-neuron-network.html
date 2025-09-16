@@ -37,15 +37,7 @@
     <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
       <div class="controls">
         <button id="startBtn">Start sim</button>
-        <button id="trainBtn">Start training</button>
-        <button id="pauseBtn">Pause</button>
         <button id="resetBtn">Reset</button>
-        <button id="stepGenBtn">Step gen</button>
-      </div>
-      <div class="stat">
-        <strong>Gen:</strong> <span id="gen">0</span> &nbsp; 
-        <strong>Best score:</strong> <span id="bestScore">0</span> &nbsp;
-        <strong>Episode:</strong> <span id="episodeScore">0</span>
       </div>
     </div>
   </div>
@@ -56,31 +48,9 @@
       <div><strong>Policy Network</strong><br><small class="stat">inputs: x, xdot, θ, θdot (+bias)</small></div>
       <div style="text-align:right">
         <div class="stat">Hidden: <span id="hiddenCount">8</span></div>
-        <div class="stat">Weights: <span id="weightCount">0</span></div>
       </div>
     </div>
     <canvas id="net" width="380" height="240" style="width:100%;height:auto;margin-top:8px"></canvas>
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px">
-      <label><input id="showActivations" type="checkbox" checked> Show activations</label>
-      <div class="stat">Current action: <span id="currentAction">0</span></div>
-    </div>
-  </div>
-
-  <!-- Hyperparameters -->
-  <div class="panel" style="display:flex;flex-direction:column;gap:8px">
-    <label>Population size <input id="popSize" type="number" value="40" min="10" max="200" style="width:64px"></label>
-    <label>Elite fraction <input id="eliteFrac" type="number" step="0.05" value="0.2" min="0.05" max="0.5" style="width:64px"></label>
-    <label>Noise σ <input id="noiseSigma" type="number" step="0.01" value="0.5" min="0.01" max="2.0" style="width:64px"></label>
-    <label>MaxEpisodeSteps <input id="maxSteps" type="number" value="500" min="50" max="5000" style="width:84px"></label>
-    <label>Force mag <input id="forceMag" type="number" step="0.5" value="10" style="width:64px"></label>
-  </div>
-
-  <!-- Controls -->
-  <div class="panel" style="display:flex;flex-direction:column;gap:8px">
-    <label>Render speed <input id="speed" type="range" min="0.2" max="3" step="0.1" value="1"></label>
-    <label><input id="showPolicyLines" type="checkbox" checked> Render policy arrow</label>
-    <div class="stat"><strong>Logs</strong></div>
-    <pre id="log" style="background:#001018;padding:8px;border-radius:6px;color:#9dddb7;height:120px;overflow:auto;margin:0">Logs appear here.</pre>
   </div>
 </div>
 
@@ -134,7 +104,8 @@ class Policy {
     this.weights2 = Array.from({length:hidSize},()=>Math.random()*0.2-0.1);
   }
   act(state) {
-    let hidden = this.weights1.map(w=>tanh(dot(w,state)));
+    let withBias = [...state, 1.0]; // add bias term
+    let hidden = this.weights1.map(w=>tanh(dot(w,withBias)));
     let score = dot(this.weights2,hidden);
     return score>0?1:0;
   }
@@ -188,16 +159,25 @@ function drawNetwork(policy){
    Simulation Loop
 -------------------------*/
 let env=new CartPole();
-let policy=new Policy(4,8);
+let policy=new Policy(5,8); // 4 inputs + bias
 drawWorld(env); drawNetwork(policy);
 
+let running=false;
 function step(){
+  if(!running) return;
   let a=policy.act(env.state);
-  env.step(a);
+  let [_,__,done]=env.step(a);
   drawWorld(env); drawNetwork(policy);
-  requestAnimationFrame(step);
+  if(!done) requestAnimationFrame(step);
+  else running=false;
 }
-document.getElementById("startBtn").onclick=()=>step();
+
+document.getElementById("startBtn").onclick=()=>{
+  if(!running){running=true; step();}
+};
+document.getElementById("resetBtn").onclick=()=>{
+  env.reset(); drawWorld(env); drawNetwork(policy); running=false;
+};
 </script>
 </body>
 </html>
