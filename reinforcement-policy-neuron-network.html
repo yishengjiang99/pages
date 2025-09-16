@@ -3,36 +3,38 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Cart-Pole + Neural Policy (CEM) — Visualization</title>
+<title>Cart-Pole + Neural Policy (CEM) — Mobile Friendly</title>
 <style>
   :root{--bg:#0f1720;--panel:#0b1220;--muted:#9aa7b2;--accent:#50d890}
   html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;}
   body{background:linear-gradient(180deg,#07101a,#07121b);color:#e6eef6;display:flex;gap:12px;padding:12px;box-sizing:border-box}
-  .left{flex:1;display:flex;flex-direction:column;gap:8px}
-  .right{width:420px;display:flex;flex-direction:column;gap:8px}
-  canvas{background:#071126;border-radius:8px;display:block}
+  .left{flex:1;display:flex;flex-direction:column;gap:12px}
+  canvas{background:#071126;border-radius:8px;display:block;max-width:100%}
   .panel{background:rgba(10,18,28,0.9);padding:10px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,0.6)}
   .controls{display:flex;gap:8px;flex-wrap:wrap}
   button{background:#0b1520;border:1px solid rgba(255,255,255,0.04);color:#cfe;padding:8px 10px;border-radius:6px;cursor:pointer}
   button.active{background:var(--accent);color:#042118}
   label{color:var(--muted);font-size:13px;display:flex;gap:8px;align-items:center}
-  input[type=range]{width:180px}
+  input[type=range]{width:100%}
   .stat{font-size:13px;color:var(--muted)}
   .net-canvas{background:#041018;border-radius:8px;padding:8px;overflow:hidden}
   small{color:var(--muted)}
-  .row{display:flex;gap:8px;align-items:center}
+
+  /* Mobile responsive layout */
+  @media (max-width: 800px) {
+    body{flex-direction:column}
+    .controls button{flex:1}
+    .stat{font-size:12px}
+  }
 </style>
 </head>
 <body>
 
 <div class="left">
   <div class="panel">
-    <div style="display:flex;justify-content:space-between;align-items:center">
-      <h3 style="margin:0">Cart-Pole + Policy (CEM)</h3>
-      <small>Drop-in demo</small>
-    </div>
-    <canvas id="world" width="900" height="360" style="width:100%;height:360px"></canvas>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+    <h3 style="margin:0">Cart-Pole + Policy (CEM)</h3>
+    <canvas id="world" width="900" height="360" style="width:100%;height:auto"></canvas>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
       <div class="controls">
         <button id="startBtn">Start sim</button>
         <button id="trainBtn">Start training</button>
@@ -40,675 +42,162 @@
         <button id="resetBtn">Reset</button>
         <button id="stepGenBtn">Step gen</button>
       </div>
-      <div style="text-align:right">
-        <div class="stat"><strong>Gen:</strong> <span id="gen">0</span> &nbsp; <strong>Best score:</strong> <span id="bestScore">0</span></div>
-        <div class="stat"><strong>Episode reward:</strong> <span id="episodeScore">0</span></div>
+      <div class="stat">
+        <strong>Gen:</strong> <span id="gen">0</span> &nbsp; 
+        <strong>Best score:</strong> <span id="bestScore">0</span> &nbsp;
+        <strong>Episode:</strong> <span id="episodeScore">0</span>
       </div>
     </div>
   </div>
 
-  <div class="panel" style="display:flex;gap:12px;align-items:center;justify-content:space-between">
-    <div>
-      <label>Population size <input id="popSize" type="number" value="40" min="10" max="200" style="width:64px"></label>
-      <label>Elite fraction <input id="eliteFrac" type="number" step="0.05" value="0.2" min="0.05" max="0.5" style="width:64px"></label>
-      <label>Noise σ <input id="noiseSigma" type="number" step="0.01" value="0.5" min="0.01" max="2.0" style="width:64px"></label>
-    </div>
-    <div>
-      <label>MaxEpisodeSteps <input id="maxSteps" type="number" value="500" min="50" max="5000" style="width:84px"></label>
-      <label>Force mag <input id="forceMag" type="number" step="0.5" value="10" style="width:64px"></label>
-    </div>
-  </div>
-</div>
-
-<div class="right">
+  <!-- Network panel -->
   <div class="panel net-canvas">
-    <div style="display:flex;justify-content:space-between;align-items:center">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap">
       <div><strong>Policy Network</strong><br><small class="stat">inputs: x, xdot, θ, θdot (+bias)</small></div>
       <div style="text-align:right">
         <div class="stat">Hidden: <span id="hiddenCount">8</span></div>
         <div class="stat">Weights: <span id="weightCount">0</span></div>
       </div>
     </div>
-    <canvas id="net" width="380" height="240" style="width:100%;height:240px;margin-top:8px"></canvas>
-    <div style="display:flex;gap:8px;margin-top:8px;align-items:center;justify-content:space-between">
-      <div><label><input id="showActivations" type="checkbox" checked> Show activations</label></div>
+    <canvas id="net" width="380" height="240" style="width:100%;height:auto;margin-top:8px"></canvas>
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px">
+      <label><input id="showActivations" type="checkbox" checked> Show activations</label>
       <div class="stat">Current action: <span id="currentAction">0</span></div>
     </div>
   </div>
 
-  <div class="panel" style="padding:10px;display:flex;flex-direction:column;gap:8px">
-    <div class="row"><label>Render speed <input id="speed" type="range" min="0.2" max="3" step="0.1" value="1"></label></div>
-    <div class="row"><label>Render policy lines <input id="showPolicyLines" type="checkbox" checked></label></div>
-    <div class="row">
-      <div class="stat"><strong>Last run summary</strong></div>
-    </div>
+  <!-- Hyperparameters -->
+  <div class="panel" style="display:flex;flex-direction:column;gap:8px">
+    <label>Population size <input id="popSize" type="number" value="40" min="10" max="200" style="width:64px"></label>
+    <label>Elite fraction <input id="eliteFrac" type="number" step="0.05" value="0.2" min="0.05" max="0.5" style="width:64px"></label>
+    <label>Noise σ <input id="noiseSigma" type="number" step="0.01" value="0.5" min="0.01" max="2.0" style="width:64px"></label>
+    <label>MaxEpisodeSteps <input id="maxSteps" type="number" value="500" min="50" max="5000" style="width:84px"></label>
+    <label>Force mag <input id="forceMag" type="number" step="0.5" value="10" style="width:64px"></label>
+  </div>
+
+  <!-- Controls -->
+  <div class="panel" style="display:flex;flex-direction:column;gap:8px">
+    <label>Render speed <input id="speed" type="range" min="0.2" max="3" step="0.1" value="1"></label>
+    <label><input id="showPolicyLines" type="checkbox" checked> Render policy arrow</label>
+    <div class="stat"><strong>Logs</strong></div>
     <pre id="log" style="background:#001018;padding:8px;border-radius:6px;color:#9dddb7;height:120px;overflow:auto;margin:0">Logs appear here.</pre>
   </div>
 </div>
 
 <script>
-// ----- CartPole physics (classic approximate equations) -----
+/* -----------------------
+   Cart-Pole Environment
+-------------------------*/
 class CartPole {
   constructor() {
+    this.gravity = 9.8;
+    this.massCart = 1.0;
+    this.massPole = 0.1;
+    this.totalMass = this.massCart + this.massPole;
+    this.length = 0.5;
+    this.polemassLength = this.massPole * this.length;
+    this.forceMag = 10;
+    this.tau = 0.02;
     this.reset();
   }
-  reset(randomize=true) {
-    // State: x, x_dot, theta, theta_dot
-    this.x = 0; // cart position (meters), center is 0
-    this.x_dot = 0;
-    // start near vertical with small noise
-    this.theta = (Math.random()*0.08 - 0.04); // radians (0 vertical)
-    this.theta_dot = 0;
-    this.t = 0;
-    if (!randomize) {
-      this.theta = 0.01;
-      this.x = 0;
-    }
+  reset() {
+    this.state = [Math.random()*0.08-0.04, 0, Math.random()*0.08-0.04, 0];
+    this.steps = 0;
+    return this.state;
   }
-
-  step(force, dt=0.02) {
-    // constants
-    const g = 9.8;
-    const m = 0.1;   // mass of pole
-    const M = 1.0;   // mass of cart
-    const l = 0.5;   // half pole length (center of mass length)
-    const mu_c = 0.0005; // friction cart
-    const mu_p = 0.000002; // friction pole
-
-    const sin = Math.sin(this.theta);
-    const cos = Math.cos(this.theta);
-    // temp term
-    const total = m + M;
-    const theta_dot_sq = this.theta_dot * this.theta_dot;
-
-    // Equation from OpenAI Gym cartpole
-    const temp = (force + m * l * theta_dot_sq * sin - mu_c * this.x_dot) / total;
-    const theta_acc = (g * sin - cos * temp - mu_p * this.theta_dot / (m * l)) / (l * (4/3 - (m * cos * cos) / total));
-    const x_acc = temp - (m * l * theta_acc * cos) / total;
-
-    // integrate
-    this.x += this.x_dot * dt;
-    this.x_dot += x_acc * dt;
-    this.theta += this.theta_dot * dt;
-    this.theta_dot += theta_acc * dt;
-    this.t += dt;
-
-    return this.getState();
-  }
-
-  getState() {
-    return [this.x, this.x_dot, this.theta, this.theta_dot];
-  }
-
-  isDone(bounds=2.4, maxAngle=Math.PI/6) {
-    // standard cartpole failure: x out of bounds or theta too large
-    if (Math.abs(this.x) > bounds) return true;
-    if (Math.abs(this.theta) > maxAngle) return true;
-    return false;
+  step(action) {
+    let [x, xDot, theta, thetaDot] = this.state;
+    let force = action===1 ? this.forceMag : -this.forceMag;
+    let costheta = Math.cos(theta), sintheta = Math.sin(theta);
+    let temp = (force + this.polemassLength*thetaDot*thetaDot*sintheta)/this.totalMass;
+    let thetaAcc = (this.gravity*sintheta - costheta*temp) /
+      (this.length*(4.0/3.0 - this.massPole*costheta*costheta/this.totalMass));
+    let xAcc = temp - this.polemassLength*thetaAcc*costheta/this.totalMass;
+    x += this.tau*xDot;
+    xDot += this.tau*xAcc;
+    theta += this.tau*thetaDot;
+    thetaDot += this.tau*thetaAcc;
+    this.state = [x,xDot,theta,thetaDot];
+    this.steps++;
+    let done = (x<-2.4||x>2.4||theta<-12*Math.PI/180||theta>12*Math.PI/180);
+    return [this.state,1,done];
   }
 }
 
-// ----- Simple feedforward policy network -----
-class PolicyNet {
-  // architecture: input (n_in)+bias -> hidden (n_hidden) -> output (1)
-  constructor(n_in=4, n_hidden=8) {
-    this.n_in = n_in;
-    this.n_hidden = n_hidden;
-    // weights: W1 shape [n_hidden, n_in+1], W2 shape [1, n_hidden+1]
-    this.W1 = this.zeros([n_hidden, n_in+1]);
-    this.W2 = this.zeros([1, n_hidden+1]);
-    this.initRandom(0.5);
+/* -----------------------
+   Simple Neural Policy
+-------------------------*/
+class Policy {
+  constructor(inSize,hidSize) {
+    this.inSize = inSize; this.hidSize = hidSize;
+    this.weights1 = Array.from({length:hidSize},()=>Array.from({length:inSize},()=>Math.random()*0.2-0.1));
+    this.weights2 = Array.from({length:hidSize},()=>Math.random()*0.2-0.1);
   }
-
-  zeros(shape) {
-    const [r,c] = shape;
-    const arr = new Array(r);
-    for (let i=0;i<r;i++){ arr[i]=new Array(c).fill(0); }
-    return arr;
-  }
-
-  initRandom(scale=0.5) {
-    // small gaussian-ish init
-    for (let i=0;i<this.n_hidden;i++){
-      for (let j=0;j<this.n_in+1;j++){
-        this.W1[i][j] = (Math.random()*2-1)*scale;
-      }
-    }
-    for (let j=0;j<this.n_hidden+1;j++){
-      this.W2[0][j] = (Math.random()*2-1)*scale;
-    }
-  }
-
-  // flatten/unflatten weights for CEM
-  flatten() {
-    const out = [];
-    for (let i=0;i<this.n_hidden;i++) for (let j=0;j<this.n_in+1;j++) out.push(this.W1[i][j]);
-    for (let j=0;j<this.n_hidden+1;j++) out.push(this.W2[0][j]);
-    return new Float64Array(out);
-  }
-  unflatten(vec) {
-    let idx=0;
-    for (let i=0;i<this.n_hidden;i++) for (let j=0;j<this.n_in+1;j++) this.W1[i][j] = vec[idx++];
-    for (let j=0;j<this.n_hidden+1;j++) this.W2[0][j] = vec[idx++];
-  }
-  size() {
-    return (this.n_hidden*(this.n_in+1)) + (1*(this.n_hidden+1));
-  }
-
-  // forward pass, returns output in [-1,1] and activations for visualization
-  forward(x_in) {
-    // x_in: array length n_in
-    // normalize input roughly -> helps training
-    const inScaled = [
-      x_in[0] / 2.4,          // x (meters) normalize by bounds
-      x_in[1] / 2.0,          // x_dot
-      x_in[2] / 0.2,          // theta
-      x_in[3] / 2.0           // theta_dot
-    ];
-    // bias appended
-    const x = inScaled.concat([1]);
-    const hidden = new Array(this.n_hidden);
-    for (let i=0;i<this.n_hidden;i++){
-      let s=0;
-      for (let j=0;j<x.length;j++) s += this.W1[i][j]*x[j];
-      // tanh activation
-      hidden[i] = Math.tanh(s);
-    }
-    // output with bias
-    const hBias = hidden.concat([1]);
-    let out=0;
-    for (let j=0;j<hBias.length;j++) out += this.W2[0][j]*hBias[j];
-    out = Math.tanh(out); // final output in [-1,1]
-    return {out, hidden, inScaled};
+  act(state) {
+    let hidden = this.weights1.map(w=>tanh(dot(w,state)));
+    let score = dot(this.weights2,hidden);
+    return score>0?1:0;
   }
 }
+function dot(a,b){return a.reduce((s,v,i)=>s+v*b[i],0);}
+function tanh(x){return Math.tanh(x);}
 
-// ----- Cross-Entropy Method trainer -----
-class CEMTrainer {
-  constructor(policyNet, options={pop:40,eliteFrac:0.2,noise:0.5,episodeMaxSteps:500,forceMag:10}) {
-    this.policy = policyNet;
-    this.pop = options.pop;
-    this.eliteFrac = options.eliteFrac;
-    this.noise = options.noise;
-    this.episodeMaxSteps = options.episodeMaxSteps;
-    this.forceMag = options.forceMag;
-    this.dim = this.policy.size();
-    this.mean = new Float64Array(this.dim);
-    this.sigma = new Float64Array(this.dim);
-    // initialize mean from current weights and sigma small
-    const flat = this.policy.flatten();
-    for (let i=0;i<this.dim;i++) { this.mean[i]=flat[i]; this.sigma[i]=this.noise; }
-    this.gen = 0;
-    this.bestScore = 0;
-  }
+/* -----------------------
+   Drawing
+-------------------------*/
+const worldCanvas=document.getElementById("world");
+const ctxW=worldCanvas.getContext("2d");
+const netCanvas=document.getElementById("net");
+const ctxN=netCanvas.getContext("2d");
 
-  // sample population: returns array of Float64Array each length dim
-  samplePopulation() {
-    const pop = [];
-    for (let k=0;k<this.pop;k++){
-      const member = new Float64Array(this.dim);
-      for (let i=0;i<this.dim;i++){
-        member[i] = this.mean[i] + gaussRandom()*this.sigma[i];
-      }
-      pop.push(member);
-    }
-    return pop;
-  }
-
-  // evaluate one genome (weights) by running an episode until failure or max steps
-  evaluateGenome(genome, env) {
-    // apply weights to policy, run sim
-    this.policy.unflatten(genome);
-    env.reset(true);
-    let totalReward = 0;
-    const dt=0.02;
-    for (let step=0; step < this.episodeMaxSteps; step++){
-      const s = env.getState();
-      const {out} = this.policy.forward(s);
-      // continuous force scaled by forceMag
-      const force = out * this.forceMag;
-      env.step(force, dt);
-      totalReward += 1; // reward is 1 per timestep survived
-      if (env.isDone()) break;
-    }
-    return totalReward;
-  }
-
-  // single generation update: sample, evaluate, update mean and sigma
-  async runGeneration(env, loggerCallback=null, progressCallback=null) {
-    const pop = this.samplePopulation();
-    const scores = new Array(pop.length);
-    for (let i=0;i<pop.length;i++){
-      scores[i] = this.evaluateGenome(pop[i], env);
-      if (progressCallback) progressCallback(i+1, pop.length, scores[i]);
-      // yield control to UI for responsiveness occasionally
-      if (i % 8 === 7) await sleep(0);
-    }
-    // find elites
-    const paired = pop.map((g, idx)=>({g, score:scores[idx]}));
-    paired.sort((a,b)=>b.score - a.score);
-    const eliteCount = Math.max(1, Math.floor(this.eliteFrac * this.pop));
-    const elites = paired.slice(0, eliteCount);
-    // update mean, sigma
-    for (let i=0;i<this.dim;i++){
-      // mean
-      let m = 0;
-      for (let e=0;e<elites.length;e++) m += elites[e].g[i];
-      m /= elites.length;
-      // sigma: std dev across elites (plus small eps for stability)
-      let ss = 0;
-      for (let e=0;e<elites.length;e++) {
-        const d = elites[e].g[i] - m;
-        ss += d*d;
-      }
-      ss = Math.sqrt(ss / elites.length + 1e-8);
-      this.mean[i] = m;
-      // set sigma to a smoothed value so search doesn't collapse too fast
-      this.sigma[i] = 0.9*this.sigma[i] + 0.1*ss + 1e-3;
-    }
-    // update policy with mean
-    this.policy.unflatten(this.mean);
-    this.gen += 1;
-    if (paired[0].score > this.bestScore) this.bestScore = paired[0].score;
-    if (loggerCallback) loggerCallback(this.gen, paired[0].score, this.bestScore);
-    return {gen:this.gen, bestScore:paired[0].score, elites};
-  }
+function drawWorld(env){
+  ctxW.clearRect(0,0,worldCanvas.width,worldCanvas.height);
+  ctxW.fillStyle="#fff";
+  let scale=80;
+  let [x,,theta]=env.state;
+  let cartX=worldCanvas.width/2 + x*scale;
+  let cartY=300;
+  ctxW.fillRect(cartX-25,cartY-15,50,30);
+  let poleX=cartX+ Math.sin(theta)*-150;
+  let poleY=cartY- Math.cos(theta)*150;
+  ctxW.strokeStyle="#f88"; ctxW.lineWidth=6;
+  ctxW.beginPath(); ctxW.moveTo(cartX,cartY); ctxW.lineTo(poleX,poleY); ctxW.stroke();
 }
 
-// ----- small helpers -----
-function gaussRandom() {
-  // Box-Muller
-  let u=0,v=0;
-  while(u===0) u=Math.random();
-  while(v===0) v=Math.random();
-  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
-}
-function sleep(ms){ return new Promise(resolve=>setTimeout(resolve,ms)); }
-
-// ----- Visualization & UI -----
-const worldCanvas = document.getElementById('world');
-const ctx = worldCanvas.getContext('2d');
-const netCanvas = document.getElementById('net');
-const nctx = netCanvas.getContext('2d');
-
-const startBtn = document.getElementById('startBtn');
-const trainBtn = document.getElementById('trainBtn');
-const pauseBtn = document.getElementById('pauseBtn');
-const resetBtn = document.getElementById('resetBtn');
-const stepGenBtn = document.getElementById('stepGenBtn');
-
-const popSizeInput = document.getElementById('popSize');
-const eliteFracInput = document.getElementById('eliteFrac');
-const noiseSigmaInput = document.getElementById('noiseSigma');
-const maxStepsInput = document.getElementById('maxSteps');
-const forceMagInput = document.getElementById('forceMag');
-const genLabel = document.getElementById('gen');
-const bestLabel = document.getElementById('bestScore');
-const episodeLabel = document.getElementById('episodeScore');
-const hiddenCountLabel = document.getElementById('hiddenCount');
-const weightCountLabel = document.getElementById('weightCount');
-const currentActionLabel = document.getElementById('currentAction');
-const logPre = document.getElementById('log');
-const speedInput = document.getElementById('speed');
-const showActivationsInput = document.getElementById('showActivations');
-
-const showPolicyLines = document.getElementById('showPolicyLines');
-
-let runningSim = false;
-let training = false;
-let trainer = null;
-let policy = new PolicyNet(4, 8);
-let env = new CartPole();
-let renderSpeed = parseFloat(speedInput.value);
-
-// UI inits
-hiddenCountLabel.textContent = policy.n_hidden;
-weightCountLabel.textContent = policy.size();
-
-function log(s) {
-  logPre.textContent = `${(new Date()).toLocaleTimeString()} — ${s}\n` + logPre.textContent;
+function drawNetwork(policy){
+  ctxN.clearRect(0,0,netCanvas.width,netCanvas.height);
+  let small=window.innerWidth<800;
+  let nodeR=small?7:10, hGap=small?70:90, vGap=small?26:36, fontSize=small?9:11;
+  ctxN.font=fontSize+"px sans-serif"; ctxN.textAlign="center";
+  // Input nodes
+  let inputs=policy.inSize;
+  for(let i=0;i<inputs;i++){
+    ctxN.beginPath(); ctxN.arc(40,40+i*vGap,nodeR,0,Math.PI*2); ctxN.fillStyle="#88f"; ctxN.fill();
+    ctxN.fillStyle="#fff"; ctxN.fillText("i"+i,40,40+i*vGap+nodeR+fontSize);
+  }
+  // Hidden
+  for(let j=0;j<policy.hidSize;j++){
+    ctxN.beginPath(); ctxN.arc(40+hGap,40+j*vGap,nodeR,0,Math.PI*2); ctxN.fillStyle="#8f8"; ctxN.fill();
+  }
+  // Output
+  ctxN.beginPath(); ctxN.arc(40+2*hGap,100,nodeR,0,Math.PI*2); ctxN.fillStyle="#f88"; ctxN.fill();
+  ctxN.fillStyle="#fff"; ctxN.fillText("out",40+2*hGap,100+nodeR+fontSize);
 }
 
-// draw world
-function drawWorld(env, policyOut=null) {
-  const w = worldCanvas.width;
-  const h = worldCanvas.height;
-  ctx.clearRect(0,0,w,h);
-  // ground
-  ctx.fillStyle = '#061422';
-  ctx.fillRect(0, h*0.58, w, h*0.42);
+/* -----------------------
+   Simulation Loop
+-------------------------*/
+let env=new CartPole();
+let policy=new Policy(4,8);
+drawWorld(env); drawNetwork(policy);
 
-  // mapping: x in [-2.4,2.4] -> pixels center
-  const cx = w*0.5;
-  const worldToPixel = (x) => cx + (x / 2.4) * (w*0.4);
-
-  // cart
-  const cartY = h*0.52;
-  const cartW = 84;
-  const cartH = 40;
-  const cartX = worldToPixel(env.x) - cartW/2;
-  // wheel radius
-  const wheelR = 8;
-  ctx.fillStyle = '#1f9bd7';
-  roundRect(ctx, cartX, cartY - cartH/2, cartW, cartH, 6);
-  // wheels
-  ctx.fillStyle = '#071018';
-  ctx.beginPath(); ctx.arc(cartX+14, cartY+cartH/2, wheelR,0,Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(cartX+cartW-14, cartY+cartH/2, wheelR,0,Math.PI*2); ctx.fill();
-
-  // pole
-  const poleLenPx = 180; // pixels corresponds to l=0.5m in physics
-  const angle = env.theta; // radians; 0 is vertical
-  const baseX = worldToPixel(env.x);
-  const baseY = cartY - cartH/2;
-  // top coords
-  const topX = baseX + Math.sin(angle) * poleLenPx;
-  const topY = baseY - Math.cos(angle) * poleLenPx;
-  // pole
-  ctx.lineWidth = 8;
-  const grad = ctx.createLinearGradient(baseX, baseY, topX, topY);
-  grad.addColorStop(0, '#ffd86b');
-  grad.addColorStop(1, '#ff8a4c');
-  ctx.strokeStyle = grad;
-  ctx.beginPath(); ctx.moveTo(baseX, baseY); ctx.lineTo(topX, topY); ctx.stroke();
-
-  // stick top circle
-  ctx.fillStyle = '#ffebc9';
-  ctx.beginPath(); ctx.arc(topX, topY, 10,0,Math.PI*2); ctx.fill();
-
-  // draw policy action arrow (if provided)
-  if (policyOut !== null && showPolicyLines.checked) {
-    const arrowLen = 36 * policyOut;
-    ctx.strokeStyle = policyOut > 0 ? '#8ef5b3' : '#f58b8b';
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(baseX, cartY - 6);
-    ctx.lineTo(baseX + arrowLen, cartY - 6);
-    ctx.stroke();
-    // arrowhead
-    ctx.beginPath();
-    ctx.moveTo(baseX + arrowLen, cartY - 6);
-    ctx.lineTo(baseX + arrowLen - Math.sign(arrowLen)*8, cartY - 12);
-    ctx.lineTo(baseX + arrowLen - Math.sign(arrowLen)*8, cartY + 0);
-    ctx.fillStyle = ctx.strokeStyle;
-    ctx.fill();
-  }
-
-  // bounds
-  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(worldToPixel(-2.4), cartY + 50);
-  ctx.lineTo(worldToPixel(2.4), cartY + 50);
-  ctx.stroke();
+function step(){
+  let a=policy.act(env.state);
+  env.step(a);
+  drawWorld(env); drawNetwork(policy);
+  requestAnimationFrame(step);
 }
-
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x+r, y);
-  ctx.arcTo(x+w, y, x+w, y+h, r);
-  ctx.arcTo(x+w, y+h, x, y+h, r);
-  ctx.arcTo(x, y+h, x, y, r);
-  ctx.arcTo(x, y, x+w, y, r);
-  ctx.closePath();
-  ctx.fill();
-}
-
-
-// draw network
-function drawNet(policy, state=null) {
-  const w = netCanvas.width;
-  const h = netCanvas.height;
-  nctx.clearRect(0,0,w,h);
-  // layout
-  const left = 28, right = w - 28;
-  const inY0 = 30, outY = h/2;
-  const inSpacing = (h - 60) / (policy.n_in + 1);
-  const hiddenX = (left + right)*0.5;
-  const hiddenSpacing = (h - 60) / (policy.n_hidden + 1);
-
-  // compute forward to get activations optionally
-  const activations = state ? policy.forward(state) : {hidden: new Array(policy.n_hidden).fill(0), inScaled: [0,0,0,0], out:0};
-
-  // draw input nodes
-  for (let i=0;i<policy.n_in;i++){
-    const x = left;
-    const y = inY0 + (i+1)*inSpacing;
-    // color by input value
-    const val = activations.inScaled ? activations.inScaled[i] : 0;
-    drawNode(nctx, x, y, 10, val);
-    // label
-    nctx.fillStyle = '#9fb0c2';
-    nctx.font = '11px monospace';
-    const labels = ['x','ẋ','θ','θ̇'];
-    nctx.fillText(labels[i], x - 18, y + 4);
-  }
-  // bias input
-  drawNode(nctx, left, inY0 + (policy.n_in+1)*inSpacing, 7, 0.5);
-  nctx.fillStyle = '#9fb0c2';
-  nctx.fillText('bias', left - 22, inY0 + (policy.n_in+1)*inSpacing + 4);
-
-  // hidden nodes and connections
-  for (let i=0;i<policy.n_hidden;i++){
-    const hx = hiddenX;
-    const hy = inY0 + (i+1)*hiddenSpacing;
-    // draw connections from inputs
-    for (let j=0;j<policy.n_in+1;j++){
-      const ix = left, iy = inY0 + (j+1)*inSpacing;
-      if (j === policy.n_in) { // bias
-        // bias y
-      }
-      const wgt = policy.W1[i][j];
-      drawConnection(nctx, ix+8, iy, hx-8, hy, wgt);
-    }
-    // draw node colored by activation
-    const act = activations.hidden ? activations.hidden[i] : 0;
-    drawNode(nctx, hx, hy, 12, act);
-  }
-
-  // output node and connections
-  for (let j=0;j<policy.n_hidden+1;j++){
-    const hx = hiddenX + 100, hy = outY;
-    const srcx = hiddenX - 12, srcy = inY0 + (j+1)*hiddenSpacing;
-    if (j === policy.n_hidden) {
-      // bias -> at bottom
-      drawConnection(nctx, left+0, inY0 + (policy.n_in+1)*inSpacing, hx-8, hy, policy.W2[0][j]);
-    } else {
-      drawConnection(nctx, srcx, srcy, hx-8, hy, policy.W2[0][j]);
-    }
-  }
-  // output node
-  const outAct = activations.out || 0;
-  drawNode(nctx, hiddenX + 100, outY, 16, outAct);
-  // label
-  nctx.fillStyle = '#9fb0c2';
-  nctx.font = '12px monospace';
-  nctx.fillText('action', hiddenX + 112, outY + 6);
-}
-
-// draw connection line with color thickness by weight
-function drawConnection(ctx, x0,y0,x1,y1, wgt) {
-  // map weight magnitude to alpha and width
-  const alpha = Math.min(1, Math.abs(wgt)/1.5);
-  ctx.strokeStyle = wgt >= 0 ? `rgba(73,220,156,${0.15+alpha*0.85})` : `rgba(245,120,130,${0.15+alpha*0.85})`;
-  ctx.lineWidth = 1 + Math.min(3, Math.abs(wgt)*2);
-  ctx.beginPath();
-  ctx.moveTo(x0,y0);
-  // slight curve
-  const midx = (x0+x1)/2;
-  ctx.quadraticCurveTo(midx, y0, x1, y1);
-  ctx.stroke();
-}
-
-// draw node circle colored by activation (-1..1)
-function drawNode(ctx, x, y, r, act) {
-  // map act [-1,1] to color
-  if (showActivationsInput.checked) {
-    const pos = Math.max(0, act);
-    const neg = Math.max(0, -act);
-    // color blends green for positive, red for negative
-    const a = Math.min(1, Math.abs(act));
-    const green = Math.floor(80 + 175*pos);
-    const red = Math.floor(80 + 175*neg);
-    ctx.fillStyle = `rgba(${red},${green},120,${0.9*a + 0.15})`;
-  } else {
-    ctx.fillStyle = '#123545';
-  }
-  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-  ctx.lineWidth = 1;
-  ctx.stroke();
-}
-
-
-// Main loop and training management
-let lastTime = 0;
-let simAccum = 0;
-let simDt = 0.02;
-let simStepsPerFrame = 1;
-
-function animationLoop(t) {
-  if (!lastTime) lastTime = t;
-  const dtMs = t - lastTime;
-  lastTime = t;
-  // adjust speed
-  const speed = parseFloat(speedInput.value);
-  simStepsPerFrame = Math.max(1, Math.round(speed * 1));
-  // when training, trainer may be updating policy in async tasks
-  if (runningSim) {
-    // step the env with current policy
-    for (let i=0;i<simStepsPerFrame;i++){
-      const state = env.getState();
-      const res = policy.forward(state);
-      const force = res.out * parseFloat(forceMagInput.value);
-      env.step(force, simDt);
-    }
-    const state = env.getState();
-    drawWorld(env, policy.forward(state).out);
-    drawNet(policy, state);
-    episodeLabel.textContent = Math.round(env.t / simDt);
-    currentActionLabel.textContent = policy.forward(state).out.toFixed(3);
-    if (env.isDone()) {
-      // episode done
-      runningSim = false;
-      log('Simulation ended — pole fell or cart went out of bounds. Reset to try again.');
-    }
-  } else {
-    // still draw current states even if not running
-    drawWorld(env, null);
-    drawNet(policy, env.getState());
-  }
-  requestAnimationFrame(animationLoop);
-}
-
-// ui events
-startBtn.onclick = () => {
-  env.reset(true);
-  runningSim = true;
-  log('Simulation started (policy running).');
-};
-resetBtn.onclick = () => {
-  env.reset(true);
-  runningSim = false;
-  log('Environment reset.');
-};
-pauseBtn.onclick = () => {
-  runningSim = false;
-  training = false;
-  if (trainer) {
-    // nothing special to do: CEM uses async generation loop
-  }
-  log('Paused.');
-};
-trainBtn.onclick = async () => {
-  if (!training) {
-    training = true;
-    trainBtn.textContent = 'Stop training';
-    // build trainer with UI params
-    const options = {
-      pop: parseInt(popSizeInput.value),
-      eliteFrac: parseFloat(eliteFracInput.value),
-      noise: parseFloat(noiseSigmaInput.value),
-      episodeMaxSteps: parseInt(maxStepsInput.value),
-      forceMag: parseFloat(forceMagInput.value)
-    };
-    trainer = new CEMTrainer(policy, options);
-    trainer.mean = policy.flatten().slice(); // init from current
-    trainer.sigma = new Float64Array(trainer.dim).fill(options.noise);
-    log(`Training started: pop=${options.pop}, elite=${options.eliteFrac}, σ=${options.noise}.`);
-    // run continuous gens until stopped
-    while (training) {
-      try {
-        await trainer.runGeneration(env, (gen, best, globalBest)=>{
-          genLabel.textContent = gen;
-          bestLabel.textContent = Math.round(globalBest);
-          log(`Generation ${gen} — best this gen: ${best}`);
-        }, (i, n, score)=> {
-          // optionally show progress
-        });
-      } catch (err) {
-        console.error(err); log('Error in trainer: ' + err.toString()); break;
-      }
-      // small pause for UI responsiveness
-      await sleep(4);
-    }
-    trainBtn.textContent = 'Start training';
-    log('Training stopped.');
-  } else {
-    training = false;
-    trainBtn.textContent = 'Start training';
-    log('Training flag set to stop.');
-  }
-};
-stepGenBtn.onclick = async () => {
-  // run just one generation
-  const options = {
-    pop: parseInt(popSizeInput.value),
-    eliteFrac: parseFloat(eliteFracInput.value),
-    noise: parseFloat(noiseSigmaInput.value),
-    episodeMaxSteps: parseInt(maxStepsInput.value),
-    forceMag: parseFloat(forceMagInput.value)
-  };
-  trainer = new CEMTrainer(policy, options);
-  trainer.mean = policy.flatten().slice();
-  trainer.sigma = new Float64Array(trainer.dim).fill(options.noise);
-  log('Running 1 generation (step).');
-  const res = await trainer.runGeneration(env, (gen,best,globalBest)=>{
-    genLabel.textContent = gen;
-    bestLabel.textContent = Math.round(globalBest);
-    log(`Generation ${gen} — best this gen: ${best}`);
-  });
-  // update policy is already done
-  policy.unflatten(trainer.mean);
-};
-
-speedInput.oninput = () => {
-  renderSpeed = parseFloat(speedInput.value);
-};
-showActivationsInput.onchange = () => drawNet(policy, env.getState());
-showPolicyLines.onchange = () => {};
-
-maxStepsInput.onchange = () => {};
-popSizeInput.onchange = () => {};
-eliteFracInput.onchange = () => {};
-noiseSigmaInput.onchange = () => {};
-
-
-// start animation
-requestAnimationFrame(animationLoop);
-
-// expose some globals for tinkering in console
-window._env = env;
-window._policy = policy;
-window._trainer = trainer;
-window._log = log;
-
-log('Ready. Click "Start sim" to run the policy, or "Start training" to optimize it with CEM.');
-
-// optional: run a short random-seed demo to show network highlight
-env.reset(true);
-drawWorld(env, null);
-drawNet(policy, env.getState());
+document.getElementById("startBtn").onclick=()=>step();
 </script>
 </body>
 </html>
