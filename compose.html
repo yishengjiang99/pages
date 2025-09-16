@@ -485,6 +485,7 @@ const minMidi = 40, maxMidi = 84;
 const keyHeight = 12;
 const widthPerSec = 100;
 const NS = "http://www.w3.org/2000/svg";
+const NOTE_DEBOUNCE_MS = 100; // 100 milliseconds grace period
 
 // State variables
 let audioContext, micSource, noiseGateNode, goertzelNode, rmsNode, synthNode;
@@ -889,20 +890,44 @@ async function setup(){
 }
 
 function handleNotes(detected, time){
-  const detectedMidies = detected.map(n => n.midi);
+  const detectedMidies = new Set(detected.map(n => n.midi));
+  const currentTime = audioContext.currentTime;
 
-  for(let n of detected){
-    if(!noteState.has(n.midi)){
-      noteState.set(n.midi, {start: audioContext.currentTime, velocity: n.velocity, noteId: performance.now()});
-      log(`Note on: ${n.midi} (Velocity: ${n.velocity})`);
+  // Step 1: Process newly detected notes or refresh existing ones
+  for(const note of detected){
+    const midi = note.midi;
+    if(noteState.has(midi)){
+      // Note is already active, just update its last detected time
+      noteState.get(midi).lastDetectedTime = currentTime;
+    } else {
+      // New note detected, start it
+      noteState.set(midi, {
+        start: currentTime,
+        lastDetectedTime: currentTime,
+        velocity: note.velocity,
+        noteId: performance.now()
+      });
+      log(`Note on: ${midi} (Velocity: ${note.velocity})`);
     }
   }
 
-  for(let [midi, st] of [...noteState]) {
-    if(!detectedMidies.includes(midi)) {
-      capturedNotes.push({midi: midi, start: st.start, end: audioContext.currentTime, velocity: st.velocity, noteId: st.noteId});
-      noteState.delete(midi);
-      log(`Note off: ${midi}`);
+  // Step 2: Check for notes to turn off
+  for(const [midi, st] of [...noteState]){
+    if(!detectedMidies.has(midi)){
+      // This note was not detected in the current frame.
+      // Check if it's been a while since we last saw it.
+      if((currentTime - st.lastDetectedTime) * 1000 > NOTE_DEBOUNCE_MS){
+        // The grace period has passed, this note has ended.
+        capturedNotes.push({
+          midi: midi,
+          start: st.start,
+          end: currentTime,
+          velocity: st.velocity,
+          noteId: st.noteId
+        });
+        noteState.delete(midi);
+        log(`Note off: ${midi}`);
+      }
     }
   }
 }
