@@ -677,6 +677,8 @@ const workletCode = `
         this.port.onmessage = e => {
           if (e.data.type === "dynamicThreshold") this.dynamicThreshold = e.data.value;
         };
+        // Use a more permissive threshold for initial detection
+        this.initialThreshold = -40;
         this.dynamicThreshold = -100;
       }
 
@@ -690,6 +692,8 @@ const workletCode = `
 
           if (this.i >= N) {
             const detectedNotes = [];
+            let maxPower = -Infinity;
+            let maxMidi = -1;
 
             for (let m = 40; m <= 84; m++) {
               let coeff = coefficients[m];
@@ -704,10 +708,20 @@ const workletCode = `
 
               let power = s1 * s1 + s2 * s2 - coeff * s1 * s2;
               let db = 10 * Math.log10(power / (N*N) + 1e-12);
+              
+              if (db > maxPower) {
+                maxPower = db;
+                maxMidi = m;
+              }
 
-              if (db > this.dynamicThreshold) {
+              if (db > this.initialThreshold) { // Use a fixed, more sensitive threshold for detection
                 detectedNotes.push({midi: m, velocity: Math.min(127, Math.max(0, 100 + db))});
               }
+            }
+
+            // Post the loudest note detected
+            if (maxMidi !== -1 && maxPower > this.dynamicThreshold) {
+                detectedNotes.push({midi: maxMidi, velocity: Math.min(127, Math.max(0, 100 + maxPower))});
             }
 
             this.port.postMessage({type: "notes", notes: detectedNotes, time: currentTime});
