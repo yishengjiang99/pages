@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mocha Tests for AudioWorkletProcessors</title>
+  <link rel="stylesheet" href="https://unpkg.com/mocha@10.7.3/mocha.css" />
+</head>
+<body>
+  <div id="mocha"></div>
+
+  <script src="https://unpkg.com/chai@5.1.1/chai.js"></script>
+  <script src="https://unpkg.com/sinon@18.0.0/pkg/sinon.js"></script>
+  <script src="https://unpkg.com/mocha@10.7.3/mocha.js"></script>
+
+  <script>
+    mocha.setup('bdd');
+    mocha.checkLeaks();
+  </script>
+
+  <script src="test-goertzel-processor.js"></script>
+  <script src="test-noise-gate-processor.js"></script>
+  <script src="test-midi-synth-processor.js"></script>
+
+  <script>
+    mocha.run();
+  </script>
+</body>
+</html>
