@@ -1,0 +1,78 @@
+// Similar setup
+
+class NoiseGateProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.threshold = -60;
+    this.attack = 0.01;
+    this.release = 0.05;
+    this.prevGain = 1.0;
+    this.port = {}; // No message in process
+  }
+
+  static toDecibel(power) {
+    return 10 * Math.log10(power + 1e-12);
+  }
+
+  process(inputs, outputs) {
+    const input = inputs[0];
+    const output = outputs[0];
+    if (!input || !input[0]) return true;
+
+    const channel = input[0];
+    const out = output[0];
+
+    const sr = sampleRate;
+    const attackCoeff = Math.exp(-1 / (sr * this.attack));
+    const releaseCoeff = Math.exp(-1 / (sr * this.release));
+
+    let gain = this.prevGain;
+
+    for (let i = 0; i < channel.length; i++) {
+      const level = NoiseGateProcessor.toDecibel(channel[i] * channel[i]);
+      if (level < this.threshold) {
+        gain = gain * attackCoeff;
+      } else {
+        gain = 1 - (1 - gain) * releaseCoeff;
+      }
+      out[i] = channel[i] * gain;
+    }
+
+    this.prevGain = gain;
+    return true;
+  }
+}
+
+describe('NoiseGateProcessor', () => {
+  let processor;
+
+  beforeEach(() => {
+    processor = new NoiseGateProcessor();
+  });
+
+  it('should apply gain correctly above threshold', () => {
+    const inputChannel = new Float32Array(128).fill(1.0); // High level
+    const inputs = [[inputChannel]];
+    const outputs = [[new Float32Array(128)]];
+
+    processor.threshold = -100; // Low threshold to pass
+    processor.process(inputs, outputs);
+
+    expect(outputs[0][0][0]).to.be.closeTo(1.0, 0.01); // Gain should be near 1
+  });
+
+  it('should attenuate below threshold', () => {
+    const inputChannel = new Float32Array(128).fill(0.001); // Low level
+    const inputs = [[inputChannel]];
+    const outputs = [[new Float32Array(128)]];
+
+    processor.threshold = -60;
+    processor.process(inputs, outputs);
+
+    expect(outputs[0][0][0]).to.be.lessThan(0.001); // Attenuated
+  });
+
+  it('toDecibel should handle small power', () => {
+    expect(NoiseGateProcessor.toDecibel(0)).to.be.closeTo(-120, 0.1); // Approx -inf, but with epsilon
+  });
+});
