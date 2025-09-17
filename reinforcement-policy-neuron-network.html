@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -27,6 +28,8 @@
   .stat{font-size:12px;color:var(--muted)}
   .bigStat{font-size:15px;font-weight:700;color:var(--accent)}
   .networkCanvas{height:220px}
+  .sliderRow{margin-top:6px;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
+  input[type=range]{flex:1;}
 </style>
 </head>
 <body>
@@ -45,6 +48,11 @@
           <button id="policyBtn" class="primary">Policy</button>
         </div>
         <div class="stat">Best:<span class="bigStat" id="bestScore">0</span></div>
+      </div>
+      <div class="sliderRow">
+        <label for="angleSlider">Ramp Angle:</label>
+        <input type="range" id="angleSlider" min="0" max="15" step="1" value="5">
+        <span id="angleValue">5°</span>
       </div>
     </div>
 
@@ -74,7 +82,8 @@ function resize(){
 }
 window.addEventListener('resize',resize);resize();
 
-let slope=6*Math.PI/180;
+let slopeDeg=5;
+let slope=slopeDeg*Math.PI/180;
 const cart={M:1,m:0.1,L:0.6};
 const X_MIN=-3,X_MAX=3.5,dt=1/60,g=9.81;
 let state={x:-2.5,vx:0,theta:0.05,thetaDot:0};
@@ -104,6 +113,12 @@ document.getElementById('leftTouch').onpointerdown=()=>manualForce=-1;
 document.getElementById('leftTouch').onpointerup=()=>manualForce=0;
 document.getElementById('rightTouch').onpointerdown=()=>manualForce=1;
 document.getElementById('rightTouch').onpointerup=()=>manualForce=0;
+
+document.getElementById('angleSlider').addEventListener('input',e=>{
+  slopeDeg=+e.target.value;
+  slope=slopeDeg*Math.PI/180;
+  document.getElementById('angleValue').innerText=slopeDeg+"°";
+});
 
 function resetEpisode(){
   state={x:-2.5,vx:0,theta:(Math.random()-0.5)*0.2,thetaDot:0};
@@ -151,7 +166,7 @@ function drawNetwork(inputs,hid){
 
 // Training/simulation speed control
 let training=true;
-const TRAIN_EPISODES=200;
+const TRAIN_EPISODES=7777;
 const FAST_STEPS=20; // steps per frame during training
 
 function loop(){
