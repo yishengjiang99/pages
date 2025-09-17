@@ -17,7 +17,7 @@
   #main{display:flex;flex:1;gap:6px;padding:6px;box-sizing:border-box;}
   @media(max-width:900px){#main{flex-direction:column;}}
   .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:10px;padding:6px;flex:1;display:flex;flex-direction:column;}
-  #simPanel{flex:1.2;max-height:220px;} /* smaller sim panel */
+  #simPanel{flex:1.2;max-height:220px;}
   #uiPanel{flex:1;min-height:160px;overflow:auto;}
   canvas{width:100%;height:100%;display:block;border-radius:6px;background:#071015;}
   #footerControls{position:fixed;left:0;right:0;bottom:0;padding:6px;display:flex;gap:6px;justify-content:center;background:rgba(0,0,0,0.4);}
@@ -87,7 +87,7 @@ const policy=new PolicyNet();
 let bestScore=0;document.getElementById('bestScore').innerText=bestScore;
 
 function stepPhysics(force){
-  const F=force*10; // symmetric [-10,10]
+  const F=force*10;
   const {M,m,L}=cart;
   let{theta,thetaDot,vx}=state;
   const num=g*Math.sin(theta+slope)+Math.cos(theta)*(-F-m*L*thetaDot*thetaDot*Math.sin(theta));
@@ -114,11 +114,9 @@ function draw(){
   const w=simCanvas.width,h=simCanvas.height,DPR=devicePixelRatio;
   const pxpm=(w*0.7)/(X_MAX-X_MIN);
   const ox=w*0.15,oy=h*0.8;
-  // ramp
   const len=(X_MAX-X_MIN)*pxpm;
   simCtx.strokeStyle="rgba(150,255,200,0.15)";simCtx.lineWidth=4;
   simCtx.beginPath();simCtx.moveTo(ox,oy);simCtx.lineTo(ox+Math.cos(-slope)*len,oy+Math.sin(-slope)*len);simCtx.stroke();
-  // cart
   const cx=ox+(state.x-X_MIN)*pxpm*Math.cos(-slope);
   const cy=oy+(state.x-X_MIN)*pxpm*Math.sin(-slope);
   simCtx.save();simCtx.translate(cx,cy);simCtx.rotate(-slope);
@@ -150,14 +148,32 @@ function drawNetwork(inputs,hid){
   }
   netCtx.fillStyle="#ffd66b";netCtx.beginPath();netCtx.arc(outputX,h/2,8*DPR,0,Math.PI*2);netCtx.fill();
 }
+
+// Training/simulation speed control
+let training=true;
+const TRAIN_EPISODES=200;
+const FAST_STEPS=20; // steps per frame during training
+
 function loop(){
-  let a=0,hid=null;
-  if(mode==='manual')a=manualForce;
-  else{let res=policy.forward([Math.sin(state.theta),Math.cos(state.theta),state.thetaDot,(state.x-X_MIN)/(X_MAX-X_MIN)*2-1,Math.tanh(state.vx/5),Math.sin(slope)]);a=res.y;hid=res.h;}
-  stepPhysics(a);
-  draw();drawNetwork(null,hid);
-  steps++;
-  if(Math.abs(state.theta)>0.5||state.x<X_MIN||state.x>X_MAX){if(steps>bestScore){bestScore=steps;document.getElementById('bestScore').innerText=bestScore;}resetEpisode();}
+  if(training){
+    for(let k=0;k<FAST_STEPS;k++){
+      let res=policy.forward([Math.sin(state.theta),Math.cos(state.theta),state.thetaDot,(state.x-X_MIN)/(X_MAX-X_MIN)*2-1,Math.tanh(state.vx/5),Math.sin(slope)]);
+      stepPhysics(res.y);
+      steps++;
+      if(Math.abs(state.theta)>0.5||state.x<X_MIN||state.x>X_MAX){
+        if(steps>bestScore){bestScore=steps;document.getElementById('bestScore').innerText=bestScore;}
+        resetEpisode();
+        if(episode>=TRAIN_EPISODES){training=false;resetEpisode();}
+      }
+    }
+    draw();
+  } else {
+    let res=policy.forward([Math.sin(state.theta),Math.cos(state.theta),state.thetaDot,(state.x-X_MIN)/(X_MAX-X_MIN)*2-1,Math.tanh(state.vx/5),Math.sin(slope)]);
+    stepPhysics(res.y);
+    draw();drawNetwork(null,res.h);
+    steps++;
+    if(Math.abs(state.theta)>0.5||state.x<X_MIN||state.x>X_MAX){resetEpisode();}
+  }
   requestAnimationFrame(loop);
 }
 resetEpisode();loop();
