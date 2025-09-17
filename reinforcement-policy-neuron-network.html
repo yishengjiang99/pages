@@ -1,721 +1,716 @@
-
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>CartPole Reinforce Policy + Network Visualization</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>Cart-Pole on a Ramp — Policy NN</title>
 <style>
-  :root { --bg:#0f1720; --panel:#0b1220; --muted:#9aa6b2; --accent:#7dd3fc; }
-  body {
-    margin:0;
-    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    background: linear-gradient(180deg,#071028 0%, #071827 100%);
-    color:#e6eef6;
-    -webkit-font-smoothing:antialiased;
+  :root{
+    --bg:#0f1720;
+    --panel:#0b1220;
+    --accent:#6ee7b7;
+    --muted:#9aa6b2;
+    --danger:#ff6b6b;
   }
-  .wrap {
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-    padding:12px;
-    box-sizing:border-box;
-    height:100vh;
-  }
-  .top {
-    display:flex;
-    gap:10px;
-    align-items:center;
-  }
-  .controls {
-    background:rgba(255,255,255,0.03);
-    padding:10px;
-    border-radius:10px;
-    display:flex;
+  html,body{height:100%;margin:0;background:var(--bg);color:#e6eef6;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+  #app{display:flex;flex-direction:column;height:100%;}
+  #topbar{
+    display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
+    border-bottom:1px solid rgba(255,255,255,0.02);
     gap:8px;
-    align-items:center;
-    flex-wrap:wrap;
   }
-  button, select, input[type=range] { background:#0b1220; color:#e6eef6; border:1px solid rgba(255,255,255,0.06); padding:6px 8px; border-radius:6px; }
-  button:hover { border-color: var(--accent); cursor:pointer; }
-  label { font-size:13px; color:var(--muted); margin-right:6px; }
-  .canvases {
-    display:flex;
-    gap:12px;
-    align-items:stretch;
-    flex:1;
-    min-height:0;
+  #title{font-weight:600;font-size:16px}
+  .small{font-size:12px;color:var(--muted)}
+  #main{display:flex;flex:1;gap:8px;padding:8px;box-sizing:border-box;}
+  /* On narrow screens stack */
+  @media (max-width:900px){
+    #main{flex-direction:column;padding:6px;}
   }
-  canvas { background:transparent; border-radius:10px; box-shadow: 0 6px 24px rgba(2,6,23,0.7); }
-  #scene {
-    flex:1;
-    height:100%;
-    min-width:0;
+  .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:12px;padding:8px;box-sizing:border-box;flex:1;display:flex;flex-direction:column;gap:8px;min-height:0;}
+  #simPanel{flex:2;min-height:200px;display:flex;flex-direction:column;}
+  #uiPanel{flex:1;min-height:160px;overflow:auto;}
+  canvas{width:100%;height:100%;display:block;border-radius:8px;background:linear-gradient(180deg,#081018,#071015);}
+  #controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  button{
+    background:transparent;border:1px solid rgba(255,255,255,0.06);padding:10px 14px;border-radius:10px;color:#dff7eb;font-weight:600;font-size:15px;
+    min-width:60px;
   }
-  #net {
-    width:420px;
-    max-width:40%;
-    height:100%;
-  }
-  .info {
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-    margin-left:6px;
-    min-width:220px;
-  }
-  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .small { font-size:12px; color:var(--muted); }
-  .stat { background:rgba(255,255,255,0.03); padding:8px; border-radius:8px; min-width:110px; text-align:center; }
-  .footer { font-size:12px; color:var(--muted); margin-top:4px; }
-  input[type=number] { width:80px; padding:6px; border-radius:6px; background:#071026; color:#e6eef6; border:1px solid rgba(255,255,255,0.04); }
-  @media(max-width:900px){
-    .canvases { flex-direction:column; }
-    #net { width:100%; height:260px; max-width:none; }
-  }
+  button.big{padding:14px 18px;font-size:16px;border-radius:12px;}
+  button.primary{background:linear-gradient(90deg,var(--accent),#4fd19a);color:#052018;border:0;}
+  .tog{display:inline-flex;align-items:center;gap:6px;padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+  #footerControls{position:fixed;left:0;right:0;bottom:0;padding:8px;background:linear-gradient(180deg, rgba(0,0,0,0.2), rgba(0,0,0,0.6));display:flex;gap:8px;justify-content:center;z-index:40;}
+  #footerControls button{flex:1;min-width:60px}
+  .stat{font-size:13px;color:var(--muted)}
+  .bigStat{font-size:18px;font-weight:700;color:var(--accent)}
+  .networkCanvas{height:260px}
+  .row{display:flex;gap:8px;align-items:center;justify-content:space-between;}
+  label{font-size:13px;color:var(--muted)}
+  input[type=range]{width:100%}
+  .muted{color:var(--muted)}
+  #info{font-size:13px;white-space:pre-line;overflow:auto;max-height:150px;}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="top">
-    <div class="controls" id="controls">
-      <button id="startBtn">Start</button>
-      <button id="resetBtn">Reset</button>
-      <label class="small">Train:</label>
-      <select id="trainMode">
-        <option value="on">On (REINFORCE)</option>
-        <option value="off">Off (just run)</option>
-      </select>
-      <label class="small">Mode:</label>
-      <select id="taskMode">
-        <option value="balance">Balance Only</option>
-        <option value="move">Move-to-Target</option>
-      </select>
-      <label class="small">Force</label><input type="range" id="forceRange" min="5" max="40" value="10" />
-      <label class="small">LR</label><input type="number" id="lr" step="0.0005" value="0.003" />
-      <label class="small">γ</label><input type="number" id="gamma" step="0.01" value="0.99" />
+<div id="app">
+  <div id="topbar">
+    <div>
+      <div id="title">Cart-Pole on a Ramp — Policy NN</div>
+      <div class="small">Trolley climbs the ramp while balancing the pole</div>
     </div>
-    <div class="info">
-      <div class="row">
-        <div class="stat"><div style="font-size:14px">Episode</div><div id="ep" style="font-weight:600">0</div></div>
-        <div class="stat"><div style="font-size:14px">Step</div><div id="step" style="font-weight:600">0</div></div>
-        <div class="stat"><div style="font-size:14px">Reward</div><div id="cum" style="font-weight:600">0</div></div>
+    <div class="small" id="episodeBadge">Episode: 0</div>
+  </div>
+
+  <div id="main">
+    <div class="panel" id="simPanel">
+      <canvas id="simCanvas"></canvas>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+        <div class="stat">Mode:</div>
+        <div class="tog" id="modeToggle">
+          <button id="manualBtn" class="big">Manual</button>
+          <button id="policyBtn" class="big primary">Policy</button>
+        </div>
+        <div style="flex:1"></div>
+        <div class="stat">Best score:</div>
+        <div class="bigStat" id="bestScore">0</div>
       </div>
+    </div>
+
+    <div class="panel" id="uiPanel">
       <div class="row">
-        <div class="small">Episode len: <span id="lastLen">0</span></div>
-        <div class="small">Avg reward(100): <span id="avg100">0</span></div>
+        <div style="flex:1">
+          <label>Ramp angle (deg)</label>
+          <input id="slopeSlider" type="range" min="-12" max="12" step="0.5" value="6">
+        </div>
+        <div style="width:12px"></div>
+        <div style="flex:1">
+          <label>Max training mutations / episode</label>
+          <input id="mutSlider" type="range" min="0" max="200" step="10" value="40">
+        </div>
       </div>
-      <div class="row">
-        <label class="small">Target X</label>
-        <input id="targetX" type="range" min="-2.4" max="2.4" step="0.05" value="0" />
-        <span class="small" id="targetVal">0.00</span>
+
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button id="resetBtn">Reset Episode</button>
+        <button id="mutateBtn">Mutate & Try</button>
+        <button id="toggleTrain">Train: ON</button>
+      </div>
+
+      <div style="margin-top:8px">
+        <label>Network</label>
+        <canvas id="netCanvas" class="networkCanvas"></canvas>
+      </div>
+
+      <div style="margin-top:8px">
+        <label>Debug / Log</label>
+        <div id="info" class="muted">Ready.</div>
       </div>
     </div>
   </div>
 
-  <div class="canvases">
-    <canvas id="scene"></canvas>
-    <canvas id="net" width="420" height="460"></canvas>
-  </div>
-
-  <div class="footer">
-    Reinforce policy gradient demo — 4 inputs (x, x_dot, theta, theta_dot) → 6 hidden → 3 outputs (left, none, right).
+  <div id="footerControls">
+    <button id="leftTouch">◀ Move Left</button>
+    <button id="rightTouch">Move Right ▶</button>
   </div>
 </div>
 
 <script>
-/* ---------------------------------------
-   Cart-Pole physics + REINFORCE policy
-   --------------------------------------- */
+/*
+Cart-Pole on a Ramp
+- Feedforward policy network visualized on right.
+- Hill-climb: when episode ends, mutate weights and keep if better.
+- Mobile friendly controls at bottom.
+*/
 
-const sceneCanvas = document.getElementById('scene');
-const netCanvas = document.getElementById('net');
-const sctx = sceneCanvas.getContext('2d');
-const nctx = netCanvas.getContext('2d');
+// Canvas & sizing
+const simCanvas = document.getElementById('simCanvas');
+const netCanvas = document.getElementById('netCanvas');
+const simCtx = simCanvas.getContext('2d');
+const netCtx = netCanvas.getContext('2d');
 
-function resize() {
-  const rect = document.querySelector('.canvases').getBoundingClientRect();
-  sceneCanvas.width = Math.max(360, rect.width - 440);
-  sceneCanvas.height = rect.height;
-  // keep net canvas aspect via css sizes
+function resizeCanvases(){
+  const rect = document.getElementById('simPanel').getBoundingClientRect();
+  simCanvas.width = Math.max(600, Math.round(rect.width * devicePixelRatio));
+  simCanvas.height = Math.max(340, Math.round((rect.height - 8) * devicePixelRatio));
+  simCanvas.style.height = (rect.height - 8) + 'px';
+  simCanvas.style.width = (rect.width) + 'px';
+
+  const nr = netCanvas.getBoundingClientRect();
+  netCanvas.width = Math.round(nr.width * devicePixelRatio);
+  netCanvas.height = Math.round(nr.height * devicePixelRatio);
+  netCanvas.style.width = nr.width + 'px';
+  netCanvas.style.height = nr.height + 'px';
 }
-window.addEventListener('resize', resize);
-resize();
+window.addEventListener('resize', resizeCanvases);
+resizeCanvases();
 
-/* UI elements */
-const startBtn = document.getElementById('startBtn');
-const resetBtn = document.getElementById('resetBtn');
-const trainMode = document.getElementById('trainMode');
-const taskMode = document.getElementById('taskMode');
-const lrInput = document.getElementById('lr');
-const gammaInput = document.getElementById('gamma');
-const forceRange = document.getElementById('forceRange');
-const epEl = document.getElementById('ep');
-const stepEl = document.getElementById('step');
-const cumEl = document.getElementById('cum');
-const lastLenEl = document.getElementById('lastLen');
-const avg100El = document.getElementById('avg100');
-const targetXInput = document.getElementById('targetX');
-const targetVal = document.getElementById('targetVal');
+// Physics parameters
+const g = 9.81;
+const dt = 1/60;
+const cart = { M:1.0, m:0.1, L:0.6 }; // cart mass M, pole mass m, pole length L
+let slopeDeg = parseFloat(document.getElementById('slopeSlider').value);
+let slope = slopeDeg * Math.PI/180;
 
-targetXInput.addEventListener('input', ()=> targetVal.textContent = parseFloat(targetXInput.value).toFixed(2));
+document.getElementById('slopeSlider').addEventListener('input', (e)=>{
+  slopeDeg = parseFloat(e.target.value); slope = slopeDeg * Math.PI/180;
+});
 
-/* Physics parameters (similar to classic cart-pole) */
-const env = {
-  gravity: 9.8,
-  massCart: 1.0,
-  massPole: 0.1,
-  poleLength: 0.5, // half-length (distance to center of mass)
-  dt: 0.02,
-  xThreshold: 2.4, // cart position limit
-  thetaThreshold: 12 * Math.PI/180, // ~12 degrees
-  maxSteps: 1000
-};
+// arena limits (x along ramp)
+const X_MIN = -3.0;
+const X_MAX = 3.5;
 
-/* State: x, x_dot, theta, theta_dot */
+// simulation state
 let state = null;
 
-function randUniform(a,b) { return a + (b-a)*Math.random(); }
-function resetState() {
-  // small random initial angle
+function resetState(randomize=true){
   state = {
-    x: randUniform(-0.05, 0.05),
-    x_dot: 0,
-    theta: randUniform(-0.05, 0.05),
-    theta_dot: 0
+    x: -2.5 + (randomize? Math.random()*0.2 : 0), // start low on ramp (left)
+    vx: 0,
+    theta: (Math.random()-0.5)*0.08, // small angle
+    thetaDot: 0,
+    steps:0,
+    time:0,
+    running:true,
   };
 }
+resetState(true);
 
-/* Policy network */
-function zeros(rows,cols){ const a=[]; for(let i=0;i<rows;i++){ a.push(Array(cols).fill(0)); } return a; }
-function randMatrix(rows,cols,scale=1){ const a=[]; for(let i=0;i<rows;i++){ const r=[]; for(let j=0;j<cols;j++) r.push((Math.random()*2-1)*scale); a.push(r);} return a; }
-function matVecMul(mat, vec){
-  const out = new Array(mat.length);
-  for(let i=0;i<mat.length;i++){
-    let s = 0;
-    for(let j=0;j<vec.length;j++) s += mat[i][j]*vec[j];
-    out[i]=s;
+// Simple policy network
+function randn() {
+  // box-muller
+  let u=0,v=0;
+  while(u===0) u=Math.random();
+  while(v===0) v=Math.random();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+class PolicyNet {
+  constructor(inp=6, hidden=10) {
+    this.inp = inp;
+    this.hidden = hidden;
+    // weights matrices: W1 (hidden x inp), b1(hidden), W2(hidden), b2 scalar
+    this.W1 = new Float32Array(hidden*inp);
+    this.b1 = new Float32Array(hidden);
+    this.W2 = new Float32Array(hidden);
+    this.b2 = 0;
+    this.initRandom();
   }
-  return out;
+  initRandom(scale=0.8){
+    for(let i=0;i<this.W1.length;i++) this.W1[i] = randn()*scale;
+    for(let i=0;i<this.b1.length;i++) this.b1[i] = randn()*scale*0.1;
+    for(let i=0;i<this.W2.length;i++) this.W2[i] = randn()*0.6;
+    this.b2 = randn()*0.1;
+  }
+  copy(){
+    const p = new PolicyNet(this.inp,this.hidden);
+    p.W1.set(this.W1);
+    p.b1.set(this.b1);
+    p.W2.set(this.W2);
+    p.b2 = this.b2;
+    return p;
+  }
+  flat(){ // flatten to array
+    const out = [];
+    for(let i=0;i<this.W1.length;i++) out.push(this.W1[i]);
+    for(let i=0;i<this.b1.length;i++) out.push(this.b1[i]);
+    for(let i=0;i<this.W2.length;i++) out.push(this.W2[i]);
+    out.push(this.b2);
+    return out;
+  }
+  setFlat(arr){
+    let idx=0;
+    for(let i=0;i<this.W1.length;i++) this.W1[i] = arr[idx++];
+    for(let i=0;i<this.b1.length;i++) this.b1[i] = arr[idx++];
+    for(let i=0;i<this.W2.length;i++) this.W2[i] = arr[idx++];
+    this.b2 = arr[idx++];
+  }
+  mutate(scale=0.25){
+    // small gaussian perturbation
+    for(let i=0;i<this.W1.length;i++) this.W1[i] += randn()*scale;
+    for(let i=0;i<this.b1.length;i++) this.b1[i] += randn()*(scale*0.5);
+    for(let i=0;i<this.W2.length;i++) this.W2[i] += randn()*(scale*0.9);
+    this.b2 += randn()*(scale*0.5);
+  }
+  forward(inpArr){
+    // inpArr length should be this.inp
+    const h = new Float32Array(this.hidden);
+    for(let i=0;i<this.hidden;i++){
+      let s = this.b1[i];
+      const rowStart = i*this.inp;
+      for(let j=0;j<this.inp;j++){
+        s += this.W1[rowStart + j] * inpArr[j];
+      }
+      // activation tanh
+      h[i] = Math.tanh(s);
+    }
+    let out = this.b2;
+    for(let i=0;i<this.hidden;i++) out += this.W2[i]*h[i];
+    // output is scalar control value between approx [-? , ?], we'll use tanh
+    const y = Math.tanh(out);
+    return { y, h };
+  }
 }
-function addVec(a,b){ return a.map((v,i)=>v+b[i]); }
-function softmax(logits){
-  const max = Math.max(...logits);
-  const ex = logits.map(v=>Math.exp(v-max));
-  const s = ex.reduce((a,b)=>a+b,0);
-  return ex.map(v=>v/s);
+
+const policy = new PolicyNet(6,10);
+let bestPolicy = policy.copy();
+let bestScore = -1e9;
+document.getElementById('bestScore').innerText = bestScore.toFixed(2);
+
+// UI hooks
+let mode = 'policy'; // 'manual' or 'policy'
+const manualBtn = document.getElementById('manualBtn');
+const policyBtn = document.getElementById('policyBtn');
+function setMode(m){
+  mode = m;
+  if(m==='manual'){ manualBtn.classList.add('primary'); policyBtn.classList.remove('primary'); } 
+  else { policyBtn.classList.add('primary'); manualBtn.classList.remove('primary'); }
 }
-function tanhVec(v){ return v.map(x=>Math.tanh(x)); }
-function dtanhVec(v){ return v.map(x=>1 - Math.tanh(x)**2); }
+manualBtn.addEventListener('click', ()=>setMode('manual'));
+policyBtn.addEventListener('click', ()=>setMode('policy'));
 
-/* Network architecture */
-const inputSize = 4;
-const hiddenSize = 6;
-const outputSize = 3;
+// Buttons
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  resetState(true);
+  episode = 0;
+  log("Reset.");
+});
+document.getElementById('mutateBtn').addEventListener('click', ()=>{
+  // mutate best policy and assign
+  const candidate = bestPolicy.copy();
+  candidate.mutate(0.6);
+  policy.setFlat(candidate.flat());
+  log("Manual mutate applied.");
+});
+let trainingOn = true;
+document.getElementById('toggleTrain').addEventListener('click', ()=>{
+  trainingOn = !trainingOn;
+  document.getElementById('toggleTrain').innerText = 'Train: ' + (trainingOn ? 'ON':'OFF');
+});
 
-/* Parameters (weights, biases) */
-let W1 = randMatrix(hiddenSize, inputSize, 0.5);
-let b1 = Array(hiddenSize).fill(0);
-let W2 = randMatrix(outputSize, hiddenSize, 0.5);
-let b2 = Array(outputSize).fill(0);
+// bottom touch controls
+let manualForce = 0;
+document.getElementById('leftTouch').addEventListener('pointerdown', ()=>manualForce = -1);
+document.getElementById('leftTouch').addEventListener('pointerup', ()=>manualForce = 0);
+document.getElementById('rightTouch').addEventListener('pointerdown', ()=>manualForce = 1);
+document.getElementById('rightTouch').addEventListener('pointerup', ()=>manualForce = 0);
 
-/* Episode memory for policy gradient */
-let epStates = [];
-let epActions = [];
-let epRewards = [];
+// keyboard for desktop
+window.addEventListener('keydown', (e)=>{
+  if(e.key === 'ArrowLeft') manualForce = -1;
+  if(e.key === 'ArrowRight') manualForce = 1;
+});
+window.addEventListener('keyup', (e)=>{
+  if(e.key === 'ArrowLeft' || e.key === 'ArrowRight') manualForce = 0;
+});
 
-/* Running stats */
+// training params
 let episode = 0;
-let stepCount = 0;
-let cumReward = 0;
-let lastLengths = [];
-let running = false;
-let animHandle = null;
-let baseline = 0; // simple baseline to reduce variance
+let bestFlat = bestPolicy.flat();
+const mutSlider = document.getElementById('mutSlider');
+function getMutBudget(){ return parseInt(mutSlider.value); }
+mutSlider.addEventListener('input', ()=>{});
 
-/* Forward pass returns logits, probs, hidden activations */
-function policyForward(s) {
-  const x = s.slice();
-  const z1 = matVecMul(W1, x).map((v,i)=>v + b1[i]);
-  const h = tanhVec(z1);
-  const z2 = matVecMul(W2, h).map((v,i)=>v + b2[i]);
-  const probs = softmax(z2);
-  return {x, z1, h, z2, probs};
+// rendering helpers
+function clear(ctx){
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
+  ctx.restore();
 }
 
-/* Sample action from probs */
-function sampleAction(probs){
-  const r = Math.random();
-  let acc = 0;
-  for(let i=0;i<probs.length;i++){
-    acc += probs[i];
-    if(r < acc) return i;
-  }
-  return probs.length-1;
-}
+// draw simulated scene
+function drawScene(){
+  clear(simCtx);
+  const cw = simCanvas.width;
+  const ch = simCanvas.height;
+  const DPR = devicePixelRatio;
 
-/* Apply action to environment: 0=left,1=none,2=right -> force */
-function stepEnv(action, forceMag, modeTarget, targetX) {
-  const force = (action===0? -forceMag : (action===2? forceMag : 0));
-  // classic cartpole dynamics (approx Euler)
-  const {gravity, massCart, massPole, poleLength, dt} = env;
-  const totalMass = massCart + massPole;
-  const theta = state.theta;
-  const theta_dot = state.theta_dot;
-  const x = state.x;
-  const x_dot = state.x_dot;
+  // coordinate mapping: map x in [X_MIN,X_MAX] along ramp to canvas
+  // draw ramp line across center horizontally
+  const pxPerMeter = (cw*0.8) / ((X_MAX - X_MIN));
+  const originX = cw*0.1;
+  const originY = ch*0.8;
 
-  // equations from OpenAI Gym cartpole (simplified)
-  const costheta = Math.cos(theta);
-  const sintheta = Math.sin(theta);
+  // ramp endpoints
+  const rampLenPx = (X_MAX - X_MIN) * pxPerMeter;
+  const rampX1 = originX;
+  const rampY1 = originY;
+  const rampX2 = originX + Math.cos(-slope) * rampLenPx;
+  const rampY2 = originY + Math.sin(-slope) * rampLenPx;
 
-  const temp = (force + massPole * poleLength * theta_dot*theta_dot * sintheta) / totalMass;
-  const thetaacc = (gravity * sintheta - costheta * temp) / (poleLength * (4.0/3.0 - massPole * costheta*costheta / totalMass));
-  const xacc = temp - massPole * poleLength * thetaacc * costheta / totalMass;
-
-  // integrate
-  state.x += dt * x_dot;
-  state.x_dot += dt * xacc;
-  state.theta += dt * theta_dot;
-  state.theta_dot += dt * thetaacc;
-
-  // reward shaping
-  let reward = 1.0; // encourage longer balancing
-
-  // mode: if move-to-target, give bonus for being close to target x
-  if(modeTarget){
-    const dist = Math.abs(state.x - targetX);
-    // reward component inversely proportional to distance (clip)
-    reward += Math.max(0, 1 - dist); // between 0 and 1+
+  // draw grid along ramp
+  simCtx.lineWidth = 2*DPR;
+  simCtx.strokeStyle = 'rgba(255,255,255,0.05)';
+  for(let t=-3;t<=4;t+=0.5){
+    const px = originX + (t - X_MIN) * pxPerMeter * Math.cos(-slope);
+    const py = originY + (t - X_MIN) * pxPerMeter * Math.sin(-slope);
+    simCtx.beginPath();
+    simCtx.moveTo(px-6*DPR, py-6*DPR);
+    simCtx.lineTo(px+6*DPR, py+6*DPR);
+    simCtx.stroke();
   }
 
-  // check done
-  const done = (state.x < -env.xThreshold) || (state.x > env.xThreshold) || (Math.abs(state.theta) > env.thetaThreshold);
+  // draw ramp
+  simCtx.strokeStyle = 'rgba(100,255,180,0.12)';
+  simCtx.lineWidth = 4*DPR;
+  simCtx.beginPath();
+  simCtx.moveTo(rampX1, rampY1);
+  simCtx.lineTo(rampX2, rampY2);
+  simCtx.stroke();
 
-  return {done, reward};
-}
+  // compute cart screen pos
+  const cartXpx = originX + (state.x - X_MIN) * pxPerMeter * Math.cos(-slope);
+  const cartYpx = originY + (state.x - X_MIN) * pxPerMeter * Math.sin(-slope);
 
-/* REINFORCE update at episode end */
-function finishEpisode(learningRate, gamma) {
-  // compute discounted returns
-  const T = epRewards.length;
-  const returns = Array(T).fill(0);
-  let G = 0;
-  for(let t=T-1;t>=0;t--){
-    G = epRewards[t] + gamma * G;
-    returns[t] = G;
-  }
-  // normalize returns to reduce variance
-  const mean = returns.reduce((a,b)=>a+b,0)/returns.length;
-  const std = Math.sqrt(Math.max(1e-8, returns.map(r => (r-mean)**2).reduce((a,b)=>a+b,0)/returns.length));
-  const normReturns = returns.map(r=>(r-mean)/(std+1e-8));
+  // draw target zone (higher up ramp)
+  const goalX = X_MAX - 0.4;
+  const goalXpx = originX + (goalX - X_MIN)*pxPerMeter * Math.cos(-slope);
+  const goalYpx = originY + (goalX - X_MIN)*pxPerMeter * Math.sin(-slope);
+  simCtx.fillStyle = 'rgba(110,231,183,0.06)';
+  simCtx.beginPath();
+  simCtx.ellipse(goalXpx, goalYpx, 40*DPR, 20*DPR, -slope, 0, Math.PI*2);
+  simCtx.fill();
 
-  // accumulate grads
-  const dW2 = zeros(outputSize, hiddenSize);
-  const db2 = Array(outputSize).fill(0);
-  const dW1 = zeros(hiddenSize, inputSize);
-  const db1 = Array(hiddenSize).fill(0);
-
-  for(let t=0;t<T;t++){
-    const s = epStates[t]; // array length 4
-    const action = epActions[t];
-    // forward pass for t
-    const {x, z1, h, z2, probs} = policyForward(s);
-    // gradient of log pi wrt logits z2: one_hot - probs
-    const gradLogZ2 = Array(outputSize).fill(0);
-    for(let k=0;k<outputSize;k++){
-      gradLogZ2[k] = (k===action? 1 : 0) - probs[k];
-    }
-    // scale by return (using normalized returns)
-    const R = normReturns[t];
-
-    // dW2 += outer(gradLogZ2 * R, h)
-    for(let i=0;i<outputSize;i++){
-      for(let j=0;j<hiddenSize;j++){
-        dW2[i][j] += (gradLogZ2[i] * R) * h[j];
-      }
-      db2[i] += gradLogZ2[i] * R;
-    }
-
-    // backprop to hidden: delta_hidden = (W2^T * gradLogZ2) * dtanh(z1)
-    const dtanh = dtanhVec(z1);
-    const hiddenDelta = Array(hiddenSize).fill(0);
-    for(let j=0;j<hiddenSize;j++){
-      let ssum = 0;
-      for(let i=0;i<outputSize;i++) ssum += W2[i][j] * gradLogZ2[i];
-      hiddenDelta[j] = ssum * dtanh[j] * R;
-    }
-    // dW1 += outer(hiddenDelta, x)
-    for(let j=0;j<hiddenSize;j++){
-      for(let m=0;m<inputSize;m++){
-        dW1[j][m] += hiddenDelta[j] * x[m];
-      }
-      db1[j] += hiddenDelta[j];
-    }
-  }
-
-  // Apply gradient ascent (since we maximize expected return)
-  for(let i=0;i<outputSize;i++){
-    for(let j=0;j<hiddenSize;j++){
-      W2[i][j] += learningRate * dW2[i][j];
-    }
-    b2[i] += learningRate * db2[i];
-  }
-  for(let i=0;i<hiddenSize;i++){
-    for(let j=0;j<inputSize;j++){
-      W1[i][j] += learningRate * dW1[i][j];
-    }
-    b1[i] += learningRate * db1[i];
-  }
-
-  // clear episode memory
-  epStates = [];
-  epActions = [];
-  epRewards = [];
-}
-
-/* Visualization helpers */
-function drawScene() {
-  const cw = sceneCanvas.width;
-  const ch = sceneCanvas.height;
-  sctx.clearRect(0,0,cw,ch);
-
-  // coordinate transform: world x in [-xThreshold,xThreshold] -> canvas
-  const worldLeft = -env.xThreshold - 0.5;
-  const worldRight = env.xThreshold + 0.5;
-  const margin = 20;
-  const worldWidth = worldRight - worldLeft;
-  function worldToCanvasX(wx) {
-    return margin + (wx - worldLeft) / worldWidth * (cw - margin*2);
-  }
-
-  const groundY = ch*0.78;
-  // draw ground
-  sctx.fillStyle = "#081226";
-  sctx.fillRect(0, groundY, cw, ch-groundY);
-
-  // target marker
-  if(taskMode.value === 'move'){
-    const tx = parseFloat(targetXInput.value);
-    const cx = worldToCanvasX(tx);
-    sctx.strokeStyle = "#ffdc6b";
-    sctx.lineWidth = 2;
-    sctx.beginPath();
-    sctx.moveTo(cx, groundY);
-    sctx.lineTo(cx, groundY-60);
-    sctx.stroke();
-    sctx.fillStyle = "rgba(255,220,107,0.12)";
-    sctx.beginPath();
-    sctx.ellipse(cx, groundY-70, 14, 10, 0, 0, Math.PI*2);
-    sctx.fill();
-  }
-
-  // cart position
-  const cx = worldToCanvasX(state.x);
-  const cartW = 80;
-  const cartH = 36;
-  // rails
-  sctx.strokeStyle = "rgba(255,255,255,0.05)";
-  sctx.lineWidth = 2;
-  sctx.beginPath();
-  sctx.moveTo(margin, groundY+18);
-  sctx.lineTo(cw-margin, groundY+18);
-  sctx.stroke();
-
-  // cart body
-  sctx.save();
-  sctx.translate(cx, groundY - cartH/2 - 10);
-  sctx.fillStyle = "#1b2634";
-  sctx.strokeStyle = "#4fb5e6";
-  sctx.lineWidth = 2;
-  sctx.fillRect(-cartW/2, -cartH/2, cartW, cartH);
-  sctx.strokeRect(-cartW/2, -cartH/2, cartW, cartH);
+  // draw cart as rectangle aligned to ramp
+  const cartW = 80*DPR;
+  const cartH = 40*DPR;
+  simCtx.save();
+  simCtx.translate(cartXpx, cartYpx);
+  simCtx.rotate(-slope);
+  simCtx.fillStyle = '#2ca58d';
+  simCtx.strokeStyle = 'rgba(0,0,0,0.2)';
+  roundRect(simCtx, -cartW/2, -cartH/2, cartW, cartH, 6*DPR);
+  simCtx.fill();
+  simCtx.stroke();
 
   // wheels
-  sctx.fillStyle = "#071021";
-  sctx.beginPath(); sctx.arc(-cartW*0.32, cartH/2, 10, 0, Math.PI*2); sctx.fill();
-  sctx.beginPath(); sctx.arc(cartW*0.32, cartH/2, 10, 0, Math.PI*2); sctx.fill();
-  sctx.restore();
+  simCtx.fillStyle = '#051017';
+  simCtx.beginPath();
+  simCtx.arc(-cartW*0.25, cartH*0.5, 10*DPR, 0, Math.PI*2); simCtx.fill();
+  simCtx.beginPath();
+  simCtx.arc(cartW*0.25, cartH*0.5, 10*DPR, 0, Math.PI*2); simCtx.fill();
 
-  // pole
-  const poleLenPixels = 120;
-  const angle = state.theta;
-  const px = cx + Math.sin(angle) * poleLenPixels;
-  const py = (groundY - cartH/2 - 10) - Math.cos(angle) * poleLenPixels;
-  // pole shadow
-  sctx.strokeStyle = "#cfeffd";
-  sctx.lineWidth = 4;
-  sctx.beginPath();
-  sctx.moveTo(cx, groundY - cartH/2 - 10);
-  sctx.lineTo(px, py);
-  sctx.stroke();
+  // pole pivot: relative to cart center
+  const pivotX = 0;
+  const pivotY = -cartH*0.45;
+
+  // draw pole: angle measured relative to vertical upright in world coordinates
+  // convert to screen angle: vertical in screen coords is -90deg rotated by ramp -> we simply compute world rotation combining slope
+  const poleLenPx = cart.L_px || (cart.L * pxPerMeter * 1.2);
+  const thetaScreen = - (state.theta + slope); // approximate
+  simCtx.strokeStyle = '#ffd66b';
+  simCtx.lineWidth = 6*DPR;
+  simCtx.beginPath();
+  simCtx.moveTo(pivotX, pivotY);
+  const tipX = pivotX + Math.sin(thetaScreen) * poleLenPx;
+  const tipY = pivotY - Math.cos(thetaScreen) * poleLenPx;
+  simCtx.lineTo(tipX, tipY);
+  simCtx.stroke();
 
   // pole tip
-  sctx.fillStyle = "#ffcc5c";
-  sctx.beginPath();
-  sctx.arc(px, py, 8, 0, Math.PI*2);
-  sctx.fill();
+  simCtx.fillStyle = '#ff9f1c';
+  simCtx.beginPath();
+  simCtx.arc(tipX, tipY, 8*DPR, 0, Math.PI*2);
+  simCtx.fill();
 
-  // HUD text
-  sctx.fillStyle = "#b9d7ee";
-  sctx.font = "13px Inter, Arial";
-  sctx.fillText(`x: ${state.x.toFixed(2)}`, 12, 18);
-  sctx.fillText(`x_dot: ${state.x_dot.toFixed(2)}`, 12, 34);
-  sctx.fillText(`theta: ${(state.theta*180/Math.PI).toFixed(2)}°`, 12, 50);
-  sctx.fillText(`theta_dot: ${state.theta_dot.toFixed(2)}`, 12, 66);
+  simCtx.restore();
+
+  // HUD
+  simCtx.save();
+  simCtx.fillStyle = 'rgba(255,255,255,0.86)';
+  simCtx.font = `${16*DPR}px Inter, Arial`;
+  simCtx.fillText(`Angle: ${(state.theta*180/Math.PI).toFixed(1)}°`, 12*DPR, 28*DPR);
+  simCtx.fillText(`x: ${state.x.toFixed(2)} m`, 12*DPR, 48*DPR);
+  simCtx.fillText(`score: ${currentScore.toFixed(2)}`, 12*DPR, 68*DPR);
+  simCtx.fillText(`slope: ${slopeDeg.toFixed(1)}°`, 12*DPR, 88*DPR);
+  simCtx.restore();
 }
 
-/* draw network visualization */
-function drawNetwork(lastForward, chosenAction) {
-  const W = netCanvas.width;
-  const H = netCanvas.height;
-  nctx.clearRect(0,0,W,H);
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
 
-  // layout nodes
-  const leftX = 60;
-  const midX = W/2;
-  const rightX = W-60;
-  const inputYs = [];
-  const hiddenYs = [];
-  const outputYs = [];
+// Simple approximate dynamics (not a full physical derivation, but good for demonstration)
+function stepPhysics(actionForce){
+  const M = cart.M;
+  const m = cart.m;
+  const l = cart.L;
+  // state variables: x, vx, theta, thetaDot
+  // we'll compute thetaDD using an approximate inverted pendulum on moving base on an incline
+  // gravity torque influenced by slope: use g * sin(theta + slope)
+  const theta = state.theta;
+  const thetaDot = state.thetaDot;
+  const vx = state.vx;
 
-  for(let i=0;i<inputSize;i++) inputYs.push(60 + i*60);
-  for(let i=0;i<hiddenSize;i++) hiddenYs.push(40 + i*54);
-  for(let i=0;i<outputSize;i++) outputYs.push(H/2 - 40 + i*60);
+  // control force along ramp
+  const F = actionForce * 10.0; // scale
 
-  // draw links from input to hidden
-  if(lastForward){
-    const activations = lastForward.h;
-    const probs = lastForward.probs;
-    // draw connections W1
-    for(let i=0;i<hiddenSize;i++){
-      for(let j=0;j<inputSize;j++){
-        const x1 = leftX;
-        const y1 = inputYs[j];
-        const x2 = midX;
-        const y2 = hiddenYs[i];
-        const w = W1[i][j];
-        const mag = Math.min(1, Math.abs(w)/1.5);
-        nctx.beginPath();
-        nctx.moveTo(x1+20, y1);
-        nctx.lineTo(x2-18, y2);
-        nctx.lineWidth = 1 + mag*2;
-        nctx.strokeStyle = (w>=0? `rgba(124, 58, 237, ${0.25+mag*0.75})` : `rgba(255,100,100, ${0.25+mag*0.75})`);
-        nctx.stroke();
-      }
+  // approximate angular acceleration:
+  const num = g * Math.sin(theta + slope) + Math.cos(theta) * ( -F - m * l * thetaDot*thetaDot * Math.sin(theta) );
+  const den = l * (4.0/3.0 - (m * Math.cos(theta) * Math.cos(theta)) / (M + m));
+  const thetaDD = num / (den + 1e-6);
+
+  // approximate cart acceleration along ramp
+  const xDD = (F + m * l * (thetaDot*thetaDot * Math.sin(theta) - thetaDD * Math.cos(theta))) / (M + m);
+
+  // integrate
+  state.vx += xDD * dt;
+  state.x  += state.vx * dt;
+
+  state.thetaDot += thetaDD * dt;
+  state.theta += state.thetaDot * dt;
+
+  state.steps += 1;
+  state.time += dt;
+}
+
+// reward / scoring
+let currentScore = 0;
+function computeReward(){
+  // reward for time (survival) + progress up ramp
+  const progress = state.x; // larger x is higher on ramp
+  // we clamp progress to reward only when advancing
+  const progReward = Math.max(0, progress + 3.0); // shift positive
+  return state.time * 1.0 + progReward * 2.0;
+}
+
+// termination checks
+function checkFailure(){
+  const maxAngle = 45 * Math.PI/180;
+  if(Math.abs(state.theta) > maxAngle) return { fail:true, reason:'pole_fell' };
+  if(state.x < X_MIN - 0.3 || state.x > X_MAX + 0.3) return { fail:true, reason:'out_of_bounds' };
+  if(state.time > 30.0) return { fail:false, reason:'success', success:true }; // success if stays balanced long
+  return { fail:false };
+}
+
+// policy action mapping
+function policyActionFromNetwork(){
+  // inputs: sin(theta), cos(theta), thetaDot, x_norm, vx_norm, slope
+  const maxV = 6.0;
+  const x_norm = (state.x - X_MIN) / (X_MAX - X_MIN) * 2 - 1; // in [-1,1]
+  const vx_norm = Math.max(-1, Math.min(1, state.vx / maxV));
+  const inputs = [
+    Math.sin(state.theta),
+    Math.cos(state.theta),
+    state.thetaDot * 0.5,
+    x_norm,
+    vx_norm,
+    Math.sin(slope)
+  ];
+  const out = policy.forward(inputs);
+  // network returns y in [-1,1] ; scale to action force control -1..1
+  return { action: out.y, hidden: out.h, inputs };
+}
+
+function log(s){
+  const info = document.getElementById('info');
+  info.innerText = s + "\n\n" + info.innerText;
+}
+
+// network viz
+function drawNetworkViz(lastActivations){
+  clear(netCtx);
+  const W = netCanvas.width, H = netCanvas.height, DPR = devicePixelRatio;
+  const padding = 20*DPR;
+  const inX = padding;
+  const hiddenX = W/2;
+  const outX = W - padding;
+
+  const inYStep = (H - 2*padding) / (policy.inp-1);
+  const hiddenYStep = (H - 2*padding) / (policy.hidden-1);
+
+  // draw weights as lines (alpha by magnitude)
+  for(let i=0;i<policy.hidden;i++){
+    const hy = padding + i*hiddenYStep;
+    for(let j=0;j<policy.inp;j++){
+      const ix = inX;
+      const iy = padding + j*inYStep;
+      const w = policy.W1[i*policy.inp + j];
+      netCtx.beginPath();
+      netCtx.moveTo(ix, iy);
+      netCtx.lineTo(hiddenX, hy);
+      const mag = Math.tanh(Math.abs(w));
+      netCtx.strokeStyle = `rgba(120,200,180,${0.08 + 0.6*mag})`;
+      netCtx.lineWidth = (1 + 3*mag) * DPR;
+      netCtx.stroke();
     }
-    // draw connections W2
-    for(let i=0;i<outputSize;i++){
-      for(let j=0;j<hiddenSize;j++){
-        const x1 = midX;
-        const y1 = hiddenYs[j];
-        const x2 = rightX;
-        const y2 = outputYs[i];
-        const w = W2[i][j];
-        const mag = Math.min(1, Math.abs(w)/1.5);
-        nctx.beginPath();
-        nctx.moveTo(x1+20, y1);
-        nctx.lineTo(x2-18, y2);
-        nctx.lineWidth = 1 + mag*2;
-        nctx.strokeStyle = (w>=0? `rgba(124, 58, 237, ${0.25+mag*0.75})` : `rgba(255,100,100, ${0.25+mag*0.75})`);
-        nctx.stroke();
-      }
+  }
+  // W2 lines
+  for(let i=0;i<policy.hidden;i++){
+    const hy = padding + i*hiddenYStep;
+    netCtx.beginPath();
+    netCtx.moveTo(hiddenX, hy);
+    netCtx.lineTo(outX, H/2);
+    const w = policy.W2[i];
+    const mag = Math.tanh(Math.abs(w));
+    netCtx.strokeStyle = `rgba(245,200,95,${0.08 + 0.6*mag})`;
+    netCtx.lineWidth = (1 + 3*mag) * DPR;
+    netCtx.stroke();
+  }
+
+  // input nodes
+  for(let j=0;j<policy.inp;j++){
+    const ix = inX;
+    const iy = padding + j*inYStep;
+    const label = ['sθ','cθ','θ˙','x','v˙','slope'][j] || 'i'+j;
+    drawNode(ix,iy,12*DPR, label, 0, null);
+  }
+
+  // hidden nodes
+  for(let i=0;i<policy.hidden;i++){
+    const hx = hiddenX;
+    const hy = padding + i*hiddenYStep;
+    const a = lastActivations ? lastActivations[i] : 0;
+    drawNode(hx,hy,14*DPR, '', a, i);
+  }
+
+  // output node
+  drawNode(outX, H/2, 18*DPR, '→', 0, null, true);
+
+  function drawNode(x,y,r,label,activation,index, isOut=false){
+    // activation in [-1,1]
+    netCtx.beginPath();
+    netCtx.lineWidth = 2*DPR;
+    netCtx.strokeStyle = 'rgba(255,255,255,0.06)';
+    netCtx.fillStyle = `rgba(30,30,30,0.6)`;
+    netCtx.arc(x,y,r,0,Math.PI*2);
+    netCtx.fill();
+    netCtx.stroke();
+
+    if(!isNaN(activation) && activation !== 0){
+      const a = Math.tanh(activation);
+      const color = a>0 ? `rgba(90,200,150,${0.15 + 0.7*Math.abs(a)})` : `rgba(255,120,120,${0.15 + 0.7*Math.abs(a)})`;
+      netCtx.beginPath();
+      netCtx.arc(x,y,r*0.7,0,Math.PI*2);
+      netCtx.fillStyle = color;
+      netCtx.fill();
     }
 
-    // draw input nodes
-    for(let i=0;i<inputSize;i++){
-      const x = leftX;
-      const y = inputYs[i];
-      nctx.beginPath();
-      nctx.fillStyle = "#082131";
-      nctx.strokeStyle = "#7dd3fc";
-      nctx.lineWidth = 1;
-      nctx.ellipse(x, y, 20, 20, 0, 0, Math.PI*2);
-      nctx.fill();
-      nctx.stroke();
-      // show input value
-      const labels = ["x","x_dot","theta","theta_dot"];
-      let val = lastForward.x[i];
-      nctx.fillStyle = "#bfe8ff";
-      nctx.font = "12px Inter, Arial";
-      nctx.fillText(`${labels[i]}: ${val.toFixed(2)}`, x-28, y+36);
+    netCtx.fillStyle = '#dff7eb';
+    netCtx.font = `${10*DPR}px Inter, Arial`;
+    if(label){
+      netCtx.fillText(label, x - r - 2*DPR, y - r - 4*DPR);
     }
-
-    // draw hidden nodes with activations
-    for(let i=0;i<hiddenSize;i++){
-      const x = midX;
-      const y = hiddenYs[i];
-      const a = lastForward.h[i];
-      const brightness = Math.min(1, Math.abs(a));
-      const fill = `rgba(124,58,237, ${0.12 + 0.7*brightness})`;
-      nctx.beginPath();
-      nctx.fillStyle = fill;
-      nctx.strokeStyle = "#8b5cf6";
-      nctx.lineWidth = 1;
-      nctx.ellipse(x, y, 22, 22, 0, 0, Math.PI*2);
-      nctx.fill();
-      nctx.stroke();
-      nctx.fillStyle = a>=0? "#dbeafe" : "#ffdede";
-      nctx.font = "12px Inter, Arial";
-      nctx.fillText(a.toFixed(2), x-18, y+36);
-    }
-
-    // draw output nodes and highlight chosen
-    const actionLabels = ["←","•","→"];
-    for(let i=0;i<outputSize;i++){
-      const x = rightX;
-      const y = outputYs[i];
-      const prob = lastForward.probs[i];
-      const size = 20 + prob*18;
-      nctx.beginPath();
-      nctx.fillStyle = (i===chosenAction? "rgba(255,230,140,0.95)" : "rgba(255,255,255,0.06)");
-      nctx.strokeStyle = (i===chosenAction? "#ffb86b" : "#6ee7b7");
-      nctx.lineWidth = (i===chosenAction?3:1);
-      nctx.ellipse(x, y, size, size, 0, 0, Math.PI*2);
-      nctx.fill();
-      nctx.stroke();
-      nctx.fillStyle = (i===chosenAction? "#0b1220" : "#e6f6ff");
-      nctx.font = "18px Inter, Arial";
-      nctx.fillText(actionLabels[i], x-8, y+6);
-      nctx.fillStyle = "#bcd9ea";
-      nctx.font = "12px Inter, Arial";
-      nctx.fillText((prob*100).toFixed(1)+"%", x-18, y+size+14);
-    }
-  } else {
-    nctx.fillStyle = "#081024";
-    nctx.fillRect(0,0,W,H);
-    nctx.fillStyle = "#9fbad0";
-    nctx.font = "14px Inter";
-    nctx.fillText("Network will appear once simulation starts.", 16, 28);
   }
 }
 
-/* main loop */
-let lastForward = null;
-let lastChosen = 1;
+// training / hill-climb logic
+let candidatePolicy = null;
+let candidateScore = -Infinity;
+let evalPhase = false;
+let evalStepsLeft = 0;
+let evalLimit = 2000;
 
-function updateFrame() {
-  if(!running) return;
+function startNewEpisode(){
+  episode += 1;
+  document.getElementById('episodeBadge').innerText = `Episode: ${episode}`;
+  resetState(true);
+  currentScore = 0;
+  // initialize candidate: copy current policy (to evaluate small mutation)
+  candidatePolicy = policy.copy();
+  // if training on, prepare candidate by mutating copy
+  if(trainingOn){
+    candidatePolicy.mutate(0.28);
+  }
+  candidateScore = 0;
+  evalPhase = true;
+  evalStepsLeft = evalLimit;
+}
 
-  const forceMag = parseFloat(forceRange.value);
-  const learningOn = trainMode.value === 'on';
-  const modeTarget = taskMode.value === 'move';
-  const targetX = parseFloat(targetXInput.value);
-  const lr = parseFloat(lrInput.value);
-  const gamma = parseFloat(gammaInput.value);
+// Start first episode
+startNewEpisode();
 
-  // get state vector (normalize somewhat)
-  const svec = [state.x/2.4, state.x_dot/10, state.theta/0.2, state.theta_dot/5];
+let lastVizHidden = null;
 
-  // forward pass
-  const forward = policyForward(svec);
-  const action = sampleAction(forward.probs);
-  lastForward = forward;
-  lastChosen = action;
+// main loop
+function loop(){
+  // determine action
+  let action = 0;
+  let hiddenActivations = null;
+  if(mode === 'manual'){
+    action = manualForce;
+  } else {
+    // if evaluating a candidate (during training) use candidatePolicy; else use policy
+    const netToUse = (trainingOn && evalPhase && candidatePolicy) ? candidatePolicy : policy;
+    const res = netToUse.forward([
+      Math.sin(state.theta),
+      Math.cos(state.theta),
+      state.thetaDot * 0.5,
+      (state.x - X_MIN) / (X_MAX - X_MIN) * 2 - 1,
+      Math.max(-1, Math.min(1, state.vx / 6.0)),
+      Math.sin(slope)
+    ]);
+    action = res.y;
+    hiddenActivations = res.h;
+  }
 
-  // record
-  epStates.push(svec);
-  epActions.push(action);
+  // step physics with scaled action
+  stepPhysics(action);
 
-  // step env
-  const {done, reward} = stepEnv(action, forceMag, modeTarget, targetX);
-  epRewards.push(reward);
-  cumReward += reward;
-  stepCount++;
-  epEl.textContent = episode;
-  stepEl.textContent = stepCount;
-  cumEl.textContent = cumReward.toFixed(1);
+  // compute current reward/score
+  currentScore = computeReward();
 
-  // render
+  // draw
   drawScene();
-  drawNetwork(lastForward, lastChosen);
+  drawNetworkViz(hiddenActivations);
+  lastVizHidden = hiddenActivations;
 
-  // episode end
-  if(done || stepCount >= env.maxSteps){
-    // update stats
-    episode++;
-    lastLengths.push(stepCount);
-    if(lastLengths.length>100) lastLengths.shift();
-    const avg = lastLengths.reduce((a,b)=>a+b,0)/lastLengths.length;
-    lastLenEl.textContent = stepCount;
-    avg100El.textContent = avg.toFixed(1);
-
-    // train update
-    if(learningOn){
-      finishEpisode(lr, gamma);
+  // check termination
+  const check = checkFailure();
+  if(check.fail || check.success){
+    // finalize episode
+    const finalScore = currentScore + (state.x > X_MAX-0.5 ? 60 : 0); // bonus for reaching near top
+    // if evaluating candidate, compare to bestPolicy
+    if(trainingOn && evalPhase){
+      if(finalScore > bestScore){
+        // candidate better than best, keep it
+        bestScore = finalScore;
+        bestPolicy = candidatePolicy.copy();
+        policy.setFlat(bestPolicy.flat());
+        bestFlat = bestPolicy.flat();
+        document.getElementById('bestScore').innerText = bestScore.toFixed(2);
+        log(`New best: ${bestScore.toFixed(2)} (reason: ${check.reason || 'ended'})`);
+      } else {
+        // not better -> occasionally accept small improvements
+        if(Math.random() < 0.02 && finalScore > bestScore - 10){
+          policy.setFlat(candidatePolicy.flat());
+          log('Accepted near-best candidate (stochastic).');
+        }
+      }
+      // Prepare next candidate
+      candidatePolicy = bestPolicy.copy();
+      candidatePolicy.mutate(0.22 * (1 + Math.random()*0.6));
+      evalPhase = true;
+      evalStepsLeft = evalLimit;
+      // restart environment
+      resetState(true);
     } else {
-      // clear memory
-      epStates = []; epActions = []; epRewards = [];
+      // not training -> just reset state
+      resetState(true);
     }
 
-    // reset env
-    resetState();
-    stepCount = 0;
-    cumReward = 0;
-    epEl.textContent = episode;
+    // safety: ensure UI updated
+    document.getElementById('episodeBadge').innerText = `Episode: ${episode}`;
   }
 
-  // schedule next frame
-  animHandle = requestAnimationFrame(updateFrame);
+  // update counters
+  state.time += 0; // already updated in physics
+
+  requestAnimationFrame(loop);
 }
 
-/* Controls */
-startBtn.addEventListener('click', ()=>{
-  running = !running;
-  if(running){
-    startBtn.textContent = "Pause";
-    // if first start, ensure state
-    if(state === null) resetEverything();
-    animHandle = requestAnimationFrame(updateFrame);
-  } else {
-    startBtn.textContent = "Start";
-    if(animHandle) cancelAnimationFrame(animHandle);
-  }
-});
+requestAnimationFrame(loop);
 
-resetBtn.addEventListener('click', ()=> resetEverything());
+// small helper to print initial policy info
+log('Simulation started. Mode: Policy. Tap controls to switch.');
 
-function resetEverything() {
-  // reinitialize network to small random weights
-  W1 = randMatrix(hiddenSize, inputSize, 0.5);
-  b1 = Array(hiddenSize).fill(0);
-  W2 = randMatrix(outputSize, hiddenSize, 0.5);
-  b2 = Array(outputSize).fill(0);
-  epStates=[]; epActions=[]; epRewards=[];
-  episode = 0; stepCount = 0; cumReward = 0;
-  lastLengths = [];
-  resetState();
-  drawScene();
-  drawNetwork(null,0);
-  epEl.textContent = "0";
-  stepEl.textContent = "0";
-  cumEl.textContent = "0";
-  lastLenEl.textContent = "0";
-  avg100El.textContent = "0";
-}
-
-resetEverything();
-
-/* Immediately show scene + net */
-drawScene();
-drawNetwork(null,1);
-
-/* clicking on scene to nudge cart */
-sceneCanvas.addEventListener('click', (e)=>{
-  const rect = sceneCanvas.getBoundingClientRect();
-  const cx = e.clientX - rect.left;
-  const worldLeft = -env.xThreshold - 0.5;
-  const worldRight = env.xThreshold + 0.5;
-  const worldWidth = worldRight - worldLeft;
-  const wx = worldLeft + (cx - 20) / (sceneCanvas.width - 40) * worldWidth;
-  state.x = Math.max(-env.xThreshold, Math.min(env.xThreshold, wx));
-});
-
-/* keyboard controls: space to toggle train/pause, r reset */
-window.addEventListener('keydown', (e)=>{
-  if(e.code === 'Space'){ startBtn.click(); e.preventDefault(); }
-  if(e.key === 'r' || e.key === 'R'){ resetBtn.click(); }
-});
+// ensure canvases sized initially
+resizeCanvases();
+drawNetworkViz(null);
 
 </script>
 </body>
