@@ -1,197 +1,721 @@
-
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>Cart-Pole Ramp Policy NN</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>CartPole Reinforce Policy + Network Visualization</title>
 <style>
-  :root{
-    --bg:#0f1720;
-    --panel:#0b1220;
-    --accent:#6ee7b7;
-    --muted:#9aa6b2;
+  :root { --bg:#0f1720; --panel:#0b1220; --muted:#9aa6b2; --accent:#7dd3fc; }
+  body {
+    margin:0;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(180deg,#071028 0%, #071827 100%);
+    color:#e6eef6;
+    -webkit-font-smoothing:antialiased;
   }
-  html,body{height:100%;margin:0;background:var(--bg);color:#e6eef6;font-family:sans-serif;}
-  #app{display:flex;flex-direction:column;height:100%;}
-  #topbar{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;font-size:14px;}
-  #main{display:flex;flex:1;gap:6px;padding:6px;box-sizing:border-box;}
-  @media(max-width:900px){#main{flex-direction:column;}}
-  .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:10px;padding:6px;flex:1;display:flex;flex-direction:column;}
-  #simPanel{flex:1.2;max-height:220px;}
-  #uiPanel{flex:1;min-height:160px;overflow:auto;}
-  canvas{width:100%;height:100%;display:block;border-radius:6px;background:#071015;}
-  #footerControls{position:fixed;left:0;right:0;bottom:0;padding:6px;display:flex;gap:6px;justify-content:center;background:rgba(0,0,0,0.4);}
-  #footerControls button{flex:1;padding:10px;border-radius:8px;}
-  button{background:#133;border:1px solid #355;color:#dff7eb;font-weight:600;font-size:14px;}
-  button.primary{background:linear-gradient(90deg,var(--accent),#4fd19a);color:#052018;}
-  .stat{font-size:12px;color:var(--muted)}
-  .bigStat{font-size:15px;font-weight:700;color:var(--accent)}
-  .networkCanvas{height:220px}
-  .sliderRow{margin-top:6px;display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);}
-  input[type=range]{flex:1;}
+  .wrap {
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    padding:12px;
+    box-sizing:border-box;
+    height:100vh;
+  }
+  .top {
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  .controls {
+    background:rgba(255,255,255,0.03);
+    padding:10px;
+    border-radius:10px;
+    display:flex;
+    gap:8px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  button, select, input[type=range] { background:#0b1220; color:#e6eef6; border:1px solid rgba(255,255,255,0.06); padding:6px 8px; border-radius:6px; }
+  button:hover { border-color: var(--accent); cursor:pointer; }
+  label { font-size:13px; color:var(--muted); margin-right:6px; }
+  .canvases {
+    display:flex;
+    gap:12px;
+    align-items:stretch;
+    flex:1;
+    min-height:0;
+  }
+  canvas { background:transparent; border-radius:10px; box-shadow: 0 6px 24px rgba(2,6,23,0.7); }
+  #scene {
+    flex:1;
+    height:100%;
+    min-width:0;
+  }
+  #net {
+    width:420px;
+    max-width:40%;
+    height:100%;
+  }
+  .info {
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    margin-left:6px;
+    min-width:220px;
+  }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .small { font-size:12px; color:var(--muted); }
+  .stat { background:rgba(255,255,255,0.03); padding:8px; border-radius:8px; min-width:110px; text-align:center; }
+  .footer { font-size:12px; color:var(--muted); margin-top:4px; }
+  input[type=number] { width:80px; padding:6px; border-radius:6px; background:#071026; color:#e6eef6; border:1px solid rgba(255,255,255,0.04); }
+  @media(max-width:900px){
+    .canvases { flex-direction:column; }
+    #net { width:100%; height:260px; max-width:none; }
+  }
 </style>
 </head>
 <body>
-<div id="app">
-  <div id="topbar">
-    <div>Cart-Pole Ramp — Policy NN</div>
-    <div class="stat" id="episodeBadge">Episode: 0</div>
-  </div>
-
-  <div id="main">
-    <div class="panel" id="simPanel">
-      <canvas id="simCanvas"></canvas>
-      <div style="display:flex;justify-content:space-between;margin-top:4px;">
-        <div>
-          <button id="manualBtn">Manual</button>
-          <button id="policyBtn" class="primary">Policy</button>
-        </div>
-        <div class="stat">Best:<span class="bigStat" id="bestScore">0</span></div>
+<div class="wrap">
+  <div class="top">
+    <div class="controls" id="controls">
+      <button id="startBtn">Start</button>
+      <button id="resetBtn">Reset</button>
+      <label class="small">Train:</label>
+      <select id="trainMode">
+        <option value="on">On (REINFORCE)</option>
+        <option value="off">Off (just run)</option>
+      </select>
+      <label class="small">Mode:</label>
+      <select id="taskMode">
+        <option value="balance">Balance Only</option>
+        <option value="move">Move-to-Target</option>
+      </select>
+      <label class="small">Force</label><input type="range" id="forceRange" min="5" max="40" value="10" />
+      <label class="small">LR</label><input type="number" id="lr" step="0.0005" value="0.003" />
+      <label class="small">γ</label><input type="number" id="gamma" step="0.01" value="0.99" />
+    </div>
+    <div class="info">
+      <div class="row">
+        <div class="stat"><div style="font-size:14px">Episode</div><div id="ep" style="font-weight:600">0</div></div>
+        <div class="stat"><div style="font-size:14px">Step</div><div id="step" style="font-weight:600">0</div></div>
+        <div class="stat"><div style="font-size:14px">Reward</div><div id="cum" style="font-weight:600">0</div></div>
       </div>
-      <div class="sliderRow">
-        <label for="angleSlider">Ramp Angle:</label>
-        <input type="range" id="angleSlider" min="0" max="15" step="1" value="5">
-        <span id="angleValue">5°</span>
+      <div class="row">
+        <div class="small">Episode len: <span id="lastLen">0</span></div>
+        <div class="small">Avg reward(100): <span id="avg100">0</span></div>
+      </div>
+      <div class="row">
+        <label class="small">Target X</label>
+        <input id="targetX" type="range" min="-2.4" max="2.4" step="0.05" value="0" />
+        <span class="small" id="targetVal">0.00</span>
       </div>
     </div>
-
-    <div class="panel" id="uiPanel">
-      <label>Network</label>
-      <canvas id="netCanvas" class="networkCanvas"></canvas>
-      <div id="info" style="font-size:12px;color:var(--muted);margin-top:6px;white-space:pre-line;">Ready.</div>
-    </div>
   </div>
 
-  <div id="footerControls">
-    <button id="leftTouch">◀ Left</button>
-    <button id="rightTouch">Right ▶</button>
+  <div class="canvases">
+    <canvas id="scene"></canvas>
+    <canvas id="net" width="420" height="460"></canvas>
+  </div>
+
+  <div class="footer">
+    Reinforce policy gradient demo — 4 inputs (x, x_dot, theta, theta_dot) → 6 hidden → 3 outputs (left, none, right).
   </div>
 </div>
 
 <script>
-const simCanvas=document.getElementById('simCanvas');
-const netCanvas=document.getElementById('netCanvas');
-const simCtx=simCanvas.getContext('2d');
-const netCtx=netCanvas.getContext('2d');
-function resize(){
-  simCanvas.width=simCanvas.clientWidth*devicePixelRatio;
-  simCanvas.height=simCanvas.clientHeight*devicePixelRatio;
-  netCanvas.width=netCanvas.clientWidth*devicePixelRatio;
-  netCanvas.height=netCanvas.clientHeight*devicePixelRatio;
+/* ---------------------------------------
+   Cart-Pole physics + REINFORCE policy
+   --------------------------------------- */
+
+const sceneCanvas = document.getElementById('scene');
+const netCanvas = document.getElementById('net');
+const sctx = sceneCanvas.getContext('2d');
+const nctx = netCanvas.getContext('2d');
+
+function resize() {
+  const rect = document.querySelector('.canvases').getBoundingClientRect();
+  sceneCanvas.width = Math.max(360, rect.width - 440);
+  sceneCanvas.height = rect.height;
+  // keep net canvas aspect via css sizes
 }
-window.addEventListener('resize',resize);resize();
+window.addEventListener('resize', resize);
+resize();
 
-let slopeDeg=5;
-let slope=slopeDeg*Math.PI/180;
-const cart={M:1,m:0.1,L:0.6};
-const X_MIN=-3,X_MAX=3.5,dt=1/60,g=9.81;
-let state={x:-2.5,vx:0,theta:0.05,thetaDot:0};
+/* UI elements */
+const startBtn = document.getElementById('startBtn');
+const resetBtn = document.getElementById('resetBtn');
+const trainMode = document.getElementById('trainMode');
+const taskMode = document.getElementById('taskMode');
+const lrInput = document.getElementById('lr');
+const gammaInput = document.getElementById('gamma');
+const forceRange = document.getElementById('forceRange');
+const epEl = document.getElementById('ep');
+const stepEl = document.getElementById('step');
+const cumEl = document.getElementById('cum');
+const lastLenEl = document.getElementById('lastLen');
+const avg100El = document.getElementById('avg100');
+const targetXInput = document.getElementById('targetX');
+const targetVal = document.getElementById('targetVal');
 
-class PolicyNet{
-  constructor(inp=6,hid=8){this.i=inp;this.h=hid;this.W1=new Float32Array(hid*inp).map(()=>Math.random()*0.4-0.2);this.b1=new Float32Array(hid);this.W2=new Float32Array(hid).map(()=>Math.random()*0.4-0.2);this.b2=0;}
-  forward(a){let h=new Float32Array(this.h);for(let i=0;i<this.h;i++){let s=this.b1[i];for(let j=0;j<this.i;j++)s+=this.W1[i*this.i+j]*a[j];h[i]=Math.tanh(s);}let o=this.b2;for(let i=0;i<this.h;i++)o+=this.W2[i]*h[i];return{y:Math.tanh(o),h};}
+targetXInput.addEventListener('input', ()=> targetVal.textContent = parseFloat(targetXInput.value).toFixed(2));
+
+/* Physics parameters (similar to classic cart-pole) */
+const env = {
+  gravity: 9.8,
+  massCart: 1.0,
+  massPole: 0.1,
+  poleLength: 0.5, // half-length (distance to center of mass)
+  dt: 0.02,
+  xThreshold: 2.4, // cart position limit
+  thetaThreshold: 12 * Math.PI/180, // ~12 degrees
+  maxSteps: 1000
+};
+
+/* State: x, x_dot, theta, theta_dot */
+let state = null;
+
+function randUniform(a,b) { return a + (b-a)*Math.random(); }
+function resetState() {
+  // small random initial angle
+  state = {
+    x: randUniform(-0.05, 0.05),
+    x_dot: 0,
+    theta: randUniform(-0.05, 0.05),
+    theta_dot: 0
+  };
 }
-const policy=new PolicyNet();
-let bestScore=0;document.getElementById('bestScore').innerText=bestScore;
 
-function stepPhysics(force){
-  const F=force*10;
-  const {M,m,L}=cart;
-  let{theta,thetaDot,vx}=state;
-  const num=g*Math.sin(theta+slope)+Math.cos(theta)*(-F-m*L*thetaDot*thetaDot*Math.sin(theta));
-  const den=L*(4/3-(m*Math.cos(theta)**2)/(M+m));
-  const thetaDD=num/den;
-  const xDD=(F+m*L*(thetaDot*thetaDot*Math.sin(theta)-thetaDD*Math.cos(theta)))/(M+m);
-  state.vx+=xDD*dt;state.x+=state.vx*dt;state.thetaDot+=thetaDD*dt;state.theta+=state.thetaDot*dt;
+/* Policy network */
+function zeros(rows,cols){ const a=[]; for(let i=0;i<rows;i++){ a.push(Array(cols).fill(0)); } return a; }
+function randMatrix(rows,cols,scale=1){ const a=[]; for(let i=0;i<rows;i++){ const r=[]; for(let j=0;j<cols;j++) r.push((Math.random()*2-1)*scale); a.push(r);} return a; }
+function matVecMul(mat, vec){
+  const out = new Array(mat.length);
+  for(let i=0;i<mat.length;i++){
+    let s = 0;
+    for(let j=0;j<vec.length;j++) s += mat[i][j]*vec[j];
+    out[i]=s;
+  }
+  return out;
+}
+function addVec(a,b){ return a.map((v,i)=>v+b[i]); }
+function softmax(logits){
+  const max = Math.max(...logits);
+  const ex = logits.map(v=>Math.exp(v-max));
+  const s = ex.reduce((a,b)=>a+b,0);
+  return ex.map(v=>v/s);
+}
+function tanhVec(v){ return v.map(x=>Math.tanh(x)); }
+function dtanhVec(v){ return v.map(x=>1 - Math.tanh(x)**2); }
+
+/* Network architecture */
+const inputSize = 4;
+const hiddenSize = 6;
+const outputSize = 3;
+
+/* Parameters (weights, biases) */
+let W1 = randMatrix(hiddenSize, inputSize, 0.5);
+let b1 = Array(hiddenSize).fill(0);
+let W2 = randMatrix(outputSize, hiddenSize, 0.5);
+let b2 = Array(outputSize).fill(0);
+
+/* Episode memory for policy gradient */
+let epStates = [];
+let epActions = [];
+let epRewards = [];
+
+/* Running stats */
+let episode = 0;
+let stepCount = 0;
+let cumReward = 0;
+let lastLengths = [];
+let running = false;
+let animHandle = null;
+let baseline = 0; // simple baseline to reduce variance
+
+/* Forward pass returns logits, probs, hidden activations */
+function policyForward(s) {
+  const x = s.slice();
+  const z1 = matVecMul(W1, x).map((v,i)=>v + b1[i]);
+  const h = tanhVec(z1);
+  const z2 = matVecMul(W2, h).map((v,i)=>v + b2[i]);
+  const probs = softmax(z2);
+  return {x, z1, h, z2, probs};
 }
 
-let mode='policy',manualForce=0,episode=0,steps=0;
-document.getElementById('manualBtn').onclick=()=>{mode='manual';};
-document.getElementById('policyBtn').onclick=()=>{mode='policy';};
-document.getElementById('leftTouch').onpointerdown=()=>manualForce=-1;
-document.getElementById('leftTouch').onpointerup=()=>manualForce=0;
-document.getElementById('rightTouch').onpointerdown=()=>manualForce=1;
-document.getElementById('rightTouch').onpointerup=()=>manualForce=0;
-
-document.getElementById('angleSlider').addEventListener('input',e=>{
-  slopeDeg=+e.target.value;
-  slope=slopeDeg*Math.PI/180;
-  document.getElementById('angleValue').innerText=slopeDeg+"°";
-});
-
-function resetEpisode(){
-  state={x:-2.5,vx:0,theta:(Math.random()-0.5)*0.2,thetaDot:0};
-  steps=0;episode++;document.getElementById('episodeBadge').innerText="Episode: "+episode;
+/* Sample action from probs */
+function sampleAction(probs){
+  const r = Math.random();
+  let acc = 0;
+  for(let i=0;i<probs.length;i++){
+    acc += probs[i];
+    if(r < acc) return i;
+  }
+  return probs.length-1;
 }
-function draw(){
-  simCtx.setTransform(1,0,0,1,0,0);simCtx.clearRect(0,0,simCanvas.width,simCanvas.height);
-  const w=simCanvas.width,h=simCanvas.height,DPR=devicePixelRatio;
-  const pxpm=(w*0.7)/(X_MAX-X_MIN);
-  const ox=w*0.15,oy=h*0.8;
-  const len=(X_MAX-X_MIN)*pxpm;
-  simCtx.strokeStyle="rgba(150,255,200,0.15)";simCtx.lineWidth=4;
-  simCtx.beginPath();simCtx.moveTo(ox,oy);simCtx.lineTo(ox+Math.cos(-slope)*len,oy+Math.sin(-slope)*len);simCtx.stroke();
-  const cx=ox+(state.x-X_MIN)*pxpm*Math.cos(-slope);
-  const cy=oy+(state.x-X_MIN)*pxpm*Math.sin(-slope);
-  simCtx.save();simCtx.translate(cx,cy);simCtx.rotate(-slope);
-  simCtx.fillStyle="#2ca58d";simCtx.fillRect(-25*DPR,-12*DPR,50*DPR,24*DPR);
-  const tipX=Math.sin(-(state.theta+slope))*80,tipY=-Math.cos(-(state.theta+slope))*80;
-  simCtx.strokeStyle="#ffd66b";simCtx.lineWidth=4;simCtx.beginPath();simCtx.moveTo(0,-12*DPR);simCtx.lineTo(tipX,tipY-12*DPR);simCtx.stroke();
-  simCtx.restore();
+
+/* Apply action to environment: 0=left,1=none,2=right -> force */
+function stepEnv(action, forceMag, modeTarget, targetX) {
+  const force = (action===0? -forceMag : (action===2? forceMag : 0));
+  // classic cartpole dynamics (approx Euler)
+  const {gravity, massCart, massPole, poleLength, dt} = env;
+  const totalMass = massCart + massPole;
+  const theta = state.theta;
+  const theta_dot = state.theta_dot;
+  const x = state.x;
+  const x_dot = state.x_dot;
+
+  // equations from OpenAI Gym cartpole (simplified)
+  const costheta = Math.cos(theta);
+  const sintheta = Math.sin(theta);
+
+  const temp = (force + massPole * poleLength * theta_dot*theta_dot * sintheta) / totalMass;
+  const thetaacc = (gravity * sintheta - costheta * temp) / (poleLength * (4.0/3.0 - massPole * costheta*costheta / totalMass));
+  const xacc = temp - massPole * poleLength * thetaacc * costheta / totalMass;
+
+  // integrate
+  state.x += dt * x_dot;
+  state.x_dot += dt * xacc;
+  state.theta += dt * theta_dot;
+  state.theta_dot += dt * thetaacc;
+
+  // reward shaping
+  let reward = 1.0; // encourage longer balancing
+
+  // mode: if move-to-target, give bonus for being close to target x
+  if(modeTarget){
+    const dist = Math.abs(state.x - targetX);
+    // reward component inversely proportional to distance (clip)
+    reward += Math.max(0, 1 - dist); // between 0 and 1+
+  }
+
+  // check done
+  const done = (state.x < -env.xThreshold) || (state.x > env.xThreshold) || (Math.abs(state.theta) > env.thetaThreshold);
+
+  return {done, reward};
 }
-function drawNetwork(inputs,hid){
-  const w=netCanvas.width,h=netCanvas.height,DPR=devicePixelRatio;
-  netCtx.setTransform(1,0,0,1,0,0);netCtx.clearRect(0,0,w,h);
-  const margin=40*DPR;
-  const inputX=margin,hiddenX=w/2,outputX=w-margin;
-  for(let i=0;i<policy.i;i++){
-    for(let j=0;j<policy.h;j++){
-      netCtx.strokeStyle="rgba(80,120,140,0.3)";
-      netCtx.beginPath();netCtx.moveTo(inputX,margin+i*20*DPR);netCtx.lineTo(hiddenX,margin+j*20*DPR);netCtx.stroke();
+
+/* REINFORCE update at episode end */
+function finishEpisode(learningRate, gamma) {
+  // compute discounted returns
+  const T = epRewards.length;
+  const returns = Array(T).fill(0);
+  let G = 0;
+  for(let t=T-1;t>=0;t--){
+    G = epRewards[t] + gamma * G;
+    returns[t] = G;
+  }
+  // normalize returns to reduce variance
+  const mean = returns.reduce((a,b)=>a+b,0)/returns.length;
+  const std = Math.sqrt(Math.max(1e-8, returns.map(r => (r-mean)**2).reduce((a,b)=>a+b,0)/returns.length));
+  const normReturns = returns.map(r=>(r-mean)/(std+1e-8));
+
+  // accumulate grads
+  const dW2 = zeros(outputSize, hiddenSize);
+  const db2 = Array(outputSize).fill(0);
+  const dW1 = zeros(hiddenSize, inputSize);
+  const db1 = Array(hiddenSize).fill(0);
+
+  for(let t=0;t<T;t++){
+    const s = epStates[t]; // array length 4
+    const action = epActions[t];
+    // forward pass for t
+    const {x, z1, h, z2, probs} = policyForward(s);
+    // gradient of log pi wrt logits z2: one_hot - probs
+    const gradLogZ2 = Array(outputSize).fill(0);
+    for(let k=0;k<outputSize;k++){
+      gradLogZ2[k] = (k===action? 1 : 0) - probs[k];
+    }
+    // scale by return (using normalized returns)
+    const R = normReturns[t];
+
+    // dW2 += outer(gradLogZ2 * R, h)
+    for(let i=0;i<outputSize;i++){
+      for(let j=0;j<hiddenSize;j++){
+        dW2[i][j] += (gradLogZ2[i] * R) * h[j];
+      }
+      db2[i] += gradLogZ2[i] * R;
+    }
+
+    // backprop to hidden: delta_hidden = (W2^T * gradLogZ2) * dtanh(z1)
+    const dtanh = dtanhVec(z1);
+    const hiddenDelta = Array(hiddenSize).fill(0);
+    for(let j=0;j<hiddenSize;j++){
+      let ssum = 0;
+      for(let i=0;i<outputSize;i++) ssum += W2[i][j] * gradLogZ2[i];
+      hiddenDelta[j] = ssum * dtanh[j] * R;
+    }
+    // dW1 += outer(hiddenDelta, x)
+    for(let j=0;j<hiddenSize;j++){
+      for(let m=0;m<inputSize;m++){
+        dW1[j][m] += hiddenDelta[j] * x[m];
+      }
+      db1[j] += hiddenDelta[j];
     }
   }
-  for(let j=0;j<policy.h;j++){
-    netCtx.strokeStyle="rgba(80,120,140,0.3)";
-    netCtx.beginPath();netCtx.moveTo(hiddenX,margin+j*20*DPR);netCtx.lineTo(outputX,h/2);netCtx.stroke();
+
+  // Apply gradient ascent (since we maximize expected return)
+  for(let i=0;i<outputSize;i++){
+    for(let j=0;j<hiddenSize;j++){
+      W2[i][j] += learningRate * dW2[i][j];
+    }
+    b2[i] += learningRate * db2[i];
   }
-  for(let i=0;i<policy.i;i++){
-    netCtx.fillStyle="white";netCtx.beginPath();netCtx.arc(inputX,margin+i*20*DPR,5*DPR,0,Math.PI*2);netCtx.fill();
+  for(let i=0;i<hiddenSize;i++){
+    for(let j=0;j<inputSize;j++){
+      W1[i][j] += learningRate * dW1[i][j];
+    }
+    b1[i] += learningRate * db1[i];
   }
-  for(let j=0;j<policy.h;j++){
-    const a=hid?hid[j]:0;const c=Math.floor((a*127+128));netCtx.fillStyle=`rgb(${c},${200-c},180)`;netCtx.beginPath();netCtx.arc(hiddenX,margin+j*20*DPR,6*DPR,0,Math.PI*2);netCtx.fill();
-  }
-  netCtx.fillStyle="#ffd66b";netCtx.beginPath();netCtx.arc(outputX,h/2,8*DPR,0,Math.PI*2);netCtx.fill();
+
+  // clear episode memory
+  epStates = [];
+  epActions = [];
+  epRewards = [];
 }
 
-// Training/simulation speed control
-let training=true;
-const TRAIN_EPISODES=7777;
-const FAST_STEPS=20; // steps per frame during training
+/* Visualization helpers */
+function drawScene() {
+  const cw = sceneCanvas.width;
+  const ch = sceneCanvas.height;
+  sctx.clearRect(0,0,cw,ch);
 
-function loop(){
-  if(training){
-    for(let k=0;k<FAST_STEPS;k++){
-      let res=policy.forward([Math.sin(state.theta),Math.cos(state.theta),state.thetaDot,(state.x-X_MIN)/(X_MAX-X_MIN)*2-1,Math.tanh(state.vx/5),Math.sin(slope)]);
-      stepPhysics(res.y);
-      steps++;
-      if(Math.abs(state.theta)>0.5||state.x<X_MIN||state.x>X_MAX){
-        if(steps>bestScore){bestScore=steps;document.getElementById('bestScore').innerText=bestScore;}
-        resetEpisode();
-        if(episode>=TRAIN_EPISODES){training=false;resetEpisode();}
+  // coordinate transform: world x in [-xThreshold,xThreshold] -> canvas
+  const worldLeft = -env.xThreshold - 0.5;
+  const worldRight = env.xThreshold + 0.5;
+  const margin = 20;
+  const worldWidth = worldRight - worldLeft;
+  function worldToCanvasX(wx) {
+    return margin + (wx - worldLeft) / worldWidth * (cw - margin*2);
+  }
+
+  const groundY = ch*0.78;
+  // draw ground
+  sctx.fillStyle = "#081226";
+  sctx.fillRect(0, groundY, cw, ch-groundY);
+
+  // target marker
+  if(taskMode.value === 'move'){
+    const tx = parseFloat(targetXInput.value);
+    const cx = worldToCanvasX(tx);
+    sctx.strokeStyle = "#ffdc6b";
+    sctx.lineWidth = 2;
+    sctx.beginPath();
+    sctx.moveTo(cx, groundY);
+    sctx.lineTo(cx, groundY-60);
+    sctx.stroke();
+    sctx.fillStyle = "rgba(255,220,107,0.12)";
+    sctx.beginPath();
+    sctx.ellipse(cx, groundY-70, 14, 10, 0, 0, Math.PI*2);
+    sctx.fill();
+  }
+
+  // cart position
+  const cx = worldToCanvasX(state.x);
+  const cartW = 80;
+  const cartH = 36;
+  // rails
+  sctx.strokeStyle = "rgba(255,255,255,0.05)";
+  sctx.lineWidth = 2;
+  sctx.beginPath();
+  sctx.moveTo(margin, groundY+18);
+  sctx.lineTo(cw-margin, groundY+18);
+  sctx.stroke();
+
+  // cart body
+  sctx.save();
+  sctx.translate(cx, groundY - cartH/2 - 10);
+  sctx.fillStyle = "#1b2634";
+  sctx.strokeStyle = "#4fb5e6";
+  sctx.lineWidth = 2;
+  sctx.fillRect(-cartW/2, -cartH/2, cartW, cartH);
+  sctx.strokeRect(-cartW/2, -cartH/2, cartW, cartH);
+
+  // wheels
+  sctx.fillStyle = "#071021";
+  sctx.beginPath(); sctx.arc(-cartW*0.32, cartH/2, 10, 0, Math.PI*2); sctx.fill();
+  sctx.beginPath(); sctx.arc(cartW*0.32, cartH/2, 10, 0, Math.PI*2); sctx.fill();
+  sctx.restore();
+
+  // pole
+  const poleLenPixels = 120;
+  const angle = state.theta;
+  const px = cx + Math.sin(angle) * poleLenPixels;
+  const py = (groundY - cartH/2 - 10) - Math.cos(angle) * poleLenPixels;
+  // pole shadow
+  sctx.strokeStyle = "#cfeffd";
+  sctx.lineWidth = 4;
+  sctx.beginPath();
+  sctx.moveTo(cx, groundY - cartH/2 - 10);
+  sctx.lineTo(px, py);
+  sctx.stroke();
+
+  // pole tip
+  sctx.fillStyle = "#ffcc5c";
+  sctx.beginPath();
+  sctx.arc(px, py, 8, 0, Math.PI*2);
+  sctx.fill();
+
+  // HUD text
+  sctx.fillStyle = "#b9d7ee";
+  sctx.font = "13px Inter, Arial";
+  sctx.fillText(`x: ${state.x.toFixed(2)}`, 12, 18);
+  sctx.fillText(`x_dot: ${state.x_dot.toFixed(2)}`, 12, 34);
+  sctx.fillText(`theta: ${(state.theta*180/Math.PI).toFixed(2)}°`, 12, 50);
+  sctx.fillText(`theta_dot: ${state.theta_dot.toFixed(2)}`, 12, 66);
+}
+
+/* draw network visualization */
+function drawNetwork(lastForward, chosenAction) {
+  const W = netCanvas.width;
+  const H = netCanvas.height;
+  nctx.clearRect(0,0,W,H);
+
+  // layout nodes
+  const leftX = 60;
+  const midX = W/2;
+  const rightX = W-60;
+  const inputYs = [];
+  const hiddenYs = [];
+  const outputYs = [];
+
+  for(let i=0;i<inputSize;i++) inputYs.push(60 + i*60);
+  for(let i=0;i<hiddenSize;i++) hiddenYs.push(40 + i*54);
+  for(let i=0;i<outputSize;i++) outputYs.push(H/2 - 40 + i*60);
+
+  // draw links from input to hidden
+  if(lastForward){
+    const activations = lastForward.h;
+    const probs = lastForward.probs;
+    // draw connections W1
+    for(let i=0;i<hiddenSize;i++){
+      for(let j=0;j<inputSize;j++){
+        const x1 = leftX;
+        const y1 = inputYs[j];
+        const x2 = midX;
+        const y2 = hiddenYs[i];
+        const w = W1[i][j];
+        const mag = Math.min(1, Math.abs(w)/1.5);
+        nctx.beginPath();
+        nctx.moveTo(x1+20, y1);
+        nctx.lineTo(x2-18, y2);
+        nctx.lineWidth = 1 + mag*2;
+        nctx.strokeStyle = (w>=0? `rgba(124, 58, 237, ${0.25+mag*0.75})` : `rgba(255,100,100, ${0.25+mag*0.75})`);
+        nctx.stroke();
       }
     }
-    draw();
+    // draw connections W2
+    for(let i=0;i<outputSize;i++){
+      for(let j=0;j<hiddenSize;j++){
+        const x1 = midX;
+        const y1 = hiddenYs[j];
+        const x2 = rightX;
+        const y2 = outputYs[i];
+        const w = W2[i][j];
+        const mag = Math.min(1, Math.abs(w)/1.5);
+        nctx.beginPath();
+        nctx.moveTo(x1+20, y1);
+        nctx.lineTo(x2-18, y2);
+        nctx.lineWidth = 1 + mag*2;
+        nctx.strokeStyle = (w>=0? `rgba(124, 58, 237, ${0.25+mag*0.75})` : `rgba(255,100,100, ${0.25+mag*0.75})`);
+        nctx.stroke();
+      }
+    }
+
+    // draw input nodes
+    for(let i=0;i<inputSize;i++){
+      const x = leftX;
+      const y = inputYs[i];
+      nctx.beginPath();
+      nctx.fillStyle = "#082131";
+      nctx.strokeStyle = "#7dd3fc";
+      nctx.lineWidth = 1;
+      nctx.ellipse(x, y, 20, 20, 0, 0, Math.PI*2);
+      nctx.fill();
+      nctx.stroke();
+      // show input value
+      const labels = ["x","x_dot","theta","theta_dot"];
+      let val = lastForward.x[i];
+      nctx.fillStyle = "#bfe8ff";
+      nctx.font = "12px Inter, Arial";
+      nctx.fillText(`${labels[i]}: ${val.toFixed(2)}`, x-28, y+36);
+    }
+
+    // draw hidden nodes with activations
+    for(let i=0;i<hiddenSize;i++){
+      const x = midX;
+      const y = hiddenYs[i];
+      const a = lastForward.h[i];
+      const brightness = Math.min(1, Math.abs(a));
+      const fill = `rgba(124,58,237, ${0.12 + 0.7*brightness})`;
+      nctx.beginPath();
+      nctx.fillStyle = fill;
+      nctx.strokeStyle = "#8b5cf6";
+      nctx.lineWidth = 1;
+      nctx.ellipse(x, y, 22, 22, 0, 0, Math.PI*2);
+      nctx.fill();
+      nctx.stroke();
+      nctx.fillStyle = a>=0? "#dbeafe" : "#ffdede";
+      nctx.font = "12px Inter, Arial";
+      nctx.fillText(a.toFixed(2), x-18, y+36);
+    }
+
+    // draw output nodes and highlight chosen
+    const actionLabels = ["←","•","→"];
+    for(let i=0;i<outputSize;i++){
+      const x = rightX;
+      const y = outputYs[i];
+      const prob = lastForward.probs[i];
+      const size = 20 + prob*18;
+      nctx.beginPath();
+      nctx.fillStyle = (i===chosenAction? "rgba(255,230,140,0.95)" : "rgba(255,255,255,0.06)");
+      nctx.strokeStyle = (i===chosenAction? "#ffb86b" : "#6ee7b7");
+      nctx.lineWidth = (i===chosenAction?3:1);
+      nctx.ellipse(x, y, size, size, 0, 0, Math.PI*2);
+      nctx.fill();
+      nctx.stroke();
+      nctx.fillStyle = (i===chosenAction? "#0b1220" : "#e6f6ff");
+      nctx.font = "18px Inter, Arial";
+      nctx.fillText(actionLabels[i], x-8, y+6);
+      nctx.fillStyle = "#bcd9ea";
+      nctx.font = "12px Inter, Arial";
+      nctx.fillText((prob*100).toFixed(1)+"%", x-18, y+size+14);
+    }
   } else {
-    let res=policy.forward([Math.sin(state.theta),Math.cos(state.theta),state.thetaDot,(state.x-X_MIN)/(X_MAX-X_MIN)*2-1,Math.tanh(state.vx/5),Math.sin(slope)]);
-    stepPhysics(res.y);
-    draw();drawNetwork(null,res.h);
-    steps++;
-    if(Math.abs(state.theta)>0.5||state.x<X_MIN||state.x>X_MAX){resetEpisode();}
+    nctx.fillStyle = "#081024";
+    nctx.fillRect(0,0,W,H);
+    nctx.fillStyle = "#9fbad0";
+    nctx.font = "14px Inter";
+    nctx.fillText("Network will appear once simulation starts.", 16, 28);
   }
-  requestAnimationFrame(loop);
 }
-resetEpisode();loop();
+
+/* main loop */
+let lastForward = null;
+let lastChosen = 1;
+
+function updateFrame() {
+  if(!running) return;
+
+  const forceMag = parseFloat(forceRange.value);
+  const learningOn = trainMode.value === 'on';
+  const modeTarget = taskMode.value === 'move';
+  const targetX = parseFloat(targetXInput.value);
+  const lr = parseFloat(lrInput.value);
+  const gamma = parseFloat(gammaInput.value);
+
+  // get state vector (normalize somewhat)
+  const svec = [state.x/2.4, state.x_dot/10, state.theta/0.2, state.theta_dot/5];
+
+  // forward pass
+  const forward = policyForward(svec);
+  const action = sampleAction(forward.probs);
+  lastForward = forward;
+  lastChosen = action;
+
+  // record
+  epStates.push(svec);
+  epActions.push(action);
+
+  // step env
+  const {done, reward} = stepEnv(action, forceMag, modeTarget, targetX);
+  epRewards.push(reward);
+  cumReward += reward;
+  stepCount++;
+  epEl.textContent = episode;
+  stepEl.textContent = stepCount;
+  cumEl.textContent = cumReward.toFixed(1);
+
+  // render
+  drawScene();
+  drawNetwork(lastForward, lastChosen);
+
+  // episode end
+  if(done || stepCount >= env.maxSteps){
+    // update stats
+    episode++;
+    lastLengths.push(stepCount);
+    if(lastLengths.length>100) lastLengths.shift();
+    const avg = lastLengths.reduce((a,b)=>a+b,0)/lastLengths.length;
+    lastLenEl.textContent = stepCount;
+    avg100El.textContent = avg.toFixed(1);
+
+    // train update
+    if(learningOn){
+      finishEpisode(lr, gamma);
+    } else {
+      // clear memory
+      epStates = []; epActions = []; epRewards = [];
+    }
+
+    // reset env
+    resetState();
+    stepCount = 0;
+    cumReward = 0;
+    epEl.textContent = episode;
+  }
+
+  // schedule next frame
+  animHandle = requestAnimationFrame(updateFrame);
+}
+
+/* Controls */
+startBtn.addEventListener('click', ()=>{
+  running = !running;
+  if(running){
+    startBtn.textContent = "Pause";
+    // if first start, ensure state
+    if(state === null) resetEverything();
+    animHandle = requestAnimationFrame(updateFrame);
+  } else {
+    startBtn.textContent = "Start";
+    if(animHandle) cancelAnimationFrame(animHandle);
+  }
+});
+
+resetBtn.addEventListener('click', ()=> resetEverything());
+
+function resetEverything() {
+  // reinitialize network to small random weights
+  W1 = randMatrix(hiddenSize, inputSize, 0.5);
+  b1 = Array(hiddenSize).fill(0);
+  W2 = randMatrix(outputSize, hiddenSize, 0.5);
+  b2 = Array(outputSize).fill(0);
+  epStates=[]; epActions=[]; epRewards=[];
+  episode = 0; stepCount = 0; cumReward = 0;
+  lastLengths = [];
+  resetState();
+  drawScene();
+  drawNetwork(null,0);
+  epEl.textContent = "0";
+  stepEl.textContent = "0";
+  cumEl.textContent = "0";
+  lastLenEl.textContent = "0";
+  avg100El.textContent = "0";
+}
+
+resetEverything();
+
+/* Immediately show scene + net */
+drawScene();
+drawNetwork(null,1);
+
+/* clicking on scene to nudge cart */
+sceneCanvas.addEventListener('click', (e)=>{
+  const rect = sceneCanvas.getBoundingClientRect();
+  const cx = e.clientX - rect.left;
+  const worldLeft = -env.xThreshold - 0.5;
+  const worldRight = env.xThreshold + 0.5;
+  const worldWidth = worldRight - worldLeft;
+  const wx = worldLeft + (cx - 20) / (sceneCanvas.width - 40) * worldWidth;
+  state.x = Math.max(-env.xThreshold, Math.min(env.xThreshold, wx));
+});
+
+/* keyboard controls: space to toggle train/pause, r reset */
+window.addEventListener('keydown', (e)=>{
+  if(e.code === 'Space'){ startBtn.click(); e.preventDefault(); }
+  if(e.key === 'r' || e.key === 'R'){ resetBtn.click(); }
+});
+
 </script>
 </body>
 </html>
