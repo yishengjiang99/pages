@@ -3,715 +3,164 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>Cart-Pole on a Ramp — Policy NN</title>
+<title>Cart-Pole Ramp Policy NN</title>
 <style>
   :root{
     --bg:#0f1720;
     --panel:#0b1220;
     --accent:#6ee7b7;
     --muted:#9aa6b2;
-    --danger:#ff6b6b;
   }
-  html,body{height:100%;margin:0;background:var(--bg);color:#e6eef6;font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+  html,body{height:100%;margin:0;background:var(--bg);color:#e6eef6;font-family:sans-serif;}
   #app{display:flex;flex-direction:column;height:100%;}
-  #topbar{
-    display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);
-    border-bottom:1px solid rgba(255,255,255,0.02);
-    gap:8px;
-  }
-  #title{font-weight:600;font-size:16px}
-  .small{font-size:12px;color:var(--muted)}
-  #main{display:flex;flex:1;gap:8px;padding:8px;box-sizing:border-box;}
-  /* On narrow screens stack */
-  @media (max-width:900px){
-    #main{flex-direction:column;padding:6px;}
-  }
-  .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent);border-radius:12px;padding:8px;box-sizing:border-box;flex:1;display:flex;flex-direction:column;gap:8px;min-height:0;}
-  #simPanel{flex:2;min-height:200px;display:flex;flex-direction:column;}
+  #topbar{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;font-size:14px;}
+  #main{display:flex;flex:1;gap:6px;padding:6px;box-sizing:border-box;}
+  @media(max-width:900px){#main{flex-direction:column;}}
+  .panel{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);border-radius:10px;padding:6px;flex:1;display:flex;flex-direction:column;}
+  #simPanel{flex:1.2;max-height:220px;} /* smaller sim panel */
   #uiPanel{flex:1;min-height:160px;overflow:auto;}
-  canvas{width:100%;height:100%;display:block;border-radius:8px;background:linear-gradient(180deg,#081018,#071015);}
-  #controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-  button{
-    background:transparent;border:1px solid rgba(255,255,255,0.06);padding:10px 14px;border-radius:10px;color:#dff7eb;font-weight:600;font-size:15px;
-    min-width:60px;
-  }
-  button.big{padding:14px 18px;font-size:16px;border-radius:12px;}
-  button.primary{background:linear-gradient(90deg,var(--accent),#4fd19a);color:#052018;border:0;}
-  .tog{display:inline-flex;align-items:center;gap:6px;padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
-  #footerControls{position:fixed;left:0;right:0;bottom:0;padding:8px;background:linear-gradient(180deg, rgba(0,0,0,0.2), rgba(0,0,0,0.6));display:flex;gap:8px;justify-content:center;z-index:40;}
-  #footerControls button{flex:1;min-width:60px}
-  .stat{font-size:13px;color:var(--muted)}
-  .bigStat{font-size:18px;font-weight:700;color:var(--accent)}
-  .networkCanvas{height:260px}
-  .row{display:flex;gap:8px;align-items:center;justify-content:space-between;}
-  label{font-size:13px;color:var(--muted)}
-  input[type=range]{width:100%}
-  .muted{color:var(--muted)}
-  #info{font-size:13px;white-space:pre-line;overflow:auto;max-height:150px;}
+  canvas{width:100%;height:100%;display:block;border-radius:6px;background:#071015;}
+  #footerControls{position:fixed;left:0;right:0;bottom:0;padding:6px;display:flex;gap:6px;justify-content:center;background:rgba(0,0,0,0.4);}
+  #footerControls button{flex:1;padding:10px;border-radius:8px;}
+  button{background:#133;border:1px solid #355;color:#dff7eb;font-weight:600;font-size:14px;}
+  button.primary{background:linear-gradient(90deg,var(--accent),#4fd19a);color:#052018;}
+  .stat{font-size:12px;color:var(--muted)}
+  .bigStat{font-size:15px;font-weight:700;color:var(--accent)}
+  .networkCanvas{height:220px}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="topbar">
-    <div>
-      <div id="title">Cart-Pole on a Ramp — Policy NN</div>
-      <div class="small">Trolley climbs the ramp while balancing the pole</div>
-    </div>
-    <div class="small" id="episodeBadge">Episode: 0</div>
+    <div>Cart-Pole Ramp — Policy NN</div>
+    <div class="stat" id="episodeBadge">Episode: 0</div>
   </div>
 
   <div id="main">
     <div class="panel" id="simPanel">
       <canvas id="simCanvas"></canvas>
-      <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
-        <div class="stat">Mode:</div>
-        <div class="tog" id="modeToggle">
-          <button id="manualBtn" class="big">Manual</button>
-          <button id="policyBtn" class="big primary">Policy</button>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;">
+        <div>
+          <button id="manualBtn">Manual</button>
+          <button id="policyBtn" class="primary">Policy</button>
         </div>
-        <div style="flex:1"></div>
-        <div class="stat">Best score:</div>
-        <div class="bigStat" id="bestScore">0</div>
+        <div class="stat">Best:<span class="bigStat" id="bestScore">0</span></div>
       </div>
     </div>
 
     <div class="panel" id="uiPanel">
-      <div class="row">
-        <div style="flex:1">
-          <label>Ramp angle (deg)</label>
-          <input id="slopeSlider" type="range" min="-12" max="12" step="0.5" value="6">
-        </div>
-        <div style="width:12px"></div>
-        <div style="flex:1">
-          <label>Max training mutations / episode</label>
-          <input id="mutSlider" type="range" min="0" max="200" step="10" value="40">
-        </div>
-      </div>
-
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <button id="resetBtn">Reset Episode</button>
-        <button id="mutateBtn">Mutate & Try</button>
-        <button id="toggleTrain">Train: ON</button>
-      </div>
-
-      <div style="margin-top:8px">
-        <label>Network</label>
-        <canvas id="netCanvas" class="networkCanvas"></canvas>
-      </div>
-
-      <div style="margin-top:8px">
-        <label>Debug / Log</label>
-        <div id="info" class="muted">Ready.</div>
-      </div>
+      <label>Network</label>
+      <canvas id="netCanvas" class="networkCanvas"></canvas>
+      <div id="info" style="font-size:12px;color:var(--muted);margin-top:6px;white-space:pre-line;">Ready.</div>
     </div>
   </div>
 
   <div id="footerControls">
-    <button id="leftTouch">◀ Move Left</button>
-    <button id="rightTouch">Move Right ▶</button>
+    <button id="leftTouch">◀ Left</button>
+    <button id="rightTouch">Right ▶</button>
   </div>
 </div>
 
 <script>
-/*
-Cart-Pole on a Ramp
-- Feedforward policy network visualized on right.
-- Hill-climb: when episode ends, mutate weights and keep if better.
-- Mobile friendly controls at bottom.
-*/
-
-// Canvas & sizing
-const simCanvas = document.getElementById('simCanvas');
-const netCanvas = document.getElementById('netCanvas');
-const simCtx = simCanvas.getContext('2d');
-const netCtx = netCanvas.getContext('2d');
-
-function resizeCanvases(){
-  const rect = document.getElementById('simPanel').getBoundingClientRect();
-  simCanvas.width = Math.max(600, Math.round(rect.width * devicePixelRatio));
-  simCanvas.height = Math.max(340, Math.round((rect.height - 8) * devicePixelRatio));
-  simCanvas.style.height = (rect.height - 8) + 'px';
-  simCanvas.style.width = (rect.width) + 'px';
-
-  const nr = netCanvas.getBoundingClientRect();
-  netCanvas.width = Math.round(nr.width * devicePixelRatio);
-  netCanvas.height = Math.round(nr.height * devicePixelRatio);
-  netCanvas.style.width = nr.width + 'px';
-  netCanvas.style.height = nr.height + 'px';
+const simCanvas=document.getElementById('simCanvas');
+const netCanvas=document.getElementById('netCanvas');
+const simCtx=simCanvas.getContext('2d');
+const netCtx=netCanvas.getContext('2d');
+function resize(){
+  simCanvas.width=simCanvas.clientWidth*devicePixelRatio;
+  simCanvas.height=simCanvas.clientHeight*devicePixelRatio;
+  netCanvas.width=netCanvas.clientWidth*devicePixelRatio;
+  netCanvas.height=netCanvas.clientHeight*devicePixelRatio;
 }
-window.addEventListener('resize', resizeCanvases);
-resizeCanvases();
+window.addEventListener('resize',resize);resize();
 
-// Physics parameters
-const g = 9.81;
-const dt = 1/60;
-const cart = { M:1.0, m:0.1, L:0.6 }; // cart mass M, pole mass m, pole length L
-let slopeDeg = parseFloat(document.getElementById('slopeSlider').value);
-let slope = slopeDeg * Math.PI/180;
+let slope=6*Math.PI/180;
+const cart={M:1,m:0.1,L:0.6};
+const X_MIN=-3,X_MAX=3.5,dt=1/60,g=9.81;
+let state={x:-2.5,vx:0,theta:0.05,thetaDot:0};
 
-document.getElementById('slopeSlider').addEventListener('input', (e)=>{
-  slopeDeg = parseFloat(e.target.value); slope = slopeDeg * Math.PI/180;
-});
-
-// arena limits (x along ramp)
-const X_MIN = -3.0;
-const X_MAX = 3.5;
-
-// simulation state
-let state = null;
-
-function resetState(randomize=true){
-  state = {
-    x: -2.5 + (randomize? Math.random()*0.2 : 0), // start low on ramp (left)
-    vx: 0,
-    theta: (Math.random()-0.5)*0.08, // small angle
-    thetaDot: 0,
-    steps:0,
-    time:0,
-    running:true,
-  };
+class PolicyNet{
+  constructor(inp=6,hid=8){this.i=inp;this.h=hid;this.W1=new Float32Array(hid*inp).map(()=>Math.random()*0.4-0.2);this.b1=new Float32Array(hid);this.W2=new Float32Array(hid).map(()=>Math.random()*0.4-0.2);this.b2=0;}
+  forward(a){let h=new Float32Array(this.h);for(let i=0;i<this.h;i++){let s=this.b1[i];for(let j=0;j<this.i;j++)s+=this.W1[i*this.i+j]*a[j];h[i]=Math.tanh(s);}let o=this.b2;for(let i=0;i<this.h;i++)o+=this.W2[i]*h[i];return{y:Math.tanh(o),h};}
 }
-resetState(true);
+const policy=new PolicyNet();
+let bestScore=0;document.getElementById('bestScore').innerText=bestScore;
 
-// Simple policy network
-function randn() {
-  // box-muller
-  let u=0,v=0;
-  while(u===0) u=Math.random();
-  while(v===0) v=Math.random();
-  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+function stepPhysics(force){
+  const F=force*10; // symmetric [-10,10]
+  const {M,m,L}=cart;
+  let{theta,thetaDot,vx}=state;
+  const num=g*Math.sin(theta+slope)+Math.cos(theta)*(-F-m*L*thetaDot*thetaDot*Math.sin(theta));
+  const den=L*(4/3-(m*Math.cos(theta)**2)/(M+m));
+  const thetaDD=num/den;
+  const xDD=(F+m*L*(thetaDot*thetaDot*Math.sin(theta)-thetaDD*Math.cos(theta)))/(M+m);
+  state.vx+=xDD*dt;state.x+=state.vx*dt;state.thetaDot+=thetaDD*dt;state.theta+=state.thetaDot*dt;
 }
 
-class PolicyNet {
-  constructor(inp=6, hidden=10) {
-    this.inp = inp;
-    this.hidden = hidden;
-    // weights matrices: W1 (hidden x inp), b1(hidden), W2(hidden), b2 scalar
-    this.W1 = new Float32Array(hidden*inp);
-    this.b1 = new Float32Array(hidden);
-    this.W2 = new Float32Array(hidden);
-    this.b2 = 0;
-    this.initRandom();
-  }
-  initRandom(scale=0.8){
-    for(let i=0;i<this.W1.length;i++) this.W1[i] = randn()*scale;
-    for(let i=0;i<this.b1.length;i++) this.b1[i] = randn()*scale*0.1;
-    for(let i=0;i<this.W2.length;i++) this.W2[i] = randn()*0.6;
-    this.b2 = randn()*0.1;
-  }
-  copy(){
-    const p = new PolicyNet(this.inp,this.hidden);
-    p.W1.set(this.W1);
-    p.b1.set(this.b1);
-    p.W2.set(this.W2);
-    p.b2 = this.b2;
-    return p;
-  }
-  flat(){ // flatten to array
-    const out = [];
-    for(let i=0;i<this.W1.length;i++) out.push(this.W1[i]);
-    for(let i=0;i<this.b1.length;i++) out.push(this.b1[i]);
-    for(let i=0;i<this.W2.length;i++) out.push(this.W2[i]);
-    out.push(this.b2);
-    return out;
-  }
-  setFlat(arr){
-    let idx=0;
-    for(let i=0;i<this.W1.length;i++) this.W1[i] = arr[idx++];
-    for(let i=0;i<this.b1.length;i++) this.b1[i] = arr[idx++];
-    for(let i=0;i<this.W2.length;i++) this.W2[i] = arr[idx++];
-    this.b2 = arr[idx++];
-  }
-  mutate(scale=0.25){
-    // small gaussian perturbation
-    for(let i=0;i<this.W1.length;i++) this.W1[i] += randn()*scale;
-    for(let i=0;i<this.b1.length;i++) this.b1[i] += randn()*(scale*0.5);
-    for(let i=0;i<this.W2.length;i++) this.W2[i] += randn()*(scale*0.9);
-    this.b2 += randn()*(scale*0.5);
-  }
-  forward(inpArr){
-    // inpArr length should be this.inp
-    const h = new Float32Array(this.hidden);
-    for(let i=0;i<this.hidden;i++){
-      let s = this.b1[i];
-      const rowStart = i*this.inp;
-      for(let j=0;j<this.inp;j++){
-        s += this.W1[rowStart + j] * inpArr[j];
-      }
-      // activation tanh
-      h[i] = Math.tanh(s);
-    }
-    let out = this.b2;
-    for(let i=0;i<this.hidden;i++) out += this.W2[i]*h[i];
-    // output is scalar control value between approx [-? , ?], we'll use tanh
-    const y = Math.tanh(out);
-    return { y, h };
-  }
+let mode='policy',manualForce=0,episode=0,steps=0;
+document.getElementById('manualBtn').onclick=()=>{mode='manual';};
+document.getElementById('policyBtn').onclick=()=>{mode='policy';};
+document.getElementById('leftTouch').onpointerdown=()=>manualForce=-1;
+document.getElementById('leftTouch').onpointerup=()=>manualForce=0;
+document.getElementById('rightTouch').onpointerdown=()=>manualForce=1;
+document.getElementById('rightTouch').onpointerup=()=>manualForce=0;
+
+function resetEpisode(){
+  state={x:-2.5,vx:0,theta:(Math.random()-0.5)*0.2,thetaDot:0};
+  steps=0;episode++;document.getElementById('episodeBadge').innerText="Episode: "+episode;
 }
-
-const policy = new PolicyNet(6,10);
-let bestPolicy = policy.copy();
-let bestScore = -1e9;
-document.getElementById('bestScore').innerText = bestScore.toFixed(2);
-
-// UI hooks
-let mode = 'policy'; // 'manual' or 'policy'
-const manualBtn = document.getElementById('manualBtn');
-const policyBtn = document.getElementById('policyBtn');
-function setMode(m){
-  mode = m;
-  if(m==='manual'){ manualBtn.classList.add('primary'); policyBtn.classList.remove('primary'); } 
-  else { policyBtn.classList.add('primary'); manualBtn.classList.remove('primary'); }
-}
-manualBtn.addEventListener('click', ()=>setMode('manual'));
-policyBtn.addEventListener('click', ()=>setMode('policy'));
-
-// Buttons
-document.getElementById('resetBtn').addEventListener('click', ()=>{
-  resetState(true);
-  episode = 0;
-  log("Reset.");
-});
-document.getElementById('mutateBtn').addEventListener('click', ()=>{
-  // mutate best policy and assign
-  const candidate = bestPolicy.copy();
-  candidate.mutate(0.6);
-  policy.setFlat(candidate.flat());
-  log("Manual mutate applied.");
-});
-let trainingOn = true;
-document.getElementById('toggleTrain').addEventListener('click', ()=>{
-  trainingOn = !trainingOn;
-  document.getElementById('toggleTrain').innerText = 'Train: ' + (trainingOn ? 'ON':'OFF');
-});
-
-// bottom touch controls
-let manualForce = 0;
-document.getElementById('leftTouch').addEventListener('pointerdown', ()=>manualForce = -1);
-document.getElementById('leftTouch').addEventListener('pointerup', ()=>manualForce = 0);
-document.getElementById('rightTouch').addEventListener('pointerdown', ()=>manualForce = 1);
-document.getElementById('rightTouch').addEventListener('pointerup', ()=>manualForce = 0);
-
-// keyboard for desktop
-window.addEventListener('keydown', (e)=>{
-  if(e.key === 'ArrowLeft') manualForce = -1;
-  if(e.key === 'ArrowRight') manualForce = 1;
-});
-window.addEventListener('keyup', (e)=>{
-  if(e.key === 'ArrowLeft' || e.key === 'ArrowRight') manualForce = 0;
-});
-
-// training params
-let episode = 0;
-let bestFlat = bestPolicy.flat();
-const mutSlider = document.getElementById('mutSlider');
-function getMutBudget(){ return parseInt(mutSlider.value); }
-mutSlider.addEventListener('input', ()=>{});
-
-// rendering helpers
-function clear(ctx){
-  ctx.save();
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
-  ctx.restore();
-}
-
-// draw simulated scene
-function drawScene(){
-  clear(simCtx);
-  const cw = simCanvas.width;
-  const ch = simCanvas.height;
-  const DPR = devicePixelRatio;
-
-  // coordinate mapping: map x in [X_MIN,X_MAX] along ramp to canvas
-  // draw ramp line across center horizontally
-  const pxPerMeter = (cw*0.8) / ((X_MAX - X_MIN));
-  const originX = cw*0.1;
-  const originY = ch*0.8;
-
-  // ramp endpoints
-  const rampLenPx = (X_MAX - X_MIN) * pxPerMeter;
-  const rampX1 = originX;
-  const rampY1 = originY;
-  const rampX2 = originX + Math.cos(-slope) * rampLenPx;
-  const rampY2 = originY + Math.sin(-slope) * rampLenPx;
-
-  // draw grid along ramp
-  simCtx.lineWidth = 2*DPR;
-  simCtx.strokeStyle = 'rgba(255,255,255,0.05)';
-  for(let t=-3;t<=4;t+=0.5){
-    const px = originX + (t - X_MIN) * pxPerMeter * Math.cos(-slope);
-    const py = originY + (t - X_MIN) * pxPerMeter * Math.sin(-slope);
-    simCtx.beginPath();
-    simCtx.moveTo(px-6*DPR, py-6*DPR);
-    simCtx.lineTo(px+6*DPR, py+6*DPR);
-    simCtx.stroke();
-  }
-
-  // draw ramp
-  simCtx.strokeStyle = 'rgba(100,255,180,0.12)';
-  simCtx.lineWidth = 4*DPR;
-  simCtx.beginPath();
-  simCtx.moveTo(rampX1, rampY1);
-  simCtx.lineTo(rampX2, rampY2);
-  simCtx.stroke();
-
-  // compute cart screen pos
-  const cartXpx = originX + (state.x - X_MIN) * pxPerMeter * Math.cos(-slope);
-  const cartYpx = originY + (state.x - X_MIN) * pxPerMeter * Math.sin(-slope);
-
-  // draw target zone (higher up ramp)
-  const goalX = X_MAX - 0.4;
-  const goalXpx = originX + (goalX - X_MIN)*pxPerMeter * Math.cos(-slope);
-  const goalYpx = originY + (goalX - X_MIN)*pxPerMeter * Math.sin(-slope);
-  simCtx.fillStyle = 'rgba(110,231,183,0.06)';
-  simCtx.beginPath();
-  simCtx.ellipse(goalXpx, goalYpx, 40*DPR, 20*DPR, -slope, 0, Math.PI*2);
-  simCtx.fill();
-
-  // draw cart as rectangle aligned to ramp
-  const cartW = 80*DPR;
-  const cartH = 40*DPR;
-  simCtx.save();
-  simCtx.translate(cartXpx, cartYpx);
-  simCtx.rotate(-slope);
-  simCtx.fillStyle = '#2ca58d';
-  simCtx.strokeStyle = 'rgba(0,0,0,0.2)';
-  roundRect(simCtx, -cartW/2, -cartH/2, cartW, cartH, 6*DPR);
-  simCtx.fill();
-  simCtx.stroke();
-
-  // wheels
-  simCtx.fillStyle = '#051017';
-  simCtx.beginPath();
-  simCtx.arc(-cartW*0.25, cartH*0.5, 10*DPR, 0, Math.PI*2); simCtx.fill();
-  simCtx.beginPath();
-  simCtx.arc(cartW*0.25, cartH*0.5, 10*DPR, 0, Math.PI*2); simCtx.fill();
-
-  // pole pivot: relative to cart center
-  const pivotX = 0;
-  const pivotY = -cartH*0.45;
-
-  // draw pole: angle measured relative to vertical upright in world coordinates
-  // convert to screen angle: vertical in screen coords is -90deg rotated by ramp -> we simply compute world rotation combining slope
-  const poleLenPx = cart.L_px || (cart.L * pxPerMeter * 1.2);
-  const thetaScreen = - (state.theta + slope); // approximate
-  simCtx.strokeStyle = '#ffd66b';
-  simCtx.lineWidth = 6*DPR;
-  simCtx.beginPath();
-  simCtx.moveTo(pivotX, pivotY);
-  const tipX = pivotX + Math.sin(thetaScreen) * poleLenPx;
-  const tipY = pivotY - Math.cos(thetaScreen) * poleLenPx;
-  simCtx.lineTo(tipX, tipY);
-  simCtx.stroke();
-
-  // pole tip
-  simCtx.fillStyle = '#ff9f1c';
-  simCtx.beginPath();
-  simCtx.arc(tipX, tipY, 8*DPR, 0, Math.PI*2);
-  simCtx.fill();
-
-  simCtx.restore();
-
-  // HUD
-  simCtx.save();
-  simCtx.fillStyle = 'rgba(255,255,255,0.86)';
-  simCtx.font = `${16*DPR}px Inter, Arial`;
-  simCtx.fillText(`Angle: ${(state.theta*180/Math.PI).toFixed(1)}°`, 12*DPR, 28*DPR);
-  simCtx.fillText(`x: ${state.x.toFixed(2)} m`, 12*DPR, 48*DPR);
-  simCtx.fillText(`score: ${currentScore.toFixed(2)}`, 12*DPR, 68*DPR);
-  simCtx.fillText(`slope: ${slopeDeg.toFixed(1)}°`, 12*DPR, 88*DPR);
+function draw(){
+  simCtx.setTransform(1,0,0,1,0,0);simCtx.clearRect(0,0,simCanvas.width,simCanvas.height);
+  const w=simCanvas.width,h=simCanvas.height,DPR=devicePixelRatio;
+  const pxpm=(w*0.7)/(X_MAX-X_MIN);
+  const ox=w*0.15,oy=h*0.8;
+  // ramp
+  const len=(X_MAX-X_MIN)*pxpm;
+  simCtx.strokeStyle="rgba(150,255,200,0.15)";simCtx.lineWidth=4;
+  simCtx.beginPath();simCtx.moveTo(ox,oy);simCtx.lineTo(ox+Math.cos(-slope)*len,oy+Math.sin(-slope)*len);simCtx.stroke();
+  // cart
+  const cx=ox+(state.x-X_MIN)*pxpm*Math.cos(-slope);
+  const cy=oy+(state.x-X_MIN)*pxpm*Math.sin(-slope);
+  simCtx.save();simCtx.translate(cx,cy);simCtx.rotate(-slope);
+  simCtx.fillStyle="#2ca58d";simCtx.fillRect(-25*DPR,-12*DPR,50*DPR,24*DPR);
+  const tipX=Math.sin(-(state.theta+slope))*80,tipY=-Math.cos(-(state.theta+slope))*80;
+  simCtx.strokeStyle="#ffd66b";simCtx.lineWidth=4;simCtx.beginPath();simCtx.moveTo(0,-12*DPR);simCtx.lineTo(tipX,tipY-12*DPR);simCtx.stroke();
   simCtx.restore();
 }
-
-function roundRect(ctx,x,y,w,h,r){
-  ctx.beginPath();
-  ctx.moveTo(x+r,y);
-  ctx.arcTo(x+w,y,x+w,y+h,r);
-  ctx.arcTo(x+w,y+h,x,y+h,r);
-  ctx.arcTo(x,y+h,x,y,r);
-  ctx.arcTo(x,y,x+w,y,r);
-  ctx.closePath();
-}
-
-// Simple approximate dynamics (not a full physical derivation, but good for demonstration)
-function stepPhysics(actionForce){
-  const M = cart.M;
-  const m = cart.m;
-  const l = cart.L;
-  // state variables: x, vx, theta, thetaDot
-  // we'll compute thetaDD using an approximate inverted pendulum on moving base on an incline
-  // gravity torque influenced by slope: use g * sin(theta + slope)
-  const theta = state.theta;
-  const thetaDot = state.thetaDot;
-  const vx = state.vx;
-
-  // control force along ramp
-  const F = actionForce * 10.0; // scale
-
-  // approximate angular acceleration:
-  const num = g * Math.sin(theta + slope) + Math.cos(theta) * ( -F - m * l * thetaDot*thetaDot * Math.sin(theta) );
-  const den = l * (4.0/3.0 - (m * Math.cos(theta) * Math.cos(theta)) / (M + m));
-  const thetaDD = num / (den + 1e-6);
-
-  // approximate cart acceleration along ramp
-  const xDD = (F + m * l * (thetaDot*thetaDot * Math.sin(theta) - thetaDD * Math.cos(theta))) / (M + m);
-
-  // integrate
-  state.vx += xDD * dt;
-  state.x  += state.vx * dt;
-
-  state.thetaDot += thetaDD * dt;
-  state.theta += state.thetaDot * dt;
-
-  state.steps += 1;
-  state.time += dt;
-}
-
-// reward / scoring
-let currentScore = 0;
-function computeReward(){
-  // reward for time (survival) + progress up ramp
-  const progress = state.x; // larger x is higher on ramp
-  // we clamp progress to reward only when advancing
-  const progReward = Math.max(0, progress + 3.0); // shift positive
-  return state.time * 1.0 + progReward * 2.0;
-}
-
-// termination checks
-function checkFailure(){
-  const maxAngle = 45 * Math.PI/180;
-  if(Math.abs(state.theta) > maxAngle) return { fail:true, reason:'pole_fell' };
-  if(state.x < X_MIN - 0.3 || state.x > X_MAX + 0.3) return { fail:true, reason:'out_of_bounds' };
-  if(state.time > 30.0) return { fail:false, reason:'success', success:true }; // success if stays balanced long
-  return { fail:false };
-}
-
-// policy action mapping
-function policyActionFromNetwork(){
-  // inputs: sin(theta), cos(theta), thetaDot, x_norm, vx_norm, slope
-  const maxV = 6.0;
-  const x_norm = (state.x - X_MIN) / (X_MAX - X_MIN) * 2 - 1; // in [-1,1]
-  const vx_norm = Math.max(-1, Math.min(1, state.vx / maxV));
-  const inputs = [
-    Math.sin(state.theta),
-    Math.cos(state.theta),
-    state.thetaDot * 0.5,
-    x_norm,
-    vx_norm,
-    Math.sin(slope)
-  ];
-  const out = policy.forward(inputs);
-  // network returns y in [-1,1] ; scale to action force control -1..1
-  return { action: out.y, hidden: out.h, inputs };
-}
-
-function log(s){
-  const info = document.getElementById('info');
-  info.innerText = s + "\n\n" + info.innerText;
-}
-
-// network viz
-function drawNetworkViz(lastActivations){
-  clear(netCtx);
-  const W = netCanvas.width, H = netCanvas.height, DPR = devicePixelRatio;
-  const padding = 20*DPR;
-  const inX = padding;
-  const hiddenX = W/2;
-  const outX = W - padding;
-
-  const inYStep = (H - 2*padding) / (policy.inp-1);
-  const hiddenYStep = (H - 2*padding) / (policy.hidden-1);
-
-  // draw weights as lines (alpha by magnitude)
-  for(let i=0;i<policy.hidden;i++){
-    const hy = padding + i*hiddenYStep;
-    for(let j=0;j<policy.inp;j++){
-      const ix = inX;
-      const iy = padding + j*inYStep;
-      const w = policy.W1[i*policy.inp + j];
-      netCtx.beginPath();
-      netCtx.moveTo(ix, iy);
-      netCtx.lineTo(hiddenX, hy);
-      const mag = Math.tanh(Math.abs(w));
-      netCtx.strokeStyle = `rgba(120,200,180,${0.08 + 0.6*mag})`;
-      netCtx.lineWidth = (1 + 3*mag) * DPR;
-      netCtx.stroke();
+function drawNetwork(inputs,hid){
+  const w=netCanvas.width,h=netCanvas.height,DPR=devicePixelRatio;
+  netCtx.setTransform(1,0,0,1,0,0);netCtx.clearRect(0,0,w,h);
+  const margin=40*DPR;
+  const inputX=margin,hiddenX=w/2,outputX=w-margin;
+  for(let i=0;i<policy.i;i++){
+    for(let j=0;j<policy.h;j++){
+      netCtx.strokeStyle="rgba(80,120,140,0.3)";
+      netCtx.beginPath();netCtx.moveTo(inputX,margin+i*20*DPR);netCtx.lineTo(hiddenX,margin+j*20*DPR);netCtx.stroke();
     }
   }
-  // W2 lines
-  for(let i=0;i<policy.hidden;i++){
-    const hy = padding + i*hiddenYStep;
-    netCtx.beginPath();
-    netCtx.moveTo(hiddenX, hy);
-    netCtx.lineTo(outX, H/2);
-    const w = policy.W2[i];
-    const mag = Math.tanh(Math.abs(w));
-    netCtx.strokeStyle = `rgba(245,200,95,${0.08 + 0.6*mag})`;
-    netCtx.lineWidth = (1 + 3*mag) * DPR;
-    netCtx.stroke();
+  for(let j=0;j<policy.h;j++){
+    netCtx.strokeStyle="rgba(80,120,140,0.3)";
+    netCtx.beginPath();netCtx.moveTo(hiddenX,margin+j*20*DPR);netCtx.lineTo(outputX,h/2);netCtx.stroke();
   }
-
-  // input nodes
-  for(let j=0;j<policy.inp;j++){
-    const ix = inX;
-    const iy = padding + j*inYStep;
-    const label = ['sθ','cθ','θ˙','x','v˙','slope'][j] || 'i'+j;
-    drawNode(ix,iy,12*DPR, label, 0, null);
+  for(let i=0;i<policy.i;i++){
+    netCtx.fillStyle="white";netCtx.beginPath();netCtx.arc(inputX,margin+i*20*DPR,5*DPR,0,Math.PI*2);netCtx.fill();
   }
-
-  // hidden nodes
-  for(let i=0;i<policy.hidden;i++){
-    const hx = hiddenX;
-    const hy = padding + i*hiddenYStep;
-    const a = lastActivations ? lastActivations[i] : 0;
-    drawNode(hx,hy,14*DPR, '', a, i);
+  for(let j=0;j<policy.h;j++){
+    const a=hid?hid[j]:0;const c=Math.floor((a*127+128));netCtx.fillStyle=`rgb(${c},${200-c},180)`;netCtx.beginPath();netCtx.arc(hiddenX,margin+j*20*DPR,6*DPR,0,Math.PI*2);netCtx.fill();
   }
-
-  // output node
-  drawNode(outX, H/2, 18*DPR, '→', 0, null, true);
-
-  function drawNode(x,y,r,label,activation,index, isOut=false){
-    // activation in [-1,1]
-    netCtx.beginPath();
-    netCtx.lineWidth = 2*DPR;
-    netCtx.strokeStyle = 'rgba(255,255,255,0.06)';
-    netCtx.fillStyle = `rgba(30,30,30,0.6)`;
-    netCtx.arc(x,y,r,0,Math.PI*2);
-    netCtx.fill();
-    netCtx.stroke();
-
-    if(!isNaN(activation) && activation !== 0){
-      const a = Math.tanh(activation);
-      const color = a>0 ? `rgba(90,200,150,${0.15 + 0.7*Math.abs(a)})` : `rgba(255,120,120,${0.15 + 0.7*Math.abs(a)})`;
-      netCtx.beginPath();
-      netCtx.arc(x,y,r*0.7,0,Math.PI*2);
-      netCtx.fillStyle = color;
-      netCtx.fill();
-    }
-
-    netCtx.fillStyle = '#dff7eb';
-    netCtx.font = `${10*DPR}px Inter, Arial`;
-    if(label){
-      netCtx.fillText(label, x - r - 2*DPR, y - r - 4*DPR);
-    }
-  }
+  netCtx.fillStyle="#ffd66b";netCtx.beginPath();netCtx.arc(outputX,h/2,8*DPR,0,Math.PI*2);netCtx.fill();
 }
-
-// training / hill-climb logic
-let candidatePolicy = null;
-let candidateScore = -Infinity;
-let evalPhase = false;
-let evalStepsLeft = 0;
-let evalLimit = 2000;
-
-function startNewEpisode(){
-  episode += 1;
-  document.getElementById('episodeBadge').innerText = `Episode: ${episode}`;
-  resetState(true);
-  currentScore = 0;
-  // initialize candidate: copy current policy (to evaluate small mutation)
-  candidatePolicy = policy.copy();
-  // if training on, prepare candidate by mutating copy
-  if(trainingOn){
-    candidatePolicy.mutate(0.28);
-  }
-  candidateScore = 0;
-  evalPhase = true;
-  evalStepsLeft = evalLimit;
-}
-
-// Start first episode
-startNewEpisode();
-
-let lastVizHidden = null;
-
-// main loop
 function loop(){
-  // determine action
-  let action = 0;
-  let hiddenActivations = null;
-  if(mode === 'manual'){
-    action = manualForce;
-  } else {
-    // if evaluating a candidate (during training) use candidatePolicy; else use policy
-    const netToUse = (trainingOn && evalPhase && candidatePolicy) ? candidatePolicy : policy;
-    const res = netToUse.forward([
-      Math.sin(state.theta),
-      Math.cos(state.theta),
-      state.thetaDot * 0.5,
-      (state.x - X_MIN) / (X_MAX - X_MIN) * 2 - 1,
-      Math.max(-1, Math.min(1, state.vx / 6.0)),
-      Math.sin(slope)
-    ]);
-    action = res.y;
-    hiddenActivations = res.h;
-  }
-
-  // step physics with scaled action
-  stepPhysics(action);
-
-  // compute current reward/score
-  currentScore = computeReward();
-
-  // draw
-  drawScene();
-  drawNetworkViz(hiddenActivations);
-  lastVizHidden = hiddenActivations;
-
-  // check termination
-  const check = checkFailure();
-  if(check.fail || check.success){
-    // finalize episode
-    const finalScore = currentScore + (state.x > X_MAX-0.5 ? 60 : 0); // bonus for reaching near top
-    // if evaluating candidate, compare to bestPolicy
-    if(trainingOn && evalPhase){
-      if(finalScore > bestScore){
-        // candidate better than best, keep it
-        bestScore = finalScore;
-        bestPolicy = candidatePolicy.copy();
-        policy.setFlat(bestPolicy.flat());
-        bestFlat = bestPolicy.flat();
-        document.getElementById('bestScore').innerText = bestScore.toFixed(2);
-        log(`New best: ${bestScore.toFixed(2)} (reason: ${check.reason || 'ended'})`);
-      } else {
-        // not better -> occasionally accept small improvements
-        if(Math.random() < 0.02 && finalScore > bestScore - 10){
-          policy.setFlat(candidatePolicy.flat());
-          log('Accepted near-best candidate (stochastic).');
-        }
-      }
-      // Prepare next candidate
-      candidatePolicy = bestPolicy.copy();
-      candidatePolicy.mutate(0.22 * (1 + Math.random()*0.6));
-      evalPhase = true;
-      evalStepsLeft = evalLimit;
-      // restart environment
-      resetState(true);
-    } else {
-      // not training -> just reset state
-      resetState(true);
-    }
-
-    // safety: ensure UI updated
-    document.getElementById('episodeBadge').innerText = `Episode: ${episode}`;
-  }
-
-  // update counters
-  state.time += 0; // already updated in physics
-
+  let a=0,hid=null;
+  if(mode==='manual')a=manualForce;
+  else{let res=policy.forward([Math.sin(state.theta),Math.cos(state.theta),state.thetaDot,(state.x-X_MIN)/(X_MAX-X_MIN)*2-1,Math.tanh(state.vx/5),Math.sin(slope)]);a=res.y;hid=res.h;}
+  stepPhysics(a);
+  draw();drawNetwork(null,hid);
+  steps++;
+  if(Math.abs(state.theta)>0.5||state.x<X_MIN||state.x>X_MAX){if(steps>bestScore){bestScore=steps;document.getElementById('bestScore').innerText=bestScore;}resetEpisode();}
   requestAnimationFrame(loop);
 }
-
-requestAnimationFrame(loop);
-
-// small helper to print initial policy info
-log('Simulation started. Mode: Policy. Tap controls to switch.');
-
-// ensure canvases sized initially
-resizeCanvases();
-drawNetworkViz(null);
-
+resetEpisode();loop();
 </script>
 </body>
 </html>
