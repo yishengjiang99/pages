@@ -704,9 +704,9 @@ const workletCode = `
               let power = s1 * s1 + s2 * s2 - coeff * s1 * s2;
               let db = 10 * Math.log10(power / (N*N) + 1e-12);
 
-              if (db > this.dynamicThreshold) {
+              //if (db > this.dynamicThreshold) {
                 detectedNotes.push({midi: m, velocity: Math.min(127, Math.max(0, 100 + db))});
-              }
+              //}
             }
 
             this.port.postMessage({type: "notes", notes: detectedNotes, time: currentTime});
