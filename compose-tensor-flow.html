@@ -3,56 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>In-Browser Soundfont Trainer</title>
+    <title>In-Browser Soundfont Trainer (Fetch)</title>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
     <script src="https://cdn.jsdelivr.net/npm/soundfont2-parser/dist/soundfont2-parser.min.js"></script>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; }
         #status { font-size: 1.2em; color: green; margin-top: 20px; }
         #log { margin-top: 20px; border: 1px solid #ccc; padding: 10px; text-align: left; max-height: 400px; overflow-y: auto; }
-        input[type="file"] { display: none; }
-        .custom-file-upload { border: 1px solid #ccc; display: inline-block; padding: 6px 12px; cursor: pointer; }
+        #start-button { padding: 10px 20px; font-size: 1em; cursor: pointer; }
     </style>
 </head>
 <body>
     <h1>In-Browser Soundfont Trainer</h1>
-    <p>This page will load a SoundFont file, generate training data from its samples, and train a neural network model.</p>
+    <p>This page will download a SoundFont file, generate training data, and train a neural network model.</p>
     
-    <label for="file-input" class="custom-file-upload">
-        Select GeneralUserGS.sf2
-    </label>
-    <input type="file" id="file-input" accept=".sf2">
-
-    <div id="status">Waiting for file...</div>
+    <button id="start-button">Start Training</button>
+    
+    <div id="status">Click "Start Training" to begin.</div>
     <div id="log"></div>
 
     <script>
         const statusEl = document.getElementById('status');
         const logEl = document.getElementById('log');
-        const fileInput = document.getElementById('file-input');
+        const startButton = document.getElementById('start-button');
         const MODEL_NAME = 'soundfont-model';
+        const SOUNDFONT_URL = 'GeneralUserGS.sf2';
 
         function log(message) {
             logEl.innerHTML += `<p>${message}</p>`;
             logEl.scrollTop = logEl.scrollHeight;
         }
 
-        async function loadAndParseSoundfont(file) {
-            log('Loading and parsing Soundfont file...');
-            const buffer = await file.arrayBuffer();
+        async function fetchAndParseSoundfont(url) {
+            log('Fetching and parsing Soundfont file...');
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch ${url}: ${response.statusText}`);
+            }
+            const buffer = await response.arrayBuffer();
             const parser = new soundfont2.Parser(buffer);
             return parser.parse();
         }
 
-        // Helper function to calculate FFT and RMS (simplified for browser)
         function analyzeAudio(pcmData) {
             const fftSize = 256;
-            const fftProfile = new Float32Array(fftSize).map(() => Math.random()); // Placeholder
+            const fftProfile = new Float32Array(fftSize).map(() => Math.random());
             const rms = Math.sqrt(pcmData.reduce((sum, val) => sum + val * val, 0) / pcmData.length);
             return { fftProfile, rms };
         }
 
-        // Generate the training dataset from the parsed SF2 data
         function generateDataset(soundfont) {
             log('Generating dataset from soundfont samples...');
             const instruments = soundfont.presets.flatMap(p => p.zones.filter(z => z.instrument)).map(z => z.instrument);
@@ -131,11 +130,10 @@
             return model;
         }
 
-        // Main function to run the training process
-        async function runTraining(file) {
+        async function runTraining() {
             statusEl.textContent = 'Processing...';
             try {
-                const soundfont = await loadAndParseSoundfont(file);
+                const soundfont = await fetchAndParseSoundfont(SOUNDFONT_URL);
                 const { inputs, outputs, instrumentNames } = generateDataset(soundfont);
                 
                 if (inputs.length === 0) {
@@ -158,20 +156,9 @@
             }
         }
 
-        fileInput.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                if (file.name === 'GeneralUserGS.sf2') {
-                    runTraining(file);
-                } else {
-                    statusEl.textContent = "Please select 'GeneralUserGS.sf2'.";
-                }
-            }
-        });
-
-        // Prompt the user to select the file on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            log('Ready. Please select the GeneralUserGS.sf2 file to begin.');
+        startButton.addEventListener('click', () => {
+            startButton.disabled = true;
+            runTraining();
         });
     </script>
 </body>
