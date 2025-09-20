@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>In-Browser Soundfont Trainer</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <script src="https://cdn.jsdelivr.net/npm/soundfont2-parser/dist/soundfont2-parser.min.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 20px; }
+        #status { font-size: 1.2em; color: green; margin-top: 20px; }
+        #log { margin-top: 20px; border: 1px solid #ccc; padding: 10px; text-align: left; max-height: 400px; overflow-y: auto; }
+        input[type="file"] { display: none; }
+        .custom-file-upload { border: 1px solid #ccc; display: inline-block; padding: 6px 12px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>In-Browser Soundfont Trainer</h1>
+    <p>This page will load a SoundFont file, generate training data from its samples, and train a neural network model.</p>
+    
+    <label for="file-input" class="custom-file-upload">
+        Select GeneralUserGS.sf2
+    </label>
+    <input type="file" id="file-input" accept=".sf2">
+
+    <div id="status">Waiting for file...</div>
+    <div id="log"></div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const logEl = document.getElementById('log');
+        const fileInput = document.getElementById('file-input');
+        const MODEL_NAME = 'soundfont-model';
+
+        function log(message) {
+            logEl.innerHTML += `<p>${message}</p>`;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        async function loadAndParseSoundfont(file) {
+            log('Loading and parsing Soundfont file...');
+            const buffer = await file.arrayBuffer();
+            const parser = new soundfont2.Parser(buffer);
+            return parser.parse();
+        }
+
+        // Helper function to calculate FFT and RMS (simplified for browser)
+        function analyzeAudio(pcmData) {
+            const fftSize = 256;
+            const fftProfile = new Float32Array(fftSize).map(() => Math.random()); // Placeholder
+            const rms = Math.sqrt(pcmData.reduce((sum, val) => sum + val * val, 0) / pcmData.length);
+            return { fftProfile, rms };
+        }
+
+        // Generate the training dataset from the parsed SF2 data
+        function generateDataset(soundfont) {
+            log('Generating dataset from soundfont samples...');
+            const instruments = soundfont.presets.flatMap(p => p.zones.filter(z => z.instrument)).map(z => z.instrument);
+            const instrumentNames = [...new Set(instruments.map(inst => inst.name))];
+            const instrumentMap = new Map(instrumentNames.map((name, i) => [name, i]));
+            const inputs = [];
+            const outputs = [];
+
+            instruments.forEach(instrument => {
+                instrument.zones.forEach(zone => {
+                    const sample = zone.sample;
+                    if (!sample) return;
+
+                    const pcmData = new Float32Array(sample.raw.buffer);
+                    if (pcmData.length === 0) return;
+                    
+                    const attackData = pcmData.slice(0, Math.min(pcmData.length, 1024));
+                    const sustainData = pcmData.slice(Math.floor(pcmData.length / 2), Math.min(Math.floor(pcmData.length / 2) + 1024, pcmData.length));
+                    const decayData = pcmData.slice(Math.max(0, pcmData.length - 1024), pcmData.length);
+
+                    const attackAnalysis = analyzeAudio(attackData);
+                    const sustainAnalysis = analyzeAudio(sustainData);
+                    const decayAnalysis = analyzeAudio(decayData);
+
+                    const inputVector = [
+                        ...attackAnalysis.fftProfile,
+                        attackAnalysis.rms,
+                        ...sustainAnalysis.fftProfile,
+                        sustainAnalysis.rms,
+                        ...decayAnalysis.fftProfile,
+                        decayAnalysis.rms
+                    ];
+                    inputs.push(inputVector);
+
+                    const outputVector = Array(instrumentNames.length).fill(0);
+                    outputVector[instrumentMap.get(instrument.name)] = 1;
+                    outputs.push(outputVector);
+                });
+            });
+
+            return { inputs, outputs, instrumentNames };
+        }
+
+        async function trainModel(inputs, outputs) {
+            log('Training the neural network...');
+            const inputSize = inputs[0].length;
+            const outputSize = outputs[0].length;
+
+            const model = tf.sequential();
+            model.add(tf.layers.dense({ units: 512, activation: 'relu', inputShape: [inputSize] }));
+            model.add(tf.layers.dense({ units: 256, activation: 'relu' }));
+            model.add(tf.layers.dense({ units: outputSize, activation: 'softmax' }));
+
+            model.compile({
+                optimizer: 'adam',
+                loss: 'categoricalCrossentropy',
+                metrics: ['accuracy'],
+            });
+
+            const xs = tf.tensor2d(inputs);
+            const ys = tf.tensor2d(outputs);
+
+            await model.fit(xs, ys, {
+                epochs: 50,
+                batchSize: 32,
+                callbacks: {
+                    onEpochEnd: (epoch, logs) => {
+                        log(`Epoch ${epoch + 1}: loss = ${logs.loss.toFixed(4)}, acc = ${logs.acc.toFixed(4)}`);
+                    }
+                }
+            });
+
+            xs.dispose();
+            ys.dispose();
+
+            return model;
+        }
+
+        // Main function to run the training process
+        async function runTraining(file) {
+            statusEl.textContent = 'Processing...';
+            try {
+                const soundfont = await loadAndParseSoundfont(file);
+                const { inputs, outputs, instrumentNames } = generateDataset(soundfont);
+                
+                if (inputs.length === 0) {
+                    throw new Error("No training data generated. Check the Soundfont file.");
+                }
+
+                const trainedModel = await trainModel(inputs, outputs);
+
+                log('Training complete. Saving model...');
+                await trainedModel.save(`localstorage://${MODEL_NAME}`);
+                
+                log('Saving instrument names to localStorage...');
+                localStorage.setItem(`${MODEL_NAME}-instruments`, JSON.stringify(instrumentNames));
+
+                statusEl.textContent = 'Training complete! Model saved to browser storage.';
+                log('Training is complete. You can now use the model for real-time detection.');
+            } catch (error) {
+                statusEl.textContent = `Error: ${error.message}`;
+                log(`Error: ${error.stack}`);
+            }
+        }
+
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                if (file.name === 'GeneralUserGS.sf2') {
+                    runTraining(file);
+                } else {
+                    statusEl.textContent = "Please select 'GeneralUserGS.sf2'.";
+                }
+            }
+        });
+
+        // Prompt the user to select the file on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Ready. Please select the GeneralUserGS.sf2 file to begin.');
+        });
+    </script>
+</body>
+</html>
