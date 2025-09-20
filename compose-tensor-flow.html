@@ -11,6 +11,26 @@
         #status { font-size: 1.2em; color: green; margin-top: 20px; }
         #log { margin-top: 20px; border: 1px solid #ccc; padding: 10px; text-align: left; max-height: 400px; overflow-y: auto; }
         #start-button { padding: 10px 20px; font-size: 1em; cursor: pointer; }
+
+        /* Progress bar styles */
+        #progress-container {
+            width: 80%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin: 20px auto;
+            display: none; /* Hide by default */
+        }
+        #progress-bar {
+            width: 0%;
+            height: 25px;
+            background-color: #4CAF50;
+            text-align: center;
+            line-height: 25px;
+            color: white;
+            border-radius: 5px;
+            transition: width 0.3s ease-in-out;
+        }
     </style>
 </head>
 <body>
@@ -19,19 +39,24 @@
     
     <button id="start-button">Start Training</button>
     
+    <div id="progress-container">
+        <div id="progress-bar">0%</div>
+    </div>
+    
     <div id="status">Click "Start Training" to begin.</div>
     <div id="log"></div>
 
     <script>
-        // Fix for the "Can't find variable" error
-        // The soundfont2-parser library exports a default, so we grab it from the global scope.
         const soundfont2 = window.soundfont2.default || window.soundfont2;
-
         const statusEl = document.getElementById('status');
         const logEl = document.getElementById('log');
         const startButton = document.getElementById('start-button');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        
         const MODEL_NAME = 'soundfont-model';
         const SOUNDFONT_URL = 'GeneralUserGS.sf2';
+        const TOTAL_EPOCHS = 50;
 
         function log(message) {
             logEl.innerHTML += `<p>${message}</p>`;
@@ -108,6 +133,8 @@
 
         async function trainModel(inputs, outputs) {
             log('Training the neural network...');
+            progressContainer.style.display = 'block'; // Show progress bar
+            
             const inputSize = inputs[0].length;
             const outputSize = outputs[0].length;
 
@@ -126,11 +153,15 @@
             const ys = tf.tensor2d(outputs);
 
             await model.fit(xs, ys, {
-                epochs: 50,
+                epochs: TOTAL_EPOCHS,
                 batchSize: 32,
                 callbacks: {
                     onEpochEnd: (epoch, logs) => {
                         log(`Epoch ${epoch + 1}: loss = ${logs.loss.toFixed(4)}, acc = ${logs.acc.toFixed(4)}`);
+                        // Update the progress bar
+                        const progress = ((epoch + 1) / TOTAL_EPOCHS) * 100;
+                        progressBar.style.width = `${progress}%`;
+                        progressBar.textContent = `${Math.round(progress)}%`;
                     }
                 }
             });
@@ -138,6 +169,7 @@
             xs.dispose();
             ys.dispose();
 
+            progressContainer.style.display = 'none'; // Hide progress bar
             return model;
         }
 
@@ -176,4 +208,3 @@
     </script>
 </body>
 </html>
-
