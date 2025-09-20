@@ -54,41 +54,48 @@
 
         function generateDataset(soundfont) {
             log('Generating dataset from soundfont samples...');
-            const instruments = soundfont.presets.flatMap(p => p.zones.filter(z => z.instrument)).map(z => z.instrument);
-            const instrumentNames = [...new Set(instruments.map(inst => inst.name))];
+            
+            const allInstruments = soundfont.instruments;
+            const instrumentNames = [...new Set(allInstruments.map(inst => inst.name))];
             const instrumentMap = new Map(instrumentNames.map((name, i) => [name, i]));
             const inputs = [];
             const outputs = [];
 
-            instruments.forEach(instrument => {
-                instrument.zones.forEach(zone => {
-                    const sample = zone.sample;
-                    if (!sample) return;
+            soundfont.presets.forEach(preset => {
+                preset.zones.forEach(zone => {
+                    if (zone.instrumentIndex === undefined) return;
+                    const instrument = allInstruments[zone.instrumentIndex];
+                    if (!instrument) return;
 
-                    const pcmData = new Float32Array(sample.raw.buffer);
-                    if (pcmData.length === 0) return;
-                    
-                    const attackData = pcmData.slice(0, Math.min(pcmData.length, 1024));
-                    const sustainData = pcmData.slice(Math.floor(pcmData.length / 2), Math.min(Math.floor(pcmData.length / 2) + 1024, pcmData.length));
-                    const decayData = pcmData.slice(Math.max(0, pcmData.length - 1024), pcmData.length);
+                    instrument.zones.forEach(instrumentZone => {
+                        const sample = instrumentZone.sample;
+                        if (!sample) return;
 
-                    const attackAnalysis = analyzeAudio(attackData);
-                    const sustainAnalysis = analyzeAudio(sustainData);
-                    const decayAnalysis = analyzeAudio(decayData);
+                        const pcmData = new Float32Array(sample.raw.buffer);
+                        if (pcmData.length === 0) return;
+                        
+                        const attackData = pcmData.slice(0, Math.min(pcmData.length, 1024));
+                        const sustainData = pcmData.slice(Math.floor(pcmData.length / 2), Math.min(Math.floor(pcmData.length / 2) + 1024, pcmData.length));
+                        const decayData = pcmData.slice(Math.max(0, pcmData.length - 1024), pcmData.length);
 
-                    const inputVector = [
-                        ...attackAnalysis.fftProfile,
-                        attackAnalysis.rms,
-                        ...sustainAnalysis.fftProfile,
-                        sustainAnalysis.rms,
-                        ...decayAnalysis.fftProfile,
-                        decayAnalysis.rms
-                    ];
-                    inputs.push(inputVector);
+                        const attackAnalysis = analyzeAudio(attackData);
+                        const sustainAnalysis = analyzeAudio(sustainData);
+                        const decayAnalysis = analyzeAudio(decayData);
 
-                    const outputVector = Array(instrumentNames.length).fill(0);
-                    outputVector[instrumentMap.get(instrument.name)] = 1;
-                    outputs.push(outputVector);
+                        const inputVector = [
+                            ...attackAnalysis.fftProfile,
+                            attackAnalysis.rms,
+                            ...sustainAnalysis.fftProfile,
+                            sustainAnalysis.rms,
+                            ...decayAnalysis.fftProfile,
+                            decayAnalysis.rms
+                        ];
+                        inputs.push(inputVector);
+
+                        const outputVector = Array(instrumentNames.length).fill(0);
+                        outputVector[instrumentMap.get(instrument.name)] = 1;
+                        outputs.push(outputVector);
+                    });
                 });
             });
 
@@ -131,13 +138,14 @@
         }
 
         async function runTraining() {
+            startButton.disabled = true;
             statusEl.textContent = 'Processing...';
             try {
                 const soundfont = await fetchAndParseSoundfont(SOUNDFONT_URL);
                 const { inputs, outputs, instrumentNames } = generateDataset(soundfont);
                 
                 if (inputs.length === 0) {
-                    throw new Error("No training data generated. Check the Soundfont file.");
+                    throw new Error("No training data generated. Check the Soundfont file or its structure.");
                 }
 
                 const trainedModel = await trainModel(inputs, outputs);
@@ -153,11 +161,12 @@
             } catch (error) {
                 statusEl.textContent = `Error: ${error.message}`;
                 log(`Error: ${error.stack}`);
+            } finally {
+                startButton.disabled = false;
             }
         }
 
         startButton.addEventListener('click', () => {
-            startButton.disabled = true;
             runTraining();
         });
     </script>
