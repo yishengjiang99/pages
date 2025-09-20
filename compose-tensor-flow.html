@@ -23,6 +23,10 @@
     <div id="log"></div>
 
     <script>
+        // Fix for the "Can't find variable" error
+        // The soundfont2-parser library exports a default, so we grab it from the global scope.
+        const soundfont2 = window.soundfont2.default || window.soundfont2;
+
         const statusEl = document.getElementById('status');
         const logEl = document.getElementById('log');
         const startButton = document.getElementById('start-button');
@@ -172,3 +176,4 @@
     </script>
 </body>
 </html>
+
