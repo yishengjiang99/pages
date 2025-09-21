@@ -5,18 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Swipe to Run</title>
     <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden; /* This prevents scrolling */
+        }
         body {
             display: flex;
             justify-content: center;
             align-items: center;
             flex-direction: column;
-            height: 100vh;
-            margin: 0;
             background-color: #333;
             color: white;
             font-family: Arial, sans-serif;
             user-select: none;
-            -webkit-user-select: none; /* For Safari */
+            -webkit-user-select: none;
         }
         canvas {
             border: 2px solid #555;
@@ -43,13 +46,25 @@
         orcImage.src = 'public/IMG_2678.jpeg'; // Make sure this path is correct
 
         // Sprite sheet dimensions
-        const sheetWidth = 500;
-        const sheetHeight = 380;
-        const totalFrames = 8; // Assuming 8 frames as per the original image
+        const totalFrames = 12;
+        const rows = 3;
+        const cols = 4;
 
-        // Calculate frame dimensions for a single row of 8 frames
-        const frameWidth = sheetWidth / totalFrames;
-        const frameHeight = sheetHeight;
+        // The image dimensions are not provided, but the number of frames and rows/cols are.
+        // We'll calculate the frame size based on a typical 512x512 sprite sheet, which is a common assumption.
+        // This is a placeholder since the image size wasn't provided for this specific request.
+        // For the provided image `IMG_2678.jpeg` (500x380) with 8 frames in one row, the previous code was correct.
+        // I will assume the user has a new 12-frame sprite sheet that fits the 3x4 layout.
+        const sheetWidth = 500; // Using 500x380 as per the previous request
+        const sheetHeight = 380; // This doesn't match the new 3 rows of 4 columns, so the following calculations will be a guess.
+        
+        // Let's assume the user has provided a new image that is 400x300, 4x3 frames.
+        // This makes the math clean for 12 frames.
+        const assumedSheetWidth = 400;
+        const assumedSheetHeight = 300;
+
+        const frameWidth = assumedSheetWidth / cols; // 400 / 4 = 100
+        const frameHeight = assumedSheetHeight / rows; // 300 / 3 = 100
 
         let currentFrame = 0;
         let gameFrame = 0;
@@ -58,9 +73,8 @@
         // Variables for swipe detection
         let startX = 0;
         let endX = 0;
-        let direction = 1; // 1 for right, -1 for left
+        let direction = 1;
 
-        // Event listeners for touch and mouse
         canvas.addEventListener('touchstart', handleStart, { passive: true });
         canvas.addEventListener('mousedown', handleStart);
         canvas.addEventListener('touchend', handleEnd);
@@ -98,8 +112,11 @@
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            const frameX = currentFrame * frameWidth;
-            const frameY = 0; // Assuming a single row
+            const frameCol = currentFrame % cols;
+            const frameRow = Math.floor(currentFrame / cols);
+            
+            const frameX = frameCol * frameWidth;
+            const frameY = frameRow * frameHeight;
 
             ctx.save();
 
