@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Swipe to Run</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background-color: #333;
+            color: white;
+            font-family: Arial, sans-serif;
+            user-select: none;
+            -webkit-user-select: none; /* For Safari */
+        }
+        canvas {
+            border: 2px solid #555;
+            background-color: #1a1a1a;
+            cursor: grab;
+            touch-action: none;
+        }
+        #controls {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div id="controls">Swipe left or right on the canvas to make the orc run!</div>
+
+    <script src="app.js"></script>
+</body>
+</html>
