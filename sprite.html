@@ -40,18 +40,16 @@
         const ctx = canvas.getContext('2d');
 
         const orcImage = new Image();
-        orcImage.src = 'public/IMG_2678.png'; // Make sure this path is correct
+        orcImage.src = 'public/IMG_2678.jpeg'; // Make sure this path is correct
 
         // Sprite sheet dimensions
-        const sheetWidth = 512;
-        const sheetHeight = 512;
-        const cols = 4;
-        const rows = 3;
+        const sheetWidth = 500;
+        const sheetHeight = 380;
+        const totalFrames = 8; // Assuming 8 frames as per the original image
 
-        // Calculate frame dimensions
-        const frameWidth = sheetWidth / cols;
-        const frameHeight = sheetHeight / rows;
-        const totalFrames = cols * rows;
+        // Calculate frame dimensions for a single row of 8 frames
+        const frameWidth = sheetWidth / totalFrames;
+        const frameHeight = sheetHeight;
 
         let currentFrame = 0;
         let gameFrame = 0;
@@ -100,12 +98,8 @@
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Calculate the row and column of the current frame
-            const frameCol = currentFrame % cols;
-            const frameRow = Math.floor(currentFrame / cols);
-            
-            const frameX = frameCol * frameWidth;
-            const frameY = frameRow * frameHeight;
+            const frameX = currentFrame * frameWidth;
+            const frameY = 0; // Assuming a single row
 
             ctx.save();
 
