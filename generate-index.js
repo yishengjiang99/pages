@@ -1,164 +1,178 @@
-const http = require('http');
-const fs = require('fs').promises;
+const fs = require('fs');
 const path = require('path');
+const http = require('http');
+const url = require('url');
 const puppeteer = require('puppeteer');
-const express = require('express');
-const port = 3000;
 
-// Initialize Express app for static file serving
-const app = express();
-app.use(express.static(process.cwd()));
+const PORT = 3000;
+const CWD = process.cwd();
 
-// Function to recursively find all HTML files
-async function findHtmlFiles(dir) {
-  let htmlFiles = [];
-  const files = await fs.readdir(dir, { withFileTypes: true });
-  for (const file of files) {
-    const fullPath = path.join(dir, file.name);
-    if (file.isDirectory()) {
-      htmlFiles = htmlFiles.concat(await findHtmlFiles(fullPath));
-    } else if (file.isFile() && path.extname(file.name).toLowerCase() === '.html') {
-      htmlFiles.push(fullPath);
+// Simple MIME types
+const mimeTypes = {
+  '.html': 'text/html',
+  '.htm': 'text/html',
+  '.css': 'text/css',
+  '.js': 'application/javascript',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.json': 'application/json',
+  '.txt': 'text/plain',
+  // Add more if needed
+};
+
+// Recursive function to find all .html files
+function findHtmlFiles(dir) {
+  let results = [];
+  fs.readdirSync(dir).forEach(file => {
+    const fullPath = path.join(dir, file);
+    const stat = fs.statSync(fullPath);
+    if (stat.isDirectory()) {
+      results = results.concat(findHtmlFiles(fullPath));
+    } else if (path.extname(file).toLowerCase() === '.html') {
+      results.push(fullPath);
     }
-  }
-  return htmlFiles;
+  });
+  return results;
 }
 
-// Function to generate screenshots using Puppeteer
-async function generateScreenshots(htmlFiles) {
-  const browser = await puppeteer.launch({ headless: 'new' });
-  const screenshotsDir = path.join(process.cwd(), 'screenshots');
-  await fs.mkdir(screenshotsDir, { recursive: true });
+// Create static server
+const server = http.createServer((req, res) => {
+  const parsedUrl = url.parse(req.url);
+  let pathname = decodeURI(parsedUrl.pathname);
+  if (pathname === '/') pathname = '/index.html'; // But won't exist yet
 
-  for (const htmlFile of htmlFiles) {
-    const page = await browser.newPage();
-    const relativePath = path.relative(process.cwd(), htmlFile);
-    const screenshotPath = path.join(screenshotsDir, `${path.basename(htmlFile, '.html')}.png`);
-    
-    try {
-      await page.goto(`http://localhost:${port}/${relativePath}`, { waitUntil: 'networkidle2' });
-      await page.setViewport({ width: 1280, height: 720 });
-      await page.screenshot({ path: screenshotPath });
-      console.log(`Screenshot generated for ${htmlFile}`);
-    } catch (err) {
-      console.error(`Error generating screenshot for ${htmlFile}:`, err);
+  const filePath = path.join(CWD, pathname);
+  fs.stat(filePath, (err, stat) => {
+    if (err || stat.isDirectory()) {
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      res.end('Not Found');
+      return;
     }
+
+    const ext = path.extname(filePath).toLowerCase();
+    const contentType = mimeTypes[ext] || 'application/octet-stream';
+
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Internal Server Error');
+      } else {
+        res.writeHead(200, { 'Content-Type': contentType });
+        res.end(data);
+      }
+    });
+  });
+});
+
+// Start server and perform tasks
+server.listen(PORT, async () => {
+  console.log(`Server running at http://localhost:${PORT}`);
+
+  // Find HTML files, exclude index.html in root
+  let htmlFiles = findHtmlFiles(CWD).filter(file => path.basename(file).toLowerCase() !== 'index.html');
+
+  if (htmlFiles.length === 0) {
+    console.log('No HTML files found.');
+    server.close();
+    return;
+  }
+
+  // Launch Puppeteer
+  const browser = await puppeteer.launch({ headless: true });
+  
+  const items = [];
+
+  for (const file of htmlFiles) {
+    const page = await browser.newPage();
+    const relPath = path.relative(CWD, file).replace(/\\/g, '/');
+    const localUrl = `http://localhost:${PORT}/${relPath}`;
+    const screenshotPath = file + '.png';
+    const relScreenshot = relPath + '.png';
+
+    try {
+      await page.setViewport({ width: 800, height: 600 });
+      await page.goto(localUrl, { waitUntil: 'networkidle2' });
+      await page.screenshot({ path: screenshotPath });
+      items.push({ relPath, relScreenshot });
+      console.log(`Screenshot generated for ${relPath}`);
+    } catch (err) {
+      console.error(`Error screenshotting ${relPath}: ${err}`);
+    }
+
     await page.close();
   }
-  await browser.close();
-}
 
-// Function to generate index.html with grid view
-async function generateIndexHtml(htmlFiles) {
-  const screenshotDir = path.join(process.cwd(), 'screenshots');
+  await browser.close();
+
+  // Generate index.html
   const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HTML Files Preview</title>
+  <title>HTML Index</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 20px;
-      background-color: #f4f4f4;
-    }
-    .grid-container {
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .container {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
       gap: 20px;
-      padding: 20px;
     }
-    .grid-item {
-      background-color: white;
+    .item {
       border: 1px solid #ddd;
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      transition: transform 0.2s;
+      text-align: center;
+      background: #fff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
-    .grid-item:hover {
-      transform: scale(1.05);
-    }
-    .grid-item img {
+    .item img {
       width: 100%;
       height: auto;
       display: block;
     }
-    .grid-item a {
+    .item a {
       display: block;
       padding: 10px;
-      text-align: center;
       text-decoration: none;
       color: #333;
-      font-weight: bold;
     }
-    .grid-item a:hover {
-      background-color: #f0f0f0;
+    .item a:hover {
+      background: #f0f0f0;
     }
     @media (max-width: 600px) {
-      .grid-container {
+      .container {
         grid-template-columns: 1fr;
       }
     }
   </style>
 </head>
 <body>
-  <h1>HTML Files Preview</h1>
-  <div class="grid-container">
-    ${htmlFiles
-      .map(file => {
-        const relativePath = path.relative(process.cwd(), file);
-        const screenshotPath = `screenshots/${path.basename(file, '.html')}.png`;
-        return `
-          <div class="grid-item">
-            <a href="${relativePath}">
-              <img src="${screenshotPath}" alt="Screenshot of ${path.basename(file)}">
-              <span>${path.basename(file)}</span>
-            </a>
-          </div>
-        `;
-      })
-      .join('')}
+  <h1>HTML Files Index</h1>
+  <div class="container">
+    ${items.map(item => `
+      <div class="item">
+        <a href="${item.relPath}">
+          <img src="${item.relScreenshot}" alt="${item.relPath}">
+          <span>${item.relPath}</span>
+        </a>
+      </div>
+    `).join('')}
   </div>
 </body>
 </html>
   `;
-  await fs.writeFile(path.join(process.cwd(), 'index.html'), htmlContent);
-  console.log('index.html generated successfully');
-}
 
-// Main function to orchestrate the process
-async function main() {
-  // Start the HTTP server
-  const server = http.createServer(app);
-  server.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+  const indexPath = path.join(CWD, 'index.html');
+  fs.writeFileSync(indexPath, htmlContent.trim());
+  console.log('index.html generated.');
+
+  // Close server
+  server.close(() => {
+    console.log('Server closed.');
   });
-
-  try {
-    // Find all HTML files
-    const htmlFiles = await findHtmlFiles(process.cwd());
-    if (htmlFiles.length === 0) {
-      console.log('No HTML files found in the current directory.');
-      server.close();
-      return;
-    }
-
-    // Generate screenshots
-    await generateScreenshots(htmlFiles);
-
-    // Generate index.html
-    await generateIndexHtml(htmlFiles);
-
-    console.log('Process completed. Visit http://localhost:3000/index.html to view the grid.');
-  } catch (err) {
-    console.error('Error:', err);
-    server.close();
-  }
-}
-
-// Run the main function
-main().catch(err => console.error('Main error:', err));
+});
+```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
