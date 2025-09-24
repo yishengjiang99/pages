@@ -15,6 +15,7 @@
   <script>
     mocha.setup('bdd');
     mocha.checkLeaks();
+    class AudioWorkletProcessor {} //ghetto hack to allow classes to extend AudioWorkletProcessor
   </script>
 
   <script src="test-goertzel-processor.js"></script>
