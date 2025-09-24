@@ -32,12 +32,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        # Use npm ci for faster, deterministic installs with package-lock.json
+        # Use npm ci for deterministic installs
 
       - name: Install system dependencies for Puppeteer
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             ca-certificates \
             fonts-liberation \
             libappindicator3-1 \
@@ -74,6 +74,10 @@ jobs:
             lsb-release \
             wget \
             xdg-utils
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+        env:
+          DEBIAN_FRONTEND: noninteractive
 
       - name: Generate index.html
         run: node generate-index.js
