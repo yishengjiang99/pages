@@ -1,20 +1,12 @@
 {
-  "name": "pages",
+  "name": "static-site",
   "version": "1.0.0",
-  "description": "",
-  "main": "grok4sf2midi.js",
+  "description": "Static site with generated index",
+  "main": "generate-index.js",
+  "dependencies": {
+    "puppeteer": "^23.0.0"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/yishengjiang99/pages.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/yishengjiang99/pages/issues"
-  },
-  "homepage": "https://github.com/yishengjiang99/pages#readme"
+    "start": "node generate-index.js"
+  }
 }
