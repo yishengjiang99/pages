@@ -19,7 +19,6 @@ const mimeTypes = {
   '.svg': 'image/svg+xml',
   '.json': 'application/json',
   '.txt': 'text/plain',
-  // Add more if needed
 };
 
 // Recursive function to find all .html files
@@ -79,8 +78,11 @@ server.listen(PORT, async () => {
     return;
   }
 
-  // Launch Puppeteer
-  const browser = await puppeteer.launch({ headless: true });
+  // Launch Puppeteer with --no-sandbox
+  const browser = await puppeteer.launch({ 
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'] // Added to fix sandbox issue
+  });
   
   const items = [];
 
