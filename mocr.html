@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -35,6 +36,19 @@
       width: 100%;
       font-size: 1rem;
     }
+    #pasteArea {
+      width: 100%;
+      min-height: 100px;
+      border: 2px dashed #ccc;
+      padding: 1rem;
+      text-align: center;
+      margin: 1rem 0;
+      background: #f9f9f9;
+      cursor: pointer;
+    }
+    #pasteArea:hover {
+      background: #f1f3f5;
+    }
     img {
       display: block;
       max-width: 100%;
@@ -52,6 +66,11 @@
       font-size: 0.9rem;
       max-height: 300px;
       overflow-y: auto;
+    }
+    #error {
+      color: red;
+      text-align: center;
+      margin: 0.5rem 0;
     }
     details {
       margin-top: 1rem;
@@ -72,20 +91,24 @@
 <body>
   <div class="container">
     <h2>PNG OCR + Metadata Extractor</h2>
+    <div id="pasteArea">Click here and press Ctrl+V (or Cmd+V) to paste an image</div>
+    <p id="error"></p>
     <input type="file" id="fileInput" accept="image/png" />
     <img id="preview" style="display:none;" />
     <pre id="output">OCR text will appear here...</pre>
     <details>
       <summary>Show PNG Metadata</summary>
-      <pre id="metadata">Upload a PNG to see chunk metadata...</pre>
+      <pre id="metadata">Upload or paste a PNG to see chunk metadata...</pre>
     </details>
   </div>
 
   <script>
     const fileInput = document.getElementById('fileInput');
+    const pasteArea = document.getElementById('pasteArea');
     const preview = document.getElementById('preview');
     const metadata = document.getElementById('metadata');
     const output = document.getElementById('output');
+    const error = document.getElementById('error');
 
     function parsePNGChunks(buffer) {
       const view = new DataView(buffer);
@@ -126,10 +149,9 @@
           out += `🔹 ${c.type}: ${decodeText(c.data)}\n`;
         }
         if (c.type === "zTXt") {
-          // zTXt format: keyword\0compressionFlag\0compressedText
           const nullIndex = c.data.indexOf(0);
           const keyword = decodeText(c.data.slice(0, nullIndex));
-          const compressed = c.data.slice(nullIndex + 2); // skip compression flag + method
+          const compressed = c.data.slice(nullIndex + 2);
           try {
             const decompressed = pako.inflate(compressed);
             const text = decodeText(decompressed);
@@ -142,10 +164,7 @@
       return out || "No embedded text found.";
     }
 
-    fileInput.addEventListener('change', async (event) => {
-      const file = event.target.files[0];
-      if (!file) return;
-
+    async function processImage(file, fileName = 'pasted_image.png') {
       // Preview image
       const reader = new FileReader();
       reader.onload = e => {
@@ -156,20 +175,64 @@
 
       // OCR
       output.textContent = "⏳ Processing OCR...";
-      const { data: { text } } = await Tesseract.recognize(file, 'eng');
-      output.textContent = text || "⚠️ No text found.";
+      try {
+        const { data: { text } } = await Tesseract.recognize(file, 'eng');
+        output.textContent = text || "⚠️ No text found.";
+      } catch (e) {
+        output.textContent = "⚠️ Error processing OCR: " + e.message;
+      }
 
       // Parse chunks + extract readable strings
       const arrayBuffer = await file.arrayBuffer();
       const chunks = parsePNGChunks(arrayBuffer);
 
-      let metaOutput = `File: ${file.name}\nSize: ${(file.size/1024).toFixed(2)} KB\n\nChunks:\n`;
+      let metaOutput = `File: ${fileName}\nSize: ${(file.size/1024).toFixed(2)} KB\n\nChunks:\n`;
       for (const c of chunks) {
         metaOutput += `- ${c.type} (${c.length} bytes)\n`;
       }
 
       metaOutput += `\nReadable Strings:\n${extractReadableStrings(chunks)}`;
       metadata.textContent = metaOutput;
+    }
+
+    // File input handler
+    fileInput.addEventListener('change', async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      error.textContent = '';
+      await processImage(file, file.name);
+    });
+
+    // Paste handler
+    pasteArea.addEventListener('paste', async (event) => {
+      const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+      let imageFile = null;
+
+      for (let item of items) {
+        if (item.type.indexOf('image') !== -1) {
+          imageFile = item.getAsFile();
+          break;
+        }
+      }
+
+      if (imageFile) {
+        error.textContent = '';
+        // Ensure the file is treated as a PNG for metadata parsing
+        const pngFile = new File([imageFile], 'pasted_image.png', { type: 'image/png' });
+        await processImage(pngFile);
+      } else {
+        error.textContent = 'No image found in clipboard. Please paste a valid image.';
+        preview.style.display = 'none';
+        output.textContent = 'OCR text will appear here...';
+        metadata.textContent = 'Upload or paste a PNG to see chunk metadata...';
+      }
+    });
+
+    // Clean up URL objects when page unloads
+    window.addEventListener('unload', () => {
+      if (preview.src) {
+        URL.revokeObjectURL(preview.src);
+      }
     });
   </script>
 </body>
