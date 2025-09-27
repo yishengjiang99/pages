@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Blinking circle</title>
+<style>
+  /* Set frequency in Hz here (number, no unit). Example: 1 = 1 Hz */
+  :root {
+    --freq: 1; /* Hz — change this to match your circuit */
+  }
+
+  /* helper: compute period = 1 / freq */
+  .blink {
+    --period: calc(1s / var(--freq)); /* CSS supports calc with time / number */
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: #4caf50;
+    display: inline-block;
+    /* center for demo */
+    margin: 40px;
+    /* animation: one full period per cycle; visible first half, invisible second half */
+    animation: blink-step var(--period) linear infinite;
+    /* smooth fade — remove transition if you want abrupt on/off */
+    will-change: opacity;
+  }
+
+  @keyframes blink-step {
+    0%   { opacity: 1; }
+    49.999% { opacity: 1; }
+    50%  { opacity: 0; }
+    100% { opacity: 0; }
+  }
+
+  /* optional: show numeric frequency label */
+  .label {
+    font-family: system-ui, Arial, sans-serif;
+    color: #ddd;
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  body { background: #111; display:flex; gap:12px; align-items:center; justify-content:center; height:100vh; flex-direction:column; }
+</style>
+</head>
+<body>
+
+<div>
+  <div class="blink" id="circle" style="--freq: 1;"></div>
+  <div class="label" id="lbl">frequency: 1.00 Hz</div>
+</div>
+
+<script>
+  // Optional tiny helper: change freq dynamically and update label.
+  // You can remove this script block if you set --freq in CSS directly.
+  const circle = document.getElementById('circle');
+  const lbl = document.getElementById('lbl');
+
+  // Example: set frequency to match an RC value:
+  // formula for astable multivibrator: f ≈ 1 / (1.4 * R * C)
+  // R in ohms, C in farads => f in Hz
+  // Example values:
+  // const R = 100000; // 100kΩ
+  // const C = 10e-6;  // 10 µF
+  // const f = 1 / (1.4 * R * C);
+
+  // For demo set a frequency (change this number)
+  function setFrequency(f) {
+    if (f <= 0) f = 0.001;
+    circle.style.setProperty('--freq', f.toFixed(6));
+    lbl.textContent = `frequency: ${Number(f).toFixed(3)} Hz`;
+  }
+
+  // Example: compute from R and C (uncomment & edit if you want)
+  // const R = 100000; // 100kΩ
+  // const C = 10e-6;  // 10 µF
+  // const fFromRC = 1 / (1.4 * R * C);
+  // setFrequency(fFromRC);
+
+  // quick demo values
+  setFrequency(0.714); // ~0.714 Hz (example for R=100k, C=10µF)
+</script>
+</body>
+</html>
