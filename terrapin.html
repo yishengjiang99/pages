@@ -6,7 +6,142 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Terrapin Logo Emulator</title>
     <style>
-        /* Your existing CSS remains unchanged */
+        body {
+            margin: 0;
+            padding: 1vmin;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            /* Disable scrolling */
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            user-select: none;
+            /* Disable text selection */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: clamp(1rem, 3vmin, 1.5rem);
+            margin: 1vmin 0;
+            text-align: center;
+        }
+
+        #turtleCanvas {
+            border: 1px solid black;
+            width: clamp(200px, 90vmin, 400px);
+            height: clamp(200px, 90vmin, 400px);
+            background-color: #fff;
+        }
+
+        #commandInput {
+            width: clamp(200px, 90vmin, 400px);
+            height: 15vmin;
+            margin: 1vmin 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 0.5vmin;
+            font-family: 'Courier New', monospace;
+            font-size: clamp(0.8rem, 2.5vmin, 1rem);
+            resize: none;
+            user-select: text;
+            /* Allow text selection in editor */
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+            gap: 0.5vmin;
+            width: clamp(200px, 90vmin, 400px);
+            margin: 0.5vmin 0;
+        }
+
+        button {
+            padding: 0.5vmin;
+            font-size: clamp(0.7rem, 2vmin, 0.9rem);
+            border: 1px solid #333;
+            background-color: #e0e0e0;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #d0d0d0;
+        }
+
+        button:active {
+            background-color: #c0c0c0;
+        }
+
+        .command-buttons button {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .command-buttons button:hover {
+            background-color: #45a049;
+        }
+
+        .number-buttons button {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        .number-buttons button:hover {
+            background-color: #1e88e5;
+        }
+
+        .action-buttons button {
+            background-color: #ff5722;
+            color: white;
+            font-weight: bold;
+        }
+
+        .action-buttons button:hover {
+            background-color: #e64a19;
+        }
+
+        .action-buttons .reset-button {
+            background-color: #f44336;
+        }
+
+        .action-buttons .reset-button:hover {
+            background-color: #d32f2f;
+        }
+
+        .action-buttons .sample-button {
+            background-color: #9c27b0;
+        }
+
+        .action-buttons .sample-button:hover {
+            background-color: #7b1fa2;
+        }
+
+        @media (max-width: 600px) {
+            .controls {
+                grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+                gap: 0.3vmin;
+            }
+
+            button {
+                padding: 0.4vmin;
+                font-size: clamp(0.6rem, 1.8vmin, 0.8rem);
+            }
+
+            #commandInput {
+                height: 20vmin;
+            }
+        }
     </style>
 </head>
 
@@ -24,7 +159,7 @@
         <button onclick="appendCommand('PENDOWN')">PENDOWN</button>
         <button onclick="appendCommand('CLEARSCREEN')">CLEARSCREEN</button>
         <button onclick="appendCommand('HOME')">HOME</button>
-        <button onclick="appendCommand('REPEAT')">REPEAT</button> <!-- Added REPEAT button -->
+        <button onclick="appendCommand('REPEAT')">REPEAT</button>
     </div>
     <div class="controls number-buttons">
         <button onclick="appendCommand('10')">10</button>
@@ -106,7 +241,7 @@
         // Reset editor and canvas
         function resetEditor() {
             commandInput.value = '';
-            procedures = {}; // Clear procedures
+            procedures = {};
             initCanvas();
         }
 
@@ -270,7 +405,7 @@ FLOWER`;
                     const y = parseFloat(tokens[i]);
                     if (!isNaN(x) && !isNaN(y)) {
                         turtle.x = canvas.width / 2 + x;
-                        turtle.y = canvas.height / 2 - y; // Adjust for canvas coordinates
+                        turtle.y = canvas.height / 2 - y;
                     } else {
                         console.warn(`Invalid arguments for SETXY: ${tokens[i-1]}, ${tokens[i]}`);
                     }
