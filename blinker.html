@@ -3,7 +3,12 @@
 <head>
 <meta charset="utf-8">
 <title>Smooth LED Blink</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- mobile scaling -->
 <style>
+  :root {
+    --freq: 1;
+  }
+
   body {
     background: #111;
     color: #ddd;
@@ -15,10 +20,10 @@
     height: 100vh;
     margin: 0;
     gap: 20px;
+    overflow-x: hidden; /* prevent horizontal scrolling */
   }
 
   .blink {
-    --freq: 1;
     --period: calc(1s / var(--freq));
     width: 120px;
     height: 120px;
@@ -27,7 +32,6 @@
     animation: blink-fade var(--period) ease-in-out infinite;
   }
 
-  /* Gradual fade in/out, like an LED */
   @keyframes blink-fade {
     0%   { opacity: 0; }
     25%  { opacity: 1; }
@@ -37,23 +41,80 @@
 
   .controls {
     background: #222;
-    padding: 15px 20px;
+    padding: 15px;
     border-radius: 8px;
     box-shadow: 0 0 10px #000;
+    width: 90%;
+    max-width: 400px; /* keep centered and avoid overflow */
+    box-sizing: border-box;
   }
 
   .controls label {
     display: block;
-    margin: 10px 0 4px;
+    margin: 12px 0 6px;
+    font-size: 0.95rem;
   }
 
   input[type="range"] {
-    width: 300px;
+    width: 100%;
+    appearance: none;
+    height: 32px; /* larger touch area */
+    background: transparent;
+    cursor: pointer;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Custom slider thumb for better mobile usability */
+  input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #4caf50;
+    border: 2px solid #333;
+    margin-top: -12px; /* center thumb vertically */
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #4caf50;
+    border: 2px solid #333;
+  }
+
+  input[type="range"]::-ms-thumb {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #4caf50;
+    border: 2px solid #333;
+  }
+
+  /* Track styling */
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 4px;
+    background: #555;
+  }
+
+  input[type="range"]::-moz-range-track {
+    height: 8px;
+    border-radius: 4px;
+    background: #555;
+  }
+
+  input[type="range"]::-ms-track {
+    height: 8px;
+    border-radius: 4px;
+    background: #555;
   }
 
   .readout {
     margin-top: 12px;
     text-align: center;
+    font-size: 1.1rem;
   }
 </style>
 </head>
