@@ -125,10 +125,10 @@
     <canvas id="turtleCanvas"></canvas>
     <textarea id="commandInput" placeholder="Enter Logo commands or use buttons below"></textarea>
     <div class="controls command-buttons">
-        <button onclick="appendCommand('FORWARD ')">FORWARD</button>
-        <button onclick="appendCommand('BACK ')">BACK</button>
-        <button onclick="appendCommand('RIGHT ')">RIGHT</button>
-        <button onclick="appendCommand('LEFT ')">LEFT</button>
+        <button onclick="appendCommand('FORWARD')">FORWARD</button>
+        <button onclick="appendCommand('BACK')">BACK</button>
+        <button onclick="appendCommand('RIGHT')">RIGHT</button>
+        <button onclick="appendCommand('LEFT')">LEFT</button>
         <button onclick="appendCommand('PENUP')">PENUP</button>
         <button onclick="appendCommand('PENDOWN')">PENDOWN</button>
         <button onclick="appendCommand('CLEARSCREEN')">CLEARSCREEN</button>
@@ -196,7 +196,16 @@
 
         // Append command to editor
         function appendCommand(cmd) {
-            commandInput.value += cmd + ' ';
+            // If appending a number, add a line break; otherwise, add a space
+            if (/\d+/.test(cmd)) {
+                if (commandInput.value.endsWith(' ')) {
+                    commandInput.value = commandInput.value.trimEnd() + ' ' + cmd + '\n';
+                } else {
+                    commandInput.value += cmd + '\n';
+                }
+            } else {
+                commandInput.value += cmd + ' ';
+            }
             commandInput.focus();
         }
 
@@ -221,33 +230,38 @@ FORWARD 100`;
         // Parse and execute commands
         function runCommands() {
             const input = commandInput.value.toUpperCase().trim();
-            const commands = input.split('\n');
+            const commands = input.split('\n').filter(cmd => cmd.trim() !== '');
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = '#fff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
             commands.forEach(command => {
-                const tokens = command.trim().split(' ');
+                // Split and filter out empty tokens
+                const tokens = command.trim().split(/\s+/).filter(token => token !== '');
                 const cmd = tokens[0];
-                const arg = parseFloat(tokens[1]);
+                const arg = tokens[1] ? parseFloat(tokens[1]) : NaN;
 
                 switch (cmd) {
                     case 'FORWARD':
                     case 'FD':
-                        moveTurtle(arg);
+                        if (!isNaN(arg)) moveTurtle(arg);
+                        else console.warn(`Invalid argument for ${cmd}: ${tokens[1]}`);
                         break;
                     case 'BACK':
                     case 'BK':
-                        moveTurtle(-arg);
+                        if (!isNaN(arg)) moveTurtle(-arg);
+                        else console.warn(`Invalid argument for ${cmd}: ${tokens[1]}`);
                         break;
                     case 'RIGHT':
                     case 'RT':
-                        turtle.angle = (turtle.angle + arg) % 360;
+                        if (!isNaN(arg)) turtle.angle = (turtle.angle + arg) % 360;
+                        else console.warn(`Invalid argument for ${cmd}: ${tokens[1]}`);
                         break;
                     case 'LEFT':
                     case 'LT':
-                        turtle.angle = (turtle.angle - arg) % 360;
+                        if (!isNaN(arg)) turtle.angle = (turtle.angle - arg) % 360;
+                        else console.warn(`Invalid argument for ${cmd}: ${tokens[1]}`);
                         break;
                     case 'PENUP':
                     case 'PU':
