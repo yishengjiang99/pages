@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terrapin Logo Emulator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px;
+        }
+        canvas {
+            border: 1px solid black;
+        }
+        textarea {
+            width: 500px;
+            height: 100px;
+            margin: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Terrapin Logo Emulator</h1>
+    <canvas id="turtleCanvas" width="500" height="500"></canvas>
+    <textarea id="commandInput" placeholder="Enter Logo commands (e.g., FORWARD 100 RIGHT 90)"></textarea>
+    <button onclick="runCommands()">Run Commands</button>
+
+    <script>
+        // Get canvas and context
+        const canvas = document.getElementById('turtleCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Turtle state
+        let turtle = {
+            x: canvas.width / 2, // Start at center
+            y: canvas.height / 2,
+            angle: 0, // Facing up (0 degrees)
+            penDown: true // Pen is down by default
+        };
+
+        // Initialize canvas
+        function initCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            turtle.x = canvas.width / 2;
+            turtle.y = canvas.height / 2;
+            turtle.angle = 0;
+            turtle.penDown = true;
+            drawTurtle();
+        }
+
+        // Draw turtle (simple triangle)
+        function drawTurtle() {
+            ctx.save();
+            ctx.translate(turtle.x, turtle.y);
+            ctx.rotate((turtle.angle * Math.PI) / 180);
+            ctx.fillStyle = 'green';
+            ctx.beginPath();
+            ctx.moveTo(0, -10);
+            ctx.lineTo(-5, 5);
+            ctx.lineTo(5, 5);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Parse and execute commands
+        function runCommands() {
+            const input = document.getElementById('commandInput').value.toUpperCase().trim();
+            const commands = input.split('\n');
+
+            // Clear previous turtle drawing
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            commands.forEach(command => {
+                const tokens = command.trim().split(' ');
+                const cmd = tokens[0];
+                const arg = parseFloat(tokens[1]);
+
+                switch (cmd) {
+                    case 'FORWARD':
+                    case 'FD':
+                        moveTurtle(arg);
+                        break;
+                    case 'BACK':
+                    case 'BK':
+                        moveTurtle(-arg);
+                        break;
+                    case 'RIGHT':
+                    case 'RT':
+                        turtle.angle = (turtle.angle + arg) % 360;
+                        break;
+                    case 'LEFT':
+                    case 'LT':
+                        turtle.angle = (turtle.angle - arg) % 360;
+                        break;
+                    case 'PENUP':
+                    case 'PU':
+                        turtle.penDown = false;
+                        break;
+                    case 'PENDOWN':
+                    case 'PD':
+                        turtle.penDown = true;
+                        break;
+                    case 'CLEARSCREEN':
+                    case 'CS':
+                        initCanvas();
+                        break;
+                    case 'HOME':
+                        turtle.x = canvas.width / 2;
+                        turtle.y = canvas.height / 2;
+                        turtle.angle = 0;
+                        break;
+                    default:
+                        console.warn(`Unknown command: ${cmd}`);
+                }
+            });
+
+            drawTurtle();
+        }
+
+        // Move turtle and draw line if pen is down
+        function moveTurtle(distance) {
+            const rad = (turtle.angle * Math.PI) / 180;
+            const newX = turtle.x + distance * Math.cos(rad);
+            const newY = turtle.y - distance * Math.sin(rad); // Canvas Y is inverted
+
+            if (turtle.penDown) {
+                ctx.beginPath();
+                ctx.moveTo(turtle.x, turtle.y);
+                ctx.lineTo(newX, newY);
+                ctx.strokeStyle = 'black';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            turtle.x = newX;
+            turtle.y = newY;
+        }
+
+        // Initialize canvas on load
+        initCanvas();
+    </script>
+</body>
+</html>
