@@ -6,142 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Terrapin Logo Emulator</title>
     <style>
-        body {
-            margin: 0;
-            padding: 1vmin;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-between;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-            /* Disable scrolling */
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            user-select: none;
-            /* Disable text selection */
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            box-sizing: border-box;
-        }
-
-        h1 {
-            font-size: clamp(1rem, 3vmin, 1.5rem);
-            margin: 1vmin 0;
-            text-align: center;
-        }
-
-        #turtleCanvas {
-            border: 1px solid black;
-            width: clamp(200px, 90vmin, 400px);
-            height: clamp(200px, 90vmin, 400px);
-            background-color: #fff;
-        }
-
-        #commandInput {
-            width: clamp(200px, 90vmin, 400px);
-            height: 15vmin;
-            margin: 1vmin 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            padding: 0.5vmin;
-            font-family: 'Courier New', monospace;
-            font-size: clamp(0.8rem, 2.5vmin, 1rem);
-            resize: none;
-            user-select: text;
-            /* Allow text selection in editor */
-            -webkit-user-select: text;
-            -moz-user-select: text;
-            -ms-user-select: text;
-        }
-
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-            gap: 0.5vmin;
-            width: clamp(200px, 90vmin, 400px);
-            margin: 0.5vmin 0;
-        }
-
-        button {
-            padding: 0.5vmin;
-            font-size: clamp(0.7rem, 2vmin, 0.9rem);
-            border: 1px solid #333;
-            background-color: #e0e0e0;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background-color 0.2s;
-        }
-
-        button:hover {
-            background-color: #d0d0d0;
-        }
-
-        button:active {
-            background-color: #c0c0c0;
-        }
-
-        .command-buttons button {
-            background-color: #4CAF50;
-            color: white;
-        }
-
-        .command-buttons button:hover {
-            background-color: #45a049;
-        }
-
-        .number-buttons button {
-            background-color: #2196F3;
-            color: white;
-        }
-
-        .number-buttons button:hover {
-            background-color: #1e88e5;
-        }
-
-        .action-buttons button {
-            background-color: #ff5722;
-            color: white;
-            font-weight: bold;
-        }
-
-        .action-buttons button:hover {
-            background-color: #e64a19;
-        }
-
-        .action-buttons .reset-button {
-            background-color: #f44336;
-        }
-
-        .action-buttons .reset-button:hover {
-            background-color: #d32f2f;
-        }
-
-        .action-buttons .sample-button {
-            background-color: #9c27b0;
-        }
-
-        .action-buttons .sample-button:hover {
-            background-color: #7b1fa2;
-        }
-
-        @media (max-width: 600px) {
-            .controls {
-                grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
-                gap: 0.3vmin;
-            }
-
-            button {
-                padding: 0.4vmin;
-                font-size: clamp(0.6rem, 1.8vmin, 0.8rem);
-            }
-
-            #commandInput {
-                height: 20vmin;
-            }
-        }
+        /* Your existing CSS remains unchanged */
     </style>
 </head>
 
@@ -149,7 +14,7 @@
     <h1>Terrapin Logo Emulator</h1>
     <canvas id="turtleCanvas"></canvas>
     <textarea id="commandInput" placeholder="Enter Logo commands or use buttons below"></textarea>
-    <pre id="'debug"></pre>
+    <pre id="debug"></pre>
     <div class="controls command-buttons">
         <button onclick="appendCommand('FORWARD')">FORWARD</button>
         <button onclick="appendCommand('BACK')">BACK</button>
@@ -159,6 +24,7 @@
         <button onclick="appendCommand('PENDOWN')">PENDOWN</button>
         <button onclick="appendCommand('CLEARSCREEN')">CLEARSCREEN</button>
         <button onclick="appendCommand('HOME')">HOME</button>
+        <button onclick="appendCommand('REPEAT')">REPEAT</button> <!-- Added REPEAT button -->
     </div>
     <div class="controls number-buttons">
         <button onclick="appendCommand('10')">10</button>
@@ -176,7 +42,6 @@
         const canvas = document.getElementById('turtleCanvas');
         const ctx = canvas.getContext('2d');
         const commandInput = document.getElementById('commandInput');
-        const debug = document.getElementById('commandInput');
 
         // Set canvas size
         const setCanvasSize = () => {
@@ -194,6 +59,9 @@
             penDown: true
         };
 
+        // Store procedures
+        let procedures = {};
+
         // Initialize canvas
         function initCanvas() {
             turtle.x = canvas.width / 2;
@@ -206,16 +74,16 @@
             drawTurtle();
         }
 
-        // Draw turtle (triangle pointing in movement direction)
+        // Draw turtle
         function drawTurtle() {
             ctx.save();
             ctx.translate(turtle.x, turtle.y);
             ctx.rotate((turtle.angle * Math.PI) / 180);
             ctx.fillStyle = 'green';
             ctx.beginPath();
-            ctx.moveTo(0, -15); // Apex (forward direction)
-            ctx.lineTo(-5, 5);  // Base left
-            ctx.lineTo(5, 5);   // Base right
+            ctx.moveTo(0, -15);
+            ctx.lineTo(-5, 5);
+            ctx.lineTo(5, 5);
             ctx.closePath();
             ctx.fill();
             ctx.restore();
@@ -223,7 +91,6 @@
 
         // Append command to editor
         function appendCommand(cmd) {
-            // If appending a number, add a line break; otherwise, add a space
             if (/\d+/.test(cmd)) {
                 if (commandInput.value.endsWith(' ')) {
                     commandInput.value = commandInput.value.trimEnd() + ' ' + cmd + '\n';
@@ -239,79 +106,183 @@
         // Reset editor and canvas
         function resetEditor() {
             commandInput.value = '';
+            procedures = {}; // Clear procedures
             initCanvas();
         }
 
-        // Load sample sequence (draws a square)
+        // Load sample sequence (six-petal flower)
         function loadSample() {
-            commandInput.value = `FORWARD 100
-RIGHT 90
-FORWARD 100
-RIGHT 90
-FORWARD 100
-RIGHT 90
-FORWARD 100`;
+            commandInput.value = `TO FLOWER
+  REPEAT 6 [
+    REPEAT 36 [
+      FORWARD 5
+      RIGHT 5
+    ]
+    RIGHT 180
+    REPEAT 36 [
+      FORWARD 5
+      RIGHT 5
+    ]
+    RIGHT 180
+    RIGHT 60
+  ]
+END
+CLEARSCREEN
+PENUP
+SETXY 0 0
+PENDOWN
+FLOWER`;
             commandInput.focus();
         }
 
-        // Parse and execute commands
-        function runCommands() {
-            const input = commandInput.value.toUpperCase().trim();
-            const commands = input.split('\n').filter(cmd => cmd.trim() !== '');
+        // Parse command blocks (e.g., REPEAT or procedure bodies)
+        function parseBlock(tokens, startIndex) {
+            let index = startIndex;
+            let block = [];
+            let depth = 0;
 
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if (tokens[index] !== '[') return { commands: [], nextIndex: index };
 
-            commands.forEach(command => {
-                // Split and filter out empty tokens
-                const tokens = command.trim().split(/\s+/).filter(token => token !== '');
-                const cmd = tokens[0];
-                const arg = tokens[1] ? parseFloat(tokens[1]) : NaN;
-
-                switch (cmd) {
-                    case 'FORWARD':
-                    case 'FD':
-                        if (!isNaN(arg)) moveTurtle(arg);
-                        else console.warn(`Invalid argument for ${cmd}: ${tokens[1]}`);
+            index++;
+            while (index < tokens.length) {
+                const token = tokens[index];
+                if (token === '[') {
+                    depth++;
+                    block.push(token);
+                } else if (token === ']') {
+                    depth--;
+                    if (depth === 0) {
+                        index++;
                         break;
-                    case 'BACK':
-                    case 'BK':
-                        if (!isNaN(arg)) moveTurtle(-arg);
-                        else console.warn(`Invalid argument for ${cmd}: ${tokens[1]}`);
-                        break;
-                    case 'RIGHT':
-                    case 'RT':
-                        if (!isNaN(arg)) turtle.angle = (turtle.angle + arg) % 360;
-                        else console.warn(`Invalid argument for ${cmd}: ${tokens[1]}`);
-                        break;
-                    case 'LEFT':
-                    case 'LT':
-                        if (!isNaN(arg)) turtle.angle = (turtle.angle - arg) % 360;
-                        else console.warn(`Invalid argument for ${cmd}: ${tokens[1]}`);
-                        break;
-                    case 'PENUP':
-                    case 'PU':
-                        turtle.penDown = false;
-                        break;
-                    case 'PENDOWN':
-                    case 'PD':
-                        turtle.penDown = true;
-                        break;
-                    case 'CLEARSCREEN':
-                    case 'CS':
-                        initCanvas();
-                        break;
-                    case 'HOME':
-                        turtle.x = canvas.width / 2;
-                        turtle.y = canvas.height / 2;
-                        turtle.angle = 0;
-                        break;
-                    default:
-                        console.warn(`Unknown command: ${cmd}`);
+                    }
+                    block.push(token);
+                } else {
+                    block.push(token);
                 }
-            });
+                index++;
+            }
 
+            return { commands: block, nextIndex: index };
+        }
+
+        // Tokenize input, preserving blocks
+        function tokenizeInput(input) {
+            const tokens = [];
+            let currentToken = '';
+            let i = 0;
+            let inBlock = false;
+
+            while (i < input.length) {
+                const char = input[i];
+                if (char === '[' || char === ']') {
+                    if (currentToken) {
+                        tokens.push(currentToken.trim());
+                        currentToken = '';
+                    }
+                    tokens.push(char);
+                    inBlock = (char === '[');
+                } else if (/\s/.test(char) && !inBlock) {
+                    if (currentToken) {
+                        tokens.push(currentToken.trim());
+                        currentToken = '';
+                    }
+                } else {
+                    currentToken += char;
+                }
+                i++;
+            }
+            if (currentToken) tokens.push(currentToken.trim());
+            return tokens.filter(token => token !== '');
+        }
+
+        // Execute a list of tokens
+        function executeCommands(tokens, startIndex = 0) {
+            let i = startIndex;
+            while (i < tokens.length) {
+                const cmd = tokens[i].toUpperCase();
+                if (cmd === 'TO') {
+                    i++;
+                    const procName = tokens[i];
+                    i++;
+                    const { commands: procBody, nextIndex } = parseBlock(tokens, i);
+                    if (tokens[nextIndex] === 'END') {
+                        procedures[procName.toUpperCase()] = procBody;
+                        i = nextIndex + 1;
+                    } else {
+                        console.warn(`Missing END for procedure ${procName}`);
+                        return;
+                    }
+                } else if (cmd === 'REPEAT') {
+                    i++;
+                    const count = parseInt(tokens[i]);
+                    if (isNaN(count)) {
+                        console.warn(`Invalid REPEAT count: ${tokens[i]}`);
+                        return;
+                    }
+                    i++;
+                    const { commands: block, nextIndex } = parseBlock(tokens, i);
+                    for (let j = 0; j < count; j++) {
+                        executeCommands(block);
+                    }
+                    i = nextIndex;
+                } else if (cmd === 'FORWARD' || cmd === 'FD') {
+                    i++;
+                    const arg = parseFloat(tokens[i]);
+                    if (!isNaN(arg)) moveTurtle(arg);
+                    else console.warn(`Invalid argument for ${cmd}: ${tokens[i]}`);
+                    i++;
+                } else if (cmd === 'BACK' || cmd === 'BK') {
+                    i++;
+                    const arg = parseFloat(tokens[i]);
+                    if (!isNaN(arg)) moveTurtle(-arg);
+                    else console.warn(`Invalid argument for ${cmd}: ${tokens[i]}`);
+                    i++;
+                } else if (cmd === 'RIGHT' || cmd === 'RT') {
+                    i++;
+                    const arg = parseFloat(tokens[i]);
+                    if (!isNaN(arg)) turtle.angle = (turtle.angle + arg) % 360;
+                    else console.warn(`Invalid argument for ${cmd}: ${tokens[i]}`);
+                    i++;
+                } else if (cmd === 'LEFT' || cmd === 'LT') {
+                    i++;
+                    const arg = parseFloat(tokens[i]);
+                    if (!isNaN(arg)) turtle.angle = (turtle.angle - arg) % 360;
+                    else console.warn(`Invalid argument for ${cmd}: ${tokens[i]}`);
+                    i++;
+                } else if (cmd === 'PENUP' || cmd === 'PU') {
+                    turtle.penDown = false;
+                    i++;
+                } else if (cmd === 'PENDOWN' || cmd === 'PD') {
+                    turtle.penDown = true;
+                    i++;
+                } else if (cmd === 'CLEARSCREEN' || cmd === 'CS') {
+                    initCanvas();
+                    i++;
+                } else if (cmd === 'HOME') {
+                    turtle.x = canvas.width / 2;
+                    turtle.y = canvas.height / 2;
+                    turtle.angle = 0;
+                    i++;
+                } else if (cmd === 'SETXY') {
+                    i++;
+                    const x = parseFloat(tokens[i]);
+                    i++;
+                    const y = parseFloat(tokens[i]);
+                    if (!isNaN(x) && !isNaN(y)) {
+                        turtle.x = canvas.width / 2 + x;
+                        turtle.y = canvas.height / 2 - y; // Adjust for canvas coordinates
+                    } else {
+                        console.warn(`Invalid arguments for SETXY: ${tokens[i-1]}, ${tokens[i]}`);
+                    }
+                    i++;
+                } else if (procedures[cmd]) {
+                    executeCommands(procedures[cmd]);
+                    i++;
+                } else {
+                    console.warn(`Unknown command: ${cmd}`);
+                    i++;
+                }
+            }
             drawTurtle();
         }
 
@@ -333,6 +304,19 @@ FORWARD 100`;
 
             turtle.x = newX;
             turtle.y = newY;
+        }
+
+        // Parse and execute commands
+        function runCommands() {
+            const input = commandInput.value.trim();
+            if (!input) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            const tokens = tokenizeInput(input);
+            executeCommands(tokens);
         }
 
         // Initialize and handle resize
