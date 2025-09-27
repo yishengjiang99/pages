@@ -113,9 +113,9 @@
 
         .action-buttons .run-button:focus,
         .action-buttons .run-button:focus-visible {
-            outline: 3px solid #ff9800; /* Orange outline for visibility */
+            outline: 3px solid #ff9800;
             outline-offset: 2px;
-            background-color: #ff7043; /* Slightly lighter orange for focus */
+            background-color: #ff7043;
         }
 
         .action-buttons .reset-button {
@@ -283,7 +283,10 @@ FLOWER`;
             let block = [];
             let depth = 0;
 
-            if (tokens[index] !== '[') return { commands: [], nextIndex: index };
+            if (tokens[index] !== '[') {
+                console.warn(`Expected '[' at token ${index}`);
+                return { commands: [], nextIndex: index };
+            }
 
             index++;
             while (index < tokens.length) {
@@ -304,10 +307,13 @@ FLOWER`;
                 index++;
             }
 
+            if (depth !== 0) {
+                console.warn('Mismatched brackets in block');
+            }
             return { commands: block, nextIndex: index };
         }
 
-        // Tokenize input, preserving blocks
+        // Tokenize input, preserving blocks and handling newlines
         function tokenizeInput(input) {
             const tokens = [];
             let currentToken = '';
@@ -337,6 +343,33 @@ FLOWER`;
             return tokens.filter(token => token !== '');
         }
 
+        // Split block tokens into individual commands
+        function splitBlockIntoCommands(blockTokens) {
+            const commands = [];
+            let currentCommand = [];
+            let i = 0;
+
+            while (i < blockTokens.length) {
+                const token = blockTokens[i];
+                if (token === '[') {
+                    const { commands: nestedBlock, nextIndex } = parseBlock(blockTokens, i);
+                    currentCommand.push(...nestedBlock, ']');
+                    i = nextIndex;
+                } else {
+                    currentCommand.push(token);
+                    if (token !== ']' && (i + 1 >= blockTokens.length || blockTokens[i + 1] === '[' || blockTokens[i + 1] === ']' || ['FORWARD', 'FD', 'BACK', 'BK', 'RIGHT', 'RT', 'LEFT', 'LT', 'PENUP', 'PU', 'PENDOWN', 'PD', 'CLEARSCREEN', 'CS', 'HOME', 'REPEAT', 'SETXY'].includes(token.toUpperCase()))) {
+                        commands.push(currentCommand);
+                        currentCommand = [];
+                    }
+                    i++;
+                }
+            }
+            if (currentCommand.length > 0) {
+                commands.push(currentCommand);
+            }
+            return commands;
+        }
+
         // Execute a list of tokens
         function executeCommands(tokens, startIndex = 0) {
             let i = startIndex;
@@ -359,12 +392,16 @@ FLOWER`;
                     const count = parseInt(tokens[i]);
                     if (isNaN(count)) {
                         console.warn(`Invalid REPEAT count: ${tokens[i]}`);
-                        return;
+                        i++;
+                        continue;
                     }
                     i++;
                     const { commands: block, nextIndex } = parseBlock(tokens, i);
+                    const blockCommands = splitBlockIntoCommands(block);
                     for (let j = 0; j < count; j++) {
-                        executeCommands(block);
+                        blockCommands.forEach(command => {
+                            executeCommands(command);
+                        });
                     }
                     i = nextIndex;
                 } else if (cmd === 'FORWARD' || cmd === 'FD') {
@@ -418,7 +455,10 @@ FLOWER`;
                     }
                     i++;
                 } else if (procedures[cmd]) {
-                    executeCommands(procedures[cmd]);
+                    const blockCommands = splitBlockIntoCommands(procedures[cmd]);
+                    blockCommands.forEach(command => {
+                        executeCommands(command);
+                    });
                     i++;
                 } else {
                     console.warn(`Unknown command: ${cmd}`);
