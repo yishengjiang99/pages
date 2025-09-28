@@ -1,13 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Song Info Editor</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 600px;
+            max-width: 90%;
             margin: 20px auto;
             padding: 20px;
+            box-sizing: border-box;
         }
         .input-group {
             margin-bottom: 15px;
@@ -15,27 +18,57 @@
         label {
             display: block;
             margin-bottom: 5px;
+            font-size: 1rem;
         }
         input, textarea {
             width: 100%;
-            padding: 8px;
+            padding: 10px;
             margin-bottom: 10px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        textarea {
+            resize: vertical;
         }
         button {
-            padding: 10px 20px;
+            padding: 12px 24px;
             background-color: #4CAF50;
             color: white;
             border: none;
+            border-radius: 4px;
             cursor: pointer;
+            font-size: 1rem;
+            width: 100%;
+            max-width: 200px;
         }
         button:hover {
             background-color: #45a049;
         }
         #coverArtPreview {
-            max-width: 200px;
+            max-width: 100%;
             max-height: 200px;
             margin-top: 10px;
             display: none;
+            border-radius: 4px;
+        }
+        /* Mobile-specific styles */
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            label {
+                font-size: 0.9rem;
+            }
+            input, textarea {
+                font-size: 0.9rem;
+                padding: 8px;
+            }
+            button {
+                font-size: 0.9rem;
+                padding: 10px 20px;
+            }
         }
     </style>
 </head>
@@ -50,9 +83,13 @@
         <input type="text" id="artist" placeholder="Enter artist name">
     </div>
     <div class="input-group">
-        <label for="coverArt">Cover Art:</label>
+        <label for="coverArt">Cover Art (Image):</label>
         <input type="file" id="coverArt" accept="image/*">
         <img id="coverArtPreview" src="" alt="Cover Art Preview">
+    </div>
+    <div class="input-group">
+        <label for="mp3File">MP3 File:</label>
+        <input type="file" id="mp3File" accept="audio/mpeg">
     </div>
     <div class="input-group">
         <label for="lyrics">Lyrics:</label>
@@ -61,7 +98,7 @@
     <button onclick="downloadSongInfo()">Download Song Info</button>
 
     <script>
-        // Preview the selected image
+        // Preview the selected cover art image
         document.getElementById('coverArt').addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (file) {
@@ -94,17 +131,46 @@
             if (coverArtInput.files[0]) {
                 try {
                     const file = coverArtInput.files[0];
+                    // Validate file size (e.g., max 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('Cover art file is too large. Please select an image under 5MB.');
+                        return;
+                    }
                     const base64String = await new Promise((resolve, reject) => {
                         const reader = new FileReader();
                         reader.onload = () => resolve(reader.result);
                         reader.onerror = reject;
                         reader.readAsDataURL(file);
                     });
-                    songInfo.coverArt = base64String; // Store as base64 string
-                    songInfo.coverArtFileName = file.name; // Store file name
+                    songInfo.coverArt = base64String;
+                    songInfo.coverArtFileName = file.name;
                 } catch (error) {
                     console.error('Error reading cover art:', error);
                     alert('Failed to process cover art. Proceeding without it.');
+                }
+            }
+
+            // Handle MP3 file
+            const mp3Input = document.getElementById('mp3File');
+            if (mp3Input.files[0]) {
+                try {
+                    const file = mp3Input.files[0];
+                    // Validate file size (e.g., max 20MB)
+                    if (file.size > 20 * 1024 * 1024) {
+                        alert('MP3 file is too large. Please select a file under 20MB.');
+                        return;
+                    }
+                    const base64String = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                    songInfo.mp3 = base64String;
+                    songInfo.mp3FileName = file.name;
+                } catch (error) {
+                    console.error('Error reading MP3 file:', error);
+                    alert('Failed to process MP3 file. Proceeding without it.');
                 }
             }
 
@@ -131,6 +197,7 @@
             document.getElementById('title').value = '';
             document.getElementById('artist').value = '';
             document.getElementById('coverArt').value = '';
+            document.getElementById('mp3File').value = '';
             document.getElementById('lyrics').value = '';
             document.getElementById('coverArtPreview').style.display = 'none';
         }
