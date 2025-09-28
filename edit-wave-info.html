@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Song Info Editor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #coverArtPreview {
+            max-width: 200px;
+            max-height: 200px;
+            margin-top: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>Song Information Editor</h1>
+    <div class="input-group">
+        <label for="title">Song Title:</label>
+        <input type="text" id="title" placeholder="Enter song title">
+    </div>
+    <div class="input-group">
+        <label for="artist">Artist:</label>
+        <input type="text" id="artist" placeholder="Enter artist name">
+    </div>
+    <div class="input-group">
+        <label for="coverArt">Cover Art:</label>
+        <input type="file" id="coverArt" accept="image/*">
+        <img id="coverArtPreview" src="" alt="Cover Art Preview">
+    </div>
+    <div class="input-group">
+        <label for="lyrics">Lyrics:</label>
+        <textarea id="lyrics" rows="10" placeholder="Enter song lyrics"></textarea>
+    </div>
+    <button onclick="downloadSongInfo()">Download Song Info</button>
+
+    <script>
+        // Preview the selected image
+        document.getElementById('coverArt').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const preview = document.getElementById('coverArtPreview');
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        async function downloadSongInfo() {
+            // Get input values
+            const songInfo = {
+                title: document.getElementById('title').value,
+                artist: document.getElementById('artist').value,
+                lyrics: document.getElementById('lyrics').value
+            };
+
+            // Validate inputs
+            if (!songInfo.title || !songInfo.artist) {
+                alert('Please fill in at least the title and artist fields');
+                return;
+            }
+
+            // Handle cover art file
+            const coverArtInput = document.getElementById('coverArt');
+            if (coverArtInput.files[0]) {
+                try {
+                    const file = coverArtInput.files[0];
+                    const base64String = await new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = reject;
+                        reader.readAsDataURL(file);
+                    });
+                    songInfo.coverArt = base64String; // Store as base64 string
+                    songInfo.coverArtFileName = file.name; // Store file name
+                } catch (error) {
+                    console.error('Error reading cover art:', error);
+                    alert('Failed to process cover art. Proceeding without it.');
+                }
+            }
+
+            // Convert to JSON
+            const jsonString = JSON.stringify(songInfo, null, 2);
+
+            // Create and trigger download
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            
+            // Create filename (using song title, replacing invalid characters)
+            const safeTitle = songInfo.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            link.download = `${safeTitle}_info.json`;
+            
+            // Trigger download
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            // Clear form
+            document.getElementById('title').value = '';
+            document.getElementById('artist').value = '';
+            document.getElementById('coverArt').value = '';
+            document.getElementById('lyrics').value = '';
+            document.getElementById('coverArtPreview').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
