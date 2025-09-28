@@ -143,6 +143,7 @@
             let metadataHTML = `
                 <strong>File Name:</strong> ${file.name}<br>
                 <strong>File Size:</strong> ${fileSizeMB} MB<br>
+                <strong>MIME Type:</strong> ${file.type || 'Unknown'}<br>
             `;
 
             // Get audio duration
@@ -163,7 +164,7 @@
             }
 
             // For MP3 files, try to read ID3 tags
-            if (file.type === 'audio/mpeg') {
+            if (file.type === 'audio/mpeg' || file.name.toLowerCase().endsWith('.mp3')) {
                 try {
                     jsmediatags.read(file, {
                         onSuccess: function(tag) {
@@ -265,7 +266,7 @@
             return buffer;
         }
 
-        // Helper function to modify WAV file with INFO chunk
+        // Helper function to validate and modify WAV file
         async function modifyWavFile(wavBlob, title, artist, lyrics, coverArtFile) {
             console.warn('Processing large WAV files may cause performance issues or browser crashes on low-memory devices.');
             const wavArrayBuffer = await wavBlob.arrayBuffer();
@@ -274,7 +275,7 @@
             // Validate WAV file (check RIFF and WAVE headers)
             if (wavView.getUint32(0, false) !== 0x52494646 || // "RIFF"
                 wavView.getUint32(8, false) !== 0x57415645) { // "WAVE"
-                throw new Error('Invalid WAV file');
+                throw new Error('Invalid WAV file: Missing RIFF/WAVE header');
             }
 
             // Find data chunk to calculate new file size
@@ -298,7 +299,7 @@
             }
 
             if (!dataChunkOffset) {
-                throw new Error('No data chunk found in WAV file');
+                throw new Error('Invalid WAV file: No data chunk found');
             }
 
             // Create INFO chunk
@@ -351,10 +352,18 @@
                 return;
             }
 
+            // Log file details for debugging
+            console.log('Selected file:', {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                extension: file.name.split('.').pop().toLowerCase()
+            });
+
             const safeTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
 
-            if (file.type === 'audio/mpeg') {
-                // For MP3: Browser-based ID3 writing not supported by jsmediatags
+            // Check for MP3 (by MIME type or extension)
+            if (file.type === 'audio/mpeg' || file.name.toLowerCase().endsWith('.mp3')) {
                 try {
                     const blob = audioBlob;
                     const url = URL.createObjectURL(blob);
@@ -370,8 +379,9 @@
                     console.error('Error downloading MP3:', error);
                     alert('Failed to download MP3 file.');
                 }
-            } else if (file.type === 'audio/wav') {
-                // For WAV: Embed metadata in INFO chunk
+            }
+            // Check for WAV (by MIME type or extension)
+            else if (file.type === 'audio/wav' || file.name.toLowerCase().endsWith('.wav')) {
                 try {
                     const modifiedWavBlob = await modifyWavFile(audioBlob, title, artist, lyrics, coverArtFile);
                     const url = URL.createObjectURL(modifiedWavBlob);
@@ -384,7 +394,7 @@
                     URL.revokeObjectURL(url);
                 } catch (error) {
                     console.error('Error modifying WAV file:', error);
-                    alert('Failed to embed metadata in WAV file. Downloading original file.');
+                    alert(`Failed to embed metadata in WAV file: ${error.message}. Downloading original file.`);
                     const blob = audioBlob;
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
@@ -396,7 +406,7 @@
                     URL.revokeObjectURL(url);
                 }
             } else {
-                alert('Unsupported file type. Please select an MP3 or WAV file.');
+                alert(`Unsupported file type. Selected file: ${file.name} (MIME: ${file.type || 'Unknown'}). Please select a valid MP3 or WAV file.`);
                 return;
             }
 
