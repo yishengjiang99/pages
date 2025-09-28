@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Song Info Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -42,6 +43,7 @@
             font-size: 1rem;
             width: 100%;
             max-width: 200px;
+            margin: 5px 0;
         }
         button:hover {
             background-color: #45a049;
@@ -53,7 +55,14 @@
             display: none;
             border-radius: 4px;
         }
-        /* Mobile-specific styles */
+        #metadataDisplay {
+            margin-top: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+            display: none;
+        }
         @media (max-width: 600px) {
             body {
                 padding: 10px;
@@ -88,16 +97,20 @@
         <img id="coverArtPreview" src="" alt="Cover Art Preview">
     </div>
     <div class="input-group">
-        <label for="mp3File">MP3 File:</label>
-        <input type="file" id="mp3File" accept="audio/mpeg">
+        <label for="audioFile">Audio File (MP3 or WAV):</label>
+        <input type="file" id="audioFile" accept="audio/mpeg,audio/wav">
+        <div id="metadataDisplay"></div>
     </div>
     <div class="input-group">
         <label for="lyrics">Lyrics:</label>
         <textarea id="lyrics" rows="10" placeholder="Enter song lyrics"></textarea>
     </div>
-    <button onclick="downloadSongInfo()">Download Song Info</button>
+    <button onclick="downloadSongInfo()">Download Song Info (JSON)</button>
+    <button onclick="downloadModifiedAudio()" id="downloadAudioBtn" disabled>Download Modified Audio</button>
 
     <script>
+        let audioBlob = null; // Store the audio file blob
+
         // Preview the selected cover art image
         document.getElementById('coverArt').addEventListener('change', function(event) {
             const file = event.target.files[0];
@@ -110,6 +123,67 @@
                 };
                 reader.readAsDataURL(file);
             }
+        });
+
+        // Display metadata for the selected audio file
+        document.getElementById('audioFile').addEventListener('change', async function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            audioBlob = file; // Store the file blob
+            const metadataDisplay = document.getElementById('metadataDisplay');
+            metadataDisplay.style.display = 'block';
+            metadataDisplay.innerHTML = 'Loading metadata...';
+
+            // Basic file metadata
+            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            let metadataHTML = `
+                <strong>File Name:</strong> ${file.name}<br>
+                <strong>File Size:</strong> ${fileSizeMB} MB<br>
+            `;
+
+            // Get audio duration
+            try {
+                const audio = new Audio(URL.createObjectURL(file));
+                audio.onloadedmetadata = () => {
+                    const duration = audio.duration;
+                    const minutes = Math.floor(duration / 60);
+                    const seconds = Math.floor(duration % 60);
+                    metadataHTML += `<strong>Duration:</strong> ${minutes}:${seconds.toString().padStart(2, '0')}<br>`;
+                    metadataDisplay.innerHTML = metadataHTML;
+                    URL.revokeObjectURL(audio.src);
+                };
+            } catch (error) {
+                console.error('Error loading audio metadata:', error);
+                metadataHTML += '<strong>Duration:</strong> Unable to load<br>';
+                metadataDisplay.innerHTML = metadataHTML;
+            }
+
+            // For MP3 files, try to read ID3 tags
+            if (file.type === 'audio/mpeg') {
+                try {
+                    jsmediatags.read(file, {
+                        onSuccess: function(tag) {
+                            const tags = tag.tags;
+                            metadataHTML += `
+                                <strong>Existing Title:</strong> ${tags.title || 'N/A'}<br>
+                                <strong>Existing Artist:</strong> ${tags.artist || 'N/A'}<br>
+                            `;
+                            metadataDisplay.innerHTML = metadataHTML;
+                        },
+                        onError: function(error) {
+                            console.error('Error reading ID3 tags:', error);
+                            metadataDisplay.innerHTML = metadataHTML;
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error with jsmediatags:', error);
+                    metadataDisplay.innerHTML = metadataHTML;
+                }
+            }
+
+            // Enable the download audio button
+            document.getElementById('downloadAudioBtn').disabled = false;
         });
 
         async function downloadSongInfo() {
@@ -131,7 +205,6 @@
             if (coverArtInput.files[0]) {
                 try {
                     const file = coverArtInput.files[0];
-                    // Validate file size (e.g., max 5MB)
                     if (file.size > 5 * 1024 * 1024) {
                         alert('Cover art file is too large. Please select an image under 5MB.');
                         return;
@@ -150,14 +223,13 @@
                 }
             }
 
-            // Handle MP3 file
-            const mp3Input = document.getElementById('mp3File');
-            if (mp3Input.files[0]) {
+            // Handle audio file
+            const audioInput = document.getElementById('audioFile');
+            if (audioInput.files[0]) {
                 try {
-                    const file = mp3Input.files[0];
-                    // Validate file size (e.g., max 20MB)
+                    const file = audioInput.files[0];
                     if (file.size > 20 * 1024 * 1024) {
-                        alert('MP3 file is too large. Please select a file under 20MB.');
+                        alert('Audio file is too large. Please select a file under 20MB.');
                         return;
                     }
                     const base64String = await new Promise((resolve, reject) => {
@@ -166,40 +238,121 @@
                         reader.onerror = reject;
                         reader.readAsDataURL(file);
                     });
-                    songInfo.mp3 = base64String;
-                    songInfo.mp3FileName = file.name;
+                    songInfo.audio = base64String;
+                    songInfo.audioFileName = file.name;
                 } catch (error) {
-                    console.error('Error reading MP3 file:', error);
-                    alert('Failed to process MP3 file. Proceeding without it.');
+                    console.error('Error reading audio file:', error);
+                    alert('Failed to process audio file. Proceeding without it.');
                 }
             }
 
             // Convert to JSON
             const jsonString = JSON.stringify(songInfo, null, 2);
 
-            // Create and trigger download
+            // Trigger JSON download
             const blob = new Blob([jsonString], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            
-            // Create filename (using song title, replacing invalid characters)
             const safeTitle = songInfo.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
             link.download = `${safeTitle}_info.json`;
-            
-            // Trigger download
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
 
             // Clear form
+            clearForm();
+        }
+
+        async function downloadModifiedAudio() {
+            const audioInput = document.getElementById('audioFile');
+            if (!audioInput.files[0]) {
+                alert('Please select an audio file first.');
+                return;
+            }
+
+            const file = audioInput.files[0];
+            const title = document.getElementById('title').value;
+            const artist = document.getElementById('artist').value;
+            const safeTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+            if (file.type === 'audio/mpeg') {
+                // For MP3, attempt to write ID3 tags
+                try {
+                    const coverArtInput = document.getElementById('coverArt');
+                    let pictureData = null;
+                    if (coverArtInput.files[0]) {
+                        const coverFile = coverArtInput.files[0];
+                        if (coverFile.size > 5 * 1024 * 1024) {
+                            alert('Cover art file is too large. Please select an image under 5MB.');
+                            return;
+                        }
+                        pictureData = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                                const arrayBuffer = reader.result;
+                                const uint8Array = new Uint8Array(arrayBuffer);
+                                resolve({
+                                    data: uint8Array,
+                                    format: coverFile.type.split('/')[1].toUpperCase(),
+                                    type: 'front cover',
+                                    description: 'Cover Art'
+                                });
+                            };
+                            reader.onerror = reject;
+                            reader.readAsArrayBuffer(coverFile);
+                        });
+                    }
+
+                    // Note: jsmediatags does not support writing ID3 tags in the browser.
+                    // For simplicity, we'll download the original MP3 with a renamed file.
+                    // For actual ID3 tag writing, a server-side solution or a different library would be needed.
+                    const blob = audioBlob;
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${safeTitle}.${file.name.split('.').pop()}`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                } catch (error) {
+                    console.error('Error preparing MP3 metadata:', error);
+                    alert('Failed to process MP3 metadata. Downloading original file.');
+                    downloadOriginalAudio(file, safeTitle);
+                }
+            } else {
+                // For WAV or other formats, download the original file
+                downloadOriginalAudio(file, safeTitle);
+            }
+
+            // Clear form
+            clearForm();
+        }
+
+        function downloadOriginalAudio(file, safeTitle) {
+            const blob = file;
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${safeTitle}.${file.name.split('.').pop()}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        }
+
+        function clearForm() {
             document.getElementById('title').value = '';
             document.getElementById('artist').value = '';
             document.getElementById('coverArt').value = '';
-            document.getElementById('mp3File').value = '';
+            document.getElementById('audioFile').value = '';
             document.getElementById('lyrics').value = '';
             document.getElementById('coverArtPreview').style.display = 'none';
+            document.getElementById('metadataDisplay').style.display = 'none';
+            document.getElementById('downloadAudioBtn').disabled = true;
+            audioBlob = null;
         }
     </script>
 </body>
