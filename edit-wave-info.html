@@ -48,6 +48,10 @@
         button:hover {
             background-color: #45a049;
         }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
         #coverArtPreview {
             max-width: 100%;
             max-height: 200px;
@@ -105,8 +109,7 @@
         <label for="lyrics">Lyrics:</label>
         <textarea id="lyrics" rows="10" placeholder="Enter song lyrics"></textarea>
     </div>
-    <button onclick="downloadSongInfo()">Download Song Info (JSON)</button>
-    <button onclick="downloadModifiedAudio()" id="downloadAudioBtn" disabled>Download Modified Audio</button>
+    <button onclick="downloadModifiedAudio()" id="downloadBtn" disabled>Download Modified Audio</button>
 
     <script>
         let audioBlob = null; // Store the audio file blob
@@ -182,165 +185,231 @@
                 }
             }
 
-            // Enable the download audio button
-            document.getElementById('downloadAudioBtn').disabled = false;
+            // Enable the download button
+            document.getElementById('downloadBtn').disabled = false;
         });
 
-        async function downloadSongInfo() {
-            // Get input values
-            const songInfo = {
-                title: document.getElementById('title').value,
-                artist: document.getElementById('artist').value,
-                lyrics: document.getElementById('lyrics').value
+        // Helper function to write string to DataView
+        function writeString(view, offset, str) {
+            for (let i = 0; i < str.length; i++) {
+                view.setUint8(offset + i, str.charCodeAt(i));
+            }
+        }
+
+        // Helper function to create INFO chunk
+        async function createInfoChunk(title, artist, lyrics, coverArtFile) {
+            const metadata = {
+                INAM: title || '', // Title
+                IART: artist || '', // Artist
+                ICOM: lyrics || ''  // Comments (for lyrics)
             };
 
-            // Validate inputs
-            if (!songInfo.title || !songInfo.artist) {
-                alert('Please fill in at least the title and artist fields');
-                return;
+            let coverArtData = null;
+            if (coverArtFile) {
+                coverArtData = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(new Uint8Array(reader.result));
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(coverArtFile);
+                });
+                metadata.ICRD = coverArtFile.name; // Store cover art filename
             }
 
-            // Handle cover art file
-            const coverArtInput = document.getElementById('coverArt');
-            if (coverArtInput.files[0]) {
-                try {
-                    const file = coverArtInput.files[0];
-                    if (file.size > 5 * 1024 * 1024) {
-                        alert('Cover art file is too large. Please select an image under 5MB.');
-                        return;
-                    }
-                    const base64String = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(file);
-                    });
-                    songInfo.coverArt = base64String;
-                    songInfo.coverArtFileName = file.name;
-                } catch (error) {
-                    console.error('Error reading cover art:', error);
-                    alert('Failed to process cover art. Proceeding without it.');
+            // Calculate size of INFO chunk
+            let chunkSize = 8; // "LIST" + size
+            const fields = Object.keys(metadata);
+            for (const key of fields) {
+                const value = metadata[key];
+                chunkSize += 8 + value.length + (value.length % 2); // Subchunk ID (4) + size (4) + data + padding
+            }
+            if (coverArtData) {
+                chunkSize += 8 + coverArtData.length + (coverArtData.length % 2); // Cover art binary
+            }
+
+            const buffer = new ArrayBuffer(chunkSize);
+            const view = new DataView(buffer);
+
+            // Write LIST header
+            writeString(view, 0, 'LIST');
+            view.setUint32(4, chunkSize - 8, true); // Size excluding "LIST" and size field
+            writeString(view, 8, 'INFO');
+            let offset = 12;
+
+            // Write metadata fields
+            for (const key of fields) {
+                const value = metadata[key];
+                writeString(view, offset, key);
+                view.setUint32(offset + 4, value.length, true);
+                writeString(view, offset + 8, value);
+                offset += 8 + value.length;
+                if (value.length % 2) {
+                    view.setUint8(offset, 0); // Padding byte
+                    offset += 1;
                 }
             }
 
-            // Handle audio file
-            const audioInput = document.getElementById('audioFile');
-            if (audioInput.files[0]) {
-                try {
-                    const file = audioInput.files[0];
-                    if (file.size > 20 * 1024 * 1024) {
-                        alert('Audio file is too large. Please select a file under 20MB.');
-                        return;
-                    }
-                    const base64String = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onload = () => resolve(reader.result);
-                        reader.onerror = reject;
-                        reader.readAsDataURL(file);
-                    });
-                    songInfo.audio = base64String;
-                    songInfo.audioFileName = file.name;
-                } catch (error) {
-                    console.error('Error reading audio file:', error);
-                    alert('Failed to process audio file. Proceeding without it.');
+            // Write cover art as IPRD (non-standard, for demonstration)
+            if (coverArtData) {
+                writeString(view, offset, 'IPRD');
+                view.setUint32(offset + 4, coverArtData.length, true);
+                for (let i = 0; i < coverArtData.length; i++) {
+                    view.setUint8(offset + 8 + i, coverArtData[i]);
+                }
+                offset += 8 + coverArtData.length;
+                if (coverArtData.length % 2) {
+                    view.setUint8(offset, 0); // Padding byte
+                    offset += 1;
                 }
             }
 
-            // Convert to JSON
-            const jsonString = JSON.stringify(songInfo, null, 2);
+            return buffer;
+        }
 
-            // Trigger JSON download
-            const blob = new Blob([jsonString], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            const safeTitle = songInfo.title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            link.download = `${safeTitle}_info.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+        async function modifyWavFile(wavBlob, title, artist, lyrics, coverArtFile) {
+            const wavArrayBuffer = await wavBlob.arrayBuffer();
+            const wavView = new DataView(wavArrayBuffer);
 
-            // Clear form
-            clearForm();
+            // Validate WAV file (check RIFF and WAVE headers)
+            if (wavView.getUint32(0, false) !== 0x52494646 || // "RIFF"
+                wavView.getUint32(8, false) !== 0x57415645) { // "WAVE"
+                throw new Error('Invalid WAV file');
+            }
+
+            // Find data chunk to calculate new file size
+            let offset = 12; // Skip RIFF header
+            let dataChunkOffset = 0;
+            let dataChunkSize = 0;
+            while (offset < wavArrayBuffer.byteLength) {
+                const chunkId = String.fromCharCode(
+                    wavView.getUint8(offset),
+                    wavView.getUint8(offset + 1),
+                    wavView.getUint8(offset + 2),
+                    wavView.getUint8(offset + 3)
+                );
+                const chunkSize = wavView.getUint32(offset + 4, true);
+                if (chunkId === 'data') {
+                    dataChunkOffset = offset;
+                    dataChunkSize = chunkSize;
+                    break;
+                }
+                offset += 8 + chunkSize;
+            }
+
+            if (!dataChunkOffset) {
+                throw new Error('No data chunk found in WAV file');
+            }
+
+            // Create INFO chunk
+            const infoChunkBuffer = await createInfoChunk(title, artist, lyrics, coverArtFile);
+
+            // Calculate new file size
+            const newFileSize = 8 + (dataChunkOffset - 8) + infoChunkBuffer.byteLength + 8 + dataChunkSize;
+            const newBuffer = new ArrayBuffer(newFileSize);
+            const newView = new DataView(newBuffer);
+
+            // Copy RIFF header and existing chunks up to data chunk
+            for (let i = 0; i < dataChunkOffset; i++) {
+                newView.setUint8(i, wavView.getUint8(i));
+            }
+
+            // Update RIFF size
+            newView.setUint32(4, newFileSize - 8, true);
+
+            // Append INFO chunk
+            const infoView = new DataView(infoChunkBuffer);
+            for (let i = 0; i < infoChunkBuffer.byteLength; i++) {
+                newView.setUint8(dataChunkOffset + i, infoView.getUint8(i));
+            }
+
+            // Append data chunk
+            for (let i = 0; i < 8 + dataChunkSize; i++) {
+                newView.setUint8(dataChunkOffset + infoChunkBuffer.byteLength + i, wavView.getUint8(dataChunkOffset + i));
+            }
+
+            return new Blob([newBuffer], { type: 'audio/wav' });
         }
 
         async function downloadModifiedAudio() {
             const audioInput = document.getElementById('audioFile');
             if (!audioInput.files[0]) {
-                alert('Please select an audio file first.');
+                alert('Please select an audio file (MP3 or WAV).');
                 return;
             }
 
             const file = audioInput.files[0];
             const title = document.getElementById('title').value;
             const artist = document.getElementById('artist').value;
+            const lyrics = document.getElementById('lyrics').value;
+            const coverArtInput = document.getElementById('coverArt');
+            const coverArtFile = coverArtInput.files[0];
+
+            // Validate inputs
+            if (!title || !artist) {
+                alert('Please fill in at least the title and artist fields.');
+                return;
+            }
+
+            // Validate file size
+            if (file.size > 20 * 1024 * 1024) {
+                alert('Audio file is too large. Please select a file under 20MB.');
+                return;
+            }
+            if (coverArtFile && coverArtFile.size > 5 * 1024 * 1024) {
+                alert('Cover art file is too large. Please select an image under 5MB.');
+                return;
+            }
+
             const safeTitle = title.replace(/[^a-z0-9]/gi, '_').toLowerCase();
 
             if (file.type === 'audio/mpeg') {
-                // For MP3, attempt to write ID3 tags
+                // For MP3: Browser-based ID3 writing not supported by jsmediatags
                 try {
-                    const coverArtInput = document.getElementById('coverArt');
-                    let pictureData = null;
-                    if (coverArtInput.files[0]) {
-                        const coverFile = coverArtInput.files[0];
-                        if (coverFile.size > 5 * 1024 * 1024) {
-                            alert('Cover art file is too large. Please select an image under 5MB.');
-                            return;
-                        }
-                        pictureData = await new Promise((resolve, reject) => {
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                                const arrayBuffer = reader.result;
-                                const uint8Array = new Uint8Array(arrayBuffer);
-                                resolve({
-                                    data: uint8Array,
-                                    format: coverFile.type.split('/')[1].toUpperCase(),
-                                    type: 'front cover',
-                                    description: 'Cover Art'
-                                });
-                            };
-                            reader.onerror = reject;
-                            reader.readAsArrayBuffer(coverFile);
-                        });
-                    }
-
-                    // Note: jsmediatags does not support writing ID3 tags in the browser.
-                    // For simplicity, we'll download the original MP3 with a renamed file.
-                    // For actual ID3 tag writing, a server-side solution or a different library would be needed.
                     const blob = audioBlob;
                     const url = URL.createObjectURL(blob);
                     const link = document.createElement('a');
                     link.href = url;
-                    link.download = `${safeTitle}.${file.name.split('.').pop()}`;
+                    link.download = `${safeTitle}.mp3`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    alert('Note: MP3 metadata writing is not supported in the browser. The original file is downloaded with a renamed filename.');
+                } catch (error) {
+                    console.error('Error downloading MP3:', error);
+                    alert('Failed to download MP3 file.');
+                }
+            } else if (file.type === 'audio/wav') {
+                // For WAV: Embed metadata in INFO chunk
+                try {
+                    const modifiedWavBlob = await modifyWavFile(audioBlob, title, artist, lyrics, coverArtFile);
+                    const url = URL.createObjectURL(modifiedWavBlob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${safeTitle}.wav`;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
                     URL.revokeObjectURL(url);
                 } catch (error) {
-                    console.error('Error preparing MP3 metadata:', error);
-                    alert('Failed to process MP3 metadata. Downloading original file.');
-                    downloadOriginalAudio(file, safeTitle);
+                    console.error('Error modifying WAV file:', error);
+                    alert('Failed to embed metadata in WAV file. Downloading original file.');
+                    const blob = audioBlob;
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `${safeTitle}.wav`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
                 }
             } else {
-                // For WAV or other formats, download the original file
-                downloadOriginalAudio(file, safeTitle);
+                alert('Unsupported file type. Please select an MP3 or WAV file.');
+                return;
             }
 
             // Clear form
             clearForm();
-        }
-
-        function downloadOriginalAudio(file, safeTitle) {
-            const blob = file;
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `${safeTitle}.${file.name.split('.').pop()}`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
         }
 
         function clearForm() {
@@ -351,7 +420,7 @@
             document.getElementById('lyrics').value = '';
             document.getElementById('coverArtPreview').style.display = 'none';
             document.getElementById('metadataDisplay').style.display = 'none';
-            document.getElementById('downloadAudioBtn').disabled = true;
+            document.getElementById('downloadBtn').disabled = true;
             audioBlob = null;
         }
     </script>
