@@ -192,7 +192,7 @@
 
         // Helper function to write string to DataView
         function writeString(view, offset, str) {
-            for (let i = 0; i < str.length; i++) {
+            for (let i = 0; i < str.length && offset + i < view.byteLength; i++) {
                 view.setUint8(offset + i, str.charCodeAt(i));
             }
         }
@@ -240,10 +240,12 @@
             for (const key of fields) {
                 const value = metadata[key];
                 writeString(view, offset, key);
-                view.setUint32(offset + 4, value.length, true);
+                if (offset + 4 < view.byteLength) {
+                    view.setUint32(offset + 4, value.length, true);
+                }
                 writeString(view, offset + 8, value);
                 offset += 8 + value.length;
-                if (value.length % 2) {
+                if (value.length % 2 && offset < view.byteLength) {
                     view.setUint8(offset, 0); // Padding byte
                     offset += 1;
                 }
@@ -252,12 +254,14 @@
             // Write cover art as IPRD (non-standard)
             if (coverArtData) {
                 writeString(view, offset, 'IPRD');
-                view.setUint32(offset + 4, coverArtData.length, true);
-                for (let i = 0; i < coverArtData.length; i++) {
+                if (offset + 4 < view.byteLength) {
+                    view.setUint32(offset + 4, coverArtData.length, true);
+                }
+                for (let i = 0; i < coverArtData.length && offset + 8 + i < view.byteLength; i++) {
                     view.setUint8(offset + 8 + i, coverArtData[i]);
                 }
                 offset += 8 + coverArtData.length;
-                if (coverArtData.length % 2) {
+                if (coverArtData.length % 2 && offset < view.byteLength) {
                     view.setUint8(offset, 0); // Padding byte
                     offset += 1;
                 }
@@ -266,23 +270,28 @@
             return buffer;
         }
 
-        // Helper function to validate and modify WAV file
+        // Helper function to modify WAV file with INFO chunk
         async function modifyWavFile(wavBlob, title, artist, lyrics, coverArtFile) {
             console.warn('Processing large WAV files may cause performance issues or browser crashes on low-memory devices.');
             const wavArrayBuffer = await wavBlob.arrayBuffer();
             const wavView = new DataView(wavArrayBuffer);
 
-            // Validate WAV file (check RIFF and WAVE headers)
+            // Validate file size for header
+            if (wavArrayBuffer.byteLength < 12) {
+                throw new Error('Invalid WAV file: File too small to contain RIFF/WAVE header');
+            }
+
+            // Validate RIFF/WAVE headers
             if (wavView.getUint32(0, false) !== 0x52494646 || // "RIFF"
                 wavView.getUint32(8, false) !== 0x57415645) { // "WAVE"
                 throw new Error('Invalid WAV file: Missing RIFF/WAVE header');
             }
 
-            // Find data chunk to calculate new file size
+            // Find data chunk
             let offset = 12; // Skip RIFF header
             let dataChunkOffset = 0;
             let dataChunkSize = 0;
-            while (offset < wavArrayBuffer.byteLength) {
+            while (offset + 8 <= wavArrayBuffer.byteLength) {
                 const chunkId = String.fromCharCode(
                     wavView.getUint8(offset),
                     wavView.getUint8(offset + 1),
@@ -290,6 +299,9 @@
                     wavView.getUint8(offset + 3)
                 );
                 const chunkSize = wavView.getUint32(offset + 4, true);
+                if (offset + 8 + chunkSize > wavArrayBuffer.byteLength) {
+                    throw new Error('Invalid WAV file: Chunk size exceeds file length');
+                }
                 if (chunkId === 'data') {
                     dataChunkOffset = offset;
                     dataChunkSize = chunkSize;
@@ -302,16 +314,25 @@
                 throw new Error('Invalid WAV file: No data chunk found');
             }
 
+            // Validate data chunk bounds
+            if (dataChunkOffset + 8 + dataChunkSize > wavArrayBuffer.byteLength) {
+                throw new Error('Invalid WAV file: Data chunk exceeds file length');
+            }
+
             // Create INFO chunk
             const infoChunkBuffer = await createInfoChunk(title, artist, lyrics, coverArtFile);
 
             // Calculate new file size
             const newFileSize = 8 + (dataChunkOffset - 8) + infoChunkBuffer.byteLength + 8 + dataChunkSize;
+            if (newFileSize < 0 || newFileSize > 0x7FFFFFFF) {
+                throw new Error('Invalid WAV file: Calculated file size is too large or negative');
+            }
+
             const newBuffer = new ArrayBuffer(newFileSize);
             const newView = new DataView(newBuffer);
 
             // Copy RIFF header and existing chunks up to data chunk
-            for (let i = 0; i < dataChunkOffset; i++) {
+            for (let i = 0; i < dataChunkOffset && i < wavArrayBuffer.byteLength; i++) {
                 newView.setUint8(i, wavView.getUint8(i));
             }
 
@@ -320,13 +341,14 @@
 
             // Append INFO chunk
             const infoView = new DataView(infoChunkBuffer);
-            for (let i = 0; i < infoChunkBuffer.byteLength; i++) {
+            for (let i = 0; i < infoChunkBuffer.byteLength && dataChunkOffset + i < newFileSize; i++) {
                 newView.setUint8(dataChunkOffset + i, infoView.getUint8(i));
             }
 
             // Append data chunk
-            for (let i = 0; i < 8 + dataChunkSize; i++) {
-                newView.setUint8(dataChunkOffset + infoChunkBuffer.byteLength + i, wavView.getUint8(dataChunkOffset + i));
+            const dataWriteOffset = dataChunkOffset + infoChunkBuffer.byteLength;
+            for (let i = 0; i < 8 + dataChunkSize && dataWriteOffset + i < newFileSize && dataChunkOffset + i < wavArrayBuffer.byteLength; i++) {
+                newView.setUint8(dataWriteOffset + i, wavView.getUint8(dataChunkOffset + i));
             }
 
             return new Blob([newBuffer], { type: 'audio/wav' });
