@@ -248,7 +248,7 @@
                 }
             }
 
-            // Write cover art as IPRD (non-standard, for demonstration)
+            // Write cover art as IPRD (non-standard)
             if (coverArtData) {
                 writeString(view, offset, 'IPRD');
                 view.setUint32(offset + 4, coverArtData.length, true);
@@ -265,7 +265,9 @@
             return buffer;
         }
 
+        // Helper function to modify WAV file with INFO chunk
         async function modifyWavFile(wavBlob, title, artist, lyrics, coverArtFile) {
+            console.warn('Processing large WAV files may cause performance issues or browser crashes on low-memory devices.');
             const wavArrayBuffer = await wavBlob.arrayBuffer();
             const wavView = new DataView(wavArrayBuffer);
 
@@ -346,16 +348,6 @@
             // Validate inputs
             if (!title || !artist) {
                 alert('Please fill in at least the title and artist fields.');
-                return;
-            }
-
-            // Validate file size
-            if (file.size > 20 * 1024 * 1024) {
-                alert('Audio file is too large. Please select a file under 20MB.');
-                return;
-            }
-            if (coverArtFile && coverArtFile.size > 5 * 1024 * 1024) {
-                alert('Cover art file is too large. Please select an image under 5MB.');
                 return;
             }
 
