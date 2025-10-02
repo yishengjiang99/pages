@@ -1,150 +1,165 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Terrapin Logo Emulator</title>
-  <style>
-    body {margin:0;padding:0;height:100vh;width:100vw;overflow-x:hidden;display:flex;flex-direction:column;font-family:Arial,sans-serif;}
-    h1 {font-size:1.2rem;margin:0.5rem;text-align:center;}
-    #editor {flex:1;width:100%;}
-    .controls {position:fixed;bottom:0;left:0;width:100%;display:flex;flex-direction:column;align-items:center;gap:0.4rem;padding:0.5rem;background:#f0f0f0;border-top:1px solid #ccc;z-index:1000;}
-    .control-row {display:flex;flex-wrap:wrap;justify-content:center;gap:0.5rem;}
-    button {padding:0.4rem 0.8rem;font-size:0.85rem;border:none;border-radius:4px;cursor:pointer;}
-    .run-button {background:#4CAF50;color:#fff;}
-    .reset-button {background:#f44336;color:#fff;}
-    .sample-button {background:#2196F3;color:#fff;}
-    .show-button {background:#9C27B0;color:#fff;}
-    #drawer {position:fixed;top:0;right:-420px;width:400px;max-width:90vw;height:100%;background:#fff;border-left:2px solid #333;box-shadow:-4px 0 8px rgba(0,0,0,0.3);transition:right 0.3s ease-in-out;display:flex;flex-direction:column;align-items:center;padding:1rem;z-index:2000;}
-    #drawer.open {right:0;}
-    #turtleCanvas {border:1px solid black;width:100%;height:auto;background:#fff;flex:1;}
-    #closeDrawer {align-self:flex-end;margin-bottom:0.5rem;background:#ff5722;color:#fff;font-weight:bold;border-radius:4px;padding:0.3rem 0.6rem;}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terrapin Logo Emulator - SVG Zoom/Pan</title>
+<style>
+body {margin:0;padding:0;height:100vh;width:100vw;overflow-x:hidden;display:flex;flex-direction:column;font-family:Arial,sans-serif;}
+h1 {font-size:1.2rem;margin:0.5rem;text-align:center;}
+#editor {flex:1;width:100%;}
+.controls {position:fixed;bottom:0;left:0;width:100%;display:flex;flex-direction:column;align-items:center;gap:0.4rem;padding:0.5rem;background:#f0f0f0;border-top:1px solid #ccc;z-index:1000;}
+.control-row {display:flex;flex-wrap:wrap;justify-content:center;gap:0.5rem;}
+button {padding:0.4rem 0.8rem;font-size:0.85rem;border:none;border-radius:4px;cursor:pointer;}
+.run-button {background:#4CAF50;color:#fff;}
+.reset-button {background:#f44336;color:#fff;}
+.sample-button {background:#2196F3;color:#fff;}
+.show-button {background:#9C27B0;color:#fff;}
+#drawer {position:fixed;top:0;right:-420px;width:400px;max-width:90vw;height:100%;background:#fff;border-left:2px solid #333;box-shadow:-4px 0 8px rgba(0,0,0,0.3);transition:right 0.3s ease-in-out;display:flex;flex-direction:column;align-items:center;padding:1rem;z-index:2000;touch-action:none;}
+#drawer.open {right:0;}
+#turtleSVG {border:1px solid black;width:100%;height:100%;background:#fff;flex:1;}
+#closeDrawer {align-self:flex-end;margin-bottom:0.5rem;background:#ff5722;color:#fff;font-weight:bold;border-radius:4px;padding:0.3rem 0.6rem;}
+</style>
 </head>
 <body>
-  <h1>Terrapin Logo Emulator</h1>
-  <div id="editor"></div>
-  
-  <div class="controls">
-    <div class="control-row">
-      <button class="run-button" onclick="runCommands()">Run</button>
-      <button class="reset-button" onclick="resetEditor()">Reset</button>
-      <button class="sample-button" onclick="loadSample()">Sample</button>
-      <button class="show-button" onclick="openDrawer()">Show</button>
-    </div>
-    <div class="control-row">
-      <button onclick="appendCommand('FD')">FD</button>
-      <button onclick="appendCommand('BK')">BK</button>
-      <button onclick="appendCommand('RT')">RT</button>
-      <button onclick="appendCommand('LT')">LT</button>
-    </div>
-    <div class="control-row">
-      <button onclick="appendCommand('PU')">PU</button>
-      <button onclick="appendCommand('PD')">PD</button>
-      <button onclick="appendCommand('CS')">CS</button>
-      <button onclick="appendCommand('HM')">HM</button>
-      <button onclick="appendCommand('10')">10</button>
-      <button onclick="appendCommand('45')">45</button>
-      <button onclick="appendCommand('90')">90</button>
-    </div>
+<h1>Terrapin Logo Emulator - SVG</h1>
+<div id="editor"></div>
+
+<div class="controls">
+  <div class="control-row">
+    <button class="run-button" onclick="runCommands()">Run</button>
+    <button class="reset-button" onclick="resetEditor()">Reset</button>
+    <button class="sample-button" onclick="loadSample()">Sample</button>
+    <button class="show-button" onclick="openDrawer()">Show</button>
   </div>
-
-  <div id="drawer">
-    <button id="closeDrawer" onclick="closeDrawer()">✖</button>
-    <canvas id="turtleCanvas"></canvas>
+  <div class="control-row">
+    <button onclick="appendCommand('FD')">FD</button>
+    <button onclick="appendCommand('BK')">BK</button>
+    <button onclick="appendCommand('RT')">RT</button>
+    <button onclick="appendCommand('LT')">LT</button>
   </div>
+  <div class="control-row">
+    <button onclick="appendCommand('PU')">PU</button>
+    <button onclick="appendCommand('PD')">PD</button>
+    <button onclick="appendCommand('CS')">CS</button>
+    <button onclick="appendCommand('HM')">HM</button>
+    <button onclick="appendCommand('10')">10</button>
+    <button onclick="appendCommand('45')">45</button>
+    <button onclick="appendCommand('90')">90</button>
+  </div>
+</div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
-  <script>
-    let editor;
-    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
-    require(['vs/editor/editor.main'], function () {
-      editor = monaco.editor.create(document.getElementById('editor'), {
-        value: `CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`,
-        language: 'plaintext',
-        theme: 'vs-dark',
-        automaticLayout: true,
-        minimap: { enabled: false }
-      });
+<div id="drawer">
+  <button id="closeDrawer" onclick="closeDrawer()">✖</button>
+  <svg id="turtleSVG">
+    <g id="viewport" transform="translate(0,0) scale(1)">
+      <polyline id="lines" points="" fill="none" stroke="black" stroke-width="2"/>
+      <polygon id="turtle" points="0,-10 -5,5 5,5" fill="green"/>
+    </g>
+  </svg>
+</div>
 
-      // Only validate & mark errors, no auto-open or auto-draw
-      editor.onDidChangeModelContent(() => {
-        try {
-          const input = editor.getValue();
-          if (!input.trim()) { clearMarkers(); return; }
-          tokenizeInput(input); // check syntax
-          clearMarkers();
-        } catch (err) { markError(err.message); }
-      });
-    });
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+<script>
+let editor;
+require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+require(['vs/editor/editor.main'], function() {
+  editor = monaco.editor.create(document.getElementById('editor'), {
+    value: `CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`,
+    language: 'plaintext',
+    theme: 'vs-dark',
+    automaticLayout: true,
+    minimap: { enabled: false }
+  });
+});
 
-    function clearMarkers() { monaco.editor.setModelMarkers(editor.getModel(), 'logo', []); }
-    function markError(message) {
-      monaco.editor.setModelMarkers(editor.getModel(), 'logo', [{
-        startLineNumber: 1, startColumn: 1,
-        endLineNumber: 1, endColumn: 1,
-        message: message, severity: monaco.MarkerSeverity.Error
-      }]);
+const drawer = document.getElementById('drawer');
+const svg = document.getElementById('turtleSVG');
+const viewport = document.getElementById('viewport');
+const linesEl = document.getElementById('lines');
+const turtleEl = document.getElementById('turtle');
+
+let turtle = {x:0,y:0,angle:0,penDown:true};
+let points = [];
+
+let zoom = 1;
+let pan = {x:0,y:0};
+let isDragging=false;
+let dragStart={x:0,y:0};
+
+function openDrawer() { drawer.classList.add('open'); setSVGSize(); initTurtle(); }
+function closeDrawer() { drawer.classList.remove('open'); }
+function setSVGSize() { svg.setAttribute('width',drawer.clientWidth-20); svg.setAttribute('height',drawer.clientHeight-60); }
+function initTurtle() { turtle.x=svg.clientWidth/2; turtle.y=svg.clientHeight/2; turtle.angle=0; turtle.penDown=true; points=[]; drawTurtle(); }
+function drawTurtle() {
+  let transformedPoints = points.map(p => [p[0], p[1]]);
+  linesEl.setAttribute('points', transformedPoints.map(p=>p.join(',')).join(' '));
+  turtleEl.setAttribute('transform', `translate(${turtle.x},${turtle.y}) rotate(${-turtle.angle})`);
+  viewport.setAttribute('transform', `translate(${pan.x},${pan.y}) scale(${zoom})`);
+}
+function moveTurtle(distance) {
+  let rad = turtle.angle*Math.PI/180;
+  let newX = turtle.x + distance*Math.cos(rad);
+  let newY = turtle.y - distance*Math.sin(rad);
+  if(turtle.penDown) points.push([newX,newY]);
+  turtle.x = newX; turtle.y = newY; drawTurtle();
+}
+
+function tokenizeInput(input) { return input.replace(/\[/g,' [ ').replace(/\]/g,' ] ').split(/\s+/).filter(t=>t.trim()!==''); }
+function executeTokens(tokens) {
+  let i=0;
+  function exec() {
+    while(i<tokens.length){
+      let cmd=tokens[i++].toUpperCase();
+      if(cmd==='FD'){moveTurtle(parseFloat(tokens[i++]));}
+      else if(cmd==='BK'){moveTurtle(-parseFloat(tokens[i++]));}
+      else if(cmd==='RT'){turtle.angle+=parseFloat(tokens[i++]);}
+      else if(cmd==='LT'){turtle.angle-=parseFloat(tokens[i++]);}
+      else if(cmd==='PU'){turtle.penDown=false;}
+      else if(cmd==='PD'){turtle.penDown=true;}
+      else if(cmd==='CS'){initTurtle();}
+      else if(cmd==='HM'){turtle.x=svg.clientWidth/2;turtle.y=svg.clientHeight/2;turtle.angle=0; drawTurtle();}
+      else if(cmd==='REPEAT'){
+        let count=parseInt(tokens[i++]);
+        if(tokens[i]!=='[') throw new Error("Expected '[' after REPEAT");
+        i++; let blockStart=i, depth=1;
+        while(i<tokens.length && depth>0){ if(tokens[i]==='[') depth++; else if(tokens[i]===']') depth--; i++; }
+        if(depth!==0) throw new Error("Unmatched '[' in REPEAT");
+        let block=tokens.slice(blockStart,i-1);
+        for(let j=0;j<count;j++){ let saveI=i; let savedTokens=tokens; tokens=block; i=0; exec(); tokens=savedTokens; i=saveI; }
+      } else if(cmd===']'){ return; }
+      else { throw new Error("Unknown command: "+cmd); }
     }
+  }
+  exec();
+}
 
-    const drawer = document.getElementById('drawer');
-    const canvas = document.getElementById('turtleCanvas');
-    const ctx = canvas.getContext('2d');
-    let turtle = { x: 0, y: 0, angle: 0, penDown: true };
+function runCommands() {
+  const input = editor.getValue();
+  if(!input.trim()) return;
+  openDrawer();
+  initTurtle();
+  const tokens = tokenizeInput(input);
+  executeTokens(tokens);
+}
 
-    function openDrawer() { drawer.classList.add('open'); setCanvasSize(); initCanvas(); }
-    function closeDrawer() { drawer.classList.remove('open'); }
-    function setCanvasSize() { canvas.width = drawer.clientWidth - 20; canvas.height = drawer.clientHeight - 60; }
-    function initCanvas() { turtle.x = canvas.width / 2; turtle.y = canvas.height / 2; ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); turtle.angle=0; turtle.penDown=true; drawTurtle(); }
-    function drawTurtle() { ctx.save(); ctx.translate(turtle.x,turtle.y); ctx.rotate((turtle.angle*Math.PI)/180); ctx.fillStyle='green'; ctx.beginPath(); ctx.moveTo(0,-15); ctx.lineTo(-5,5); ctx.lineTo(5,5); ctx.closePath(); ctx.fill(); ctx.restore(); }
-    function moveTurtle(distance) { const rad=(turtle.angle*Math.PI)/180; const newX=turtle.x+distance*Math.cos(rad); const newY=turtle.y-distance*Math.sin(rad); if(turtle.penDown){ctx.beginPath();ctx.moveTo(turtle.x,turtle.y);ctx.lineTo(newX,newY);ctx.strokeStyle='black';ctx.lineWidth=2;ctx.stroke();} turtle.x=newX;turtle.y=newY; }
+// Buttons
+function resetEditor(){ editor.setValue(''); initTurtle(); }
+function loadSample(){ editor.setValue(`CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`); }
+function appendCommand(cmd){ editor.setValue(editor.getValue()+cmd+' '); editor.focus(); }
 
-    function tokenizeInput(input) { return input.replace(/\[/g,' [ ').replace(/\]/g,' ] ').split(/\s+/).filter(t=>t.trim()!==''); }
-
-    function executeTokens(tokens) {
-      let i=0;
-      function exec() {
-        while(i<tokens.length) {
-          let cmd=tokens[i++].toUpperCase();
-          if(cmd==='FD'){moveTurtle(parseFloat(tokens[i++]));}
-          else if(cmd==='BK'){moveTurtle(-parseFloat(tokens[i++]));}
-          else if(cmd==='RT'){turtle.angle+=parseFloat(tokens[i++]);}
-          else if(cmd==='LT'){turtle.angle-=parseFloat(tokens[i++]);}
-          else if(cmd==='PU'){turtle.penDown=false;}
-          else if(cmd==='PD'){turtle.penDown=true;}
-          else if(cmd==='CS'){initCanvas();}
-          else if(cmd==='HM'){turtle.x=canvas.width/2;turtle.y=canvas.height/2;turtle.angle=0;}
-          else if(cmd==='REPEAT'){
-            let count=parseInt(tokens[i++]);
-            if(tokens[i]!=='[') throw new Error("Expected '[' after REPEAT");
-            i++; let blockStart=i, depth=1;
-            while(i<tokens.length && depth>0){ if(tokens[i]==='[') depth++; else if(tokens[i]===']') depth--; i++; }
-            if(depth!==0) throw new Error("Unmatched '[' in REPEAT");
-            let block=tokens.slice(blockStart,i-1);
-            for(let j=0;j<count;j++){ let saveI=i; let savedTokens=tokens; tokens=block; i=0; exec(); tokens=savedTokens; i=saveI; }
-          }
-          else if(cmd===']'){ return; }
-          else { throw new Error("Unknown command: "+cmd); }
-        }
-      }
-      exec();
-      drawTurtle();
-    }
-
-    function runCommands() {
-      const input=editor.getValue();
-      if(!input.trim()) return;
-      openDrawer();
-      initCanvas();
-      const tokens=tokenizeInput(input);
-      executeTokens(tokens);
-    }
-
-    function resetEditor() { editor.setValue(''); }
-    function loadSample() { editor.setValue(`CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`); }
-    function appendCommand(cmd) { editor.setValue(editor.getValue()+cmd+' '); editor.focus(); }
-
-    window.addEventListener('resize', setCanvasSize);
-  </script>
+// SVG zoom/pan
+svg.addEventListener('wheel', e => {
+  e.preventDefault();
+  zoom *= e.deltaY<0?1.1:0.9;
+  drawTurtle();
+});
+let pointers = {};
+svg.addEventListener('pointerdown', e => { isDragging=true; dragStart={x:e.clientX-pan.x, y:e.clientY-pan.y}; svg.setPointerCapture(e.pointerId); });
+svg.addEventListener('pointermove', e => { if(!isDragging) return; pan.x=e.clientX-dragStart.x; pan.y=e.clientY-dragStart.y; drawTurtle(); });
+svg.addEventListener('pointerup', e=>{ isDragging=false; svg.releasePointerCapture(e.pointerId); });
+svg.addEventListener('pointerleave', e=>{ isDragging=false; });
+window.addEventListener('resize', setSVGSize);
+</script>
 </body>
 </html>
