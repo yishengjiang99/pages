@@ -5,15 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Terrapin Logo Emulator</title>
   <style>
-    body {margin:0;padding:0;height:100vh;width:100vw;overflow:hidden;display:flex;flex-direction:column;font-family:Arial,sans-serif;}
+    body {margin:0;padding:0;height:100vh;width:100vw;overflow-x:hidden;display:flex;flex-direction:column;font-family:Arial,sans-serif;}
     h1 {font-size:1.2rem;margin:0.5rem;text-align:center;}
     #editor {flex:1;width:100%;}
-    .controls {display:flex;justify-content:center;gap:0.5rem;padding:0.5rem;background:#f0f0f0;border-top:1px solid #ccc;}
-    button {padding:0.5rem 1rem;font-size:0.9rem;border:none;border-radius:4px;cursor:pointer;}
+    .controls {position:fixed;bottom:0;left:0;width:100%;display:flex;flex-direction:column;align-items:center;gap:0.4rem;padding:0.5rem;background:#f0f0f0;border-top:1px solid #ccc;z-index:1000;}
+    .control-row {display:flex;flex-wrap:wrap;justify-content:center;gap:0.5rem;}
+    button {padding:0.4rem 0.8rem;font-size:0.85rem;border:none;border-radius:4px;cursor:pointer;}
     .run-button {background:#4CAF50;color:#fff;}
     .reset-button {background:#f44336;color:#fff;}
     .sample-button {background:#2196F3;color:#fff;}
-    #drawer {position:fixed;top:0;right:-420px;width:400px;max-width:90vw;height:100%;background:#fff;border-left:2px solid #333;box-shadow:-4px 0 8px rgba(0,0,0,0.3);transition:right 0.3s ease-in-out;display:flex;flex-direction:column;align-items:center;padding:1rem;}
+    .show-button {background:#9C27B0;color:#fff;}
+    #drawer {position:fixed;top:0;right:-420px;width:400px;max-width:90vw;height:100%;background:#fff;border-left:2px solid #333;box-shadow:-4px 0 8px rgba(0,0,0,0.3);transition:right 0.3s ease-in-out;display:flex;flex-direction:column;align-items:center;padding:1rem;z-index:2000;}
     #drawer.open {right:0;}
     #turtleCanvas {border:1px solid black;width:100%;height:auto;background:#fff;flex:1;}
     #closeDrawer {align-self:flex-end;margin-bottom:0.5rem;background:#ff5722;color:#fff;font-weight:bold;border-radius:4px;padding:0.3rem 0.6rem;}
@@ -22,18 +24,29 @@
 <body>
   <h1>Terrapin Logo Emulator</h1>
   <div id="editor"></div>
+  
   <div class="controls">
-    <button class="run-button" onclick="runCommands()">Run</button>
-    <button class="reset-button" onclick="resetEditor()">Reset</button>
-    <button class="sample-button" onclick="loadSample()">Sample</button>
-    <button onclick="appendCommand('FD')">FD</button>
-    <button onclick="appendCommand('BK')">BK</button>
-    <button onclick="appendCommand('RT')">RT</button>
-    <button onclick="appendCommand('LT')">LT</button>
-    <button onclick="appendCommand('PU')">PU</button>
-    <button onclick="appendCommand('PD')">PD</button>
-    <button onclick="appendCommand('CS')">CS</button>
-    <button onclick="appendCommand('HM')">HM</button>
+    <div class="control-row">
+      <button class="run-button" onclick="runCommands()">Run</button>
+      <button class="reset-button" onclick="resetEditor()">Reset</button>
+      <button class="sample-button" onclick="loadSample()">Sample</button>
+      <button class="show-button" onclick="openDrawer()">Show</button>
+    </div>
+    <div class="control-row">
+      <button onclick="appendCommand('FD')">FD</button>
+      <button onclick="appendCommand('BK')">BK</button>
+      <button onclick="appendCommand('RT')">RT</button>
+      <button onclick="appendCommand('LT')">LT</button>
+    </div>
+    <div class="control-row">
+      <button onclick="appendCommand('PU')">PU</button>
+      <button onclick="appendCommand('PD')">PD</button>
+      <button onclick="appendCommand('CS')">CS</button>
+      <button onclick="appendCommand('HM')">HM</button>
+      <button onclick="appendCommand('10')">10</button>
+      <button onclick="appendCommand('45')">45</button>
+      <button onclick="appendCommand('90')">90</button>
+    </div>
   </div>
 
   <div id="drawer">
@@ -47,9 +60,35 @@
     require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
     require(['vs/editor/editor.main'], function () {
       editor = monaco.editor.create(document.getElementById('editor'), {
-        value: '', language: 'plaintext', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: false }
+        value: `CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`,
+        language: 'plaintext',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        minimap: { enabled: false }
+      });
+
+      editor.onDidChangeModelContent(() => {
+        try {
+          const input = editor.getValue();
+          if (!input.trim()) { clearMarkers(); return; }
+          const tokens = tokenizeInput(input);
+          openDrawer();
+          setCanvasSize();
+          initCanvas();
+          executeTokens(tokens);
+          clearMarkers();
+        } catch (err) { markError(err.message); }
       });
     });
+
+    function clearMarkers() { monaco.editor.setModelMarkers(editor.getModel(), 'logo', []); }
+    function markError(message) {
+      monaco.editor.setModelMarkers(editor.getModel(), 'logo', [{
+        startLineNumber: 1, startColumn: 1,
+        endLineNumber: 1, endColumn: 1,
+        message: message, severity: monaco.MarkerSeverity.Error
+      }]);
+    }
 
     const drawer = document.getElementById('drawer');
     const canvas = document.getElementById('turtleCanvas');
@@ -63,14 +102,11 @@
     function drawTurtle() { ctx.save(); ctx.translate(turtle.x,turtle.y); ctx.rotate((turtle.angle*Math.PI)/180); ctx.fillStyle='green'; ctx.beginPath(); ctx.moveTo(0,-15); ctx.lineTo(-5,5); ctx.lineTo(5,5); ctx.closePath(); ctx.fill(); ctx.restore(); }
     function moveTurtle(distance) { const rad=(turtle.angle*Math.PI)/180; const newX=turtle.x+distance*Math.cos(rad); const newY=turtle.y-distance*Math.sin(rad); if(turtle.penDown){ctx.beginPath();ctx.moveTo(turtle.x,turtle.y);ctx.lineTo(newX,newY);ctx.strokeStyle='black';ctx.lineWidth=2;ctx.stroke();} turtle.x=newX;turtle.y=newY; }
 
-    function tokenizeInput(input) {
-      return input.replace(/\[/g,' [ ').replace(/\]/g,' ] ').split(/\s+/).filter(t=>t.trim()!=='');
-    }
+    function tokenizeInput(input) { return input.replace(/\[/g,' [ ').replace(/\]/g,' ] ').split(/\s+/).filter(t=>t.trim()!==''); }
 
     function executeTokens(tokens) {
       let i=0;
       function exec() {
-        let results=[];
         while(i<tokens.length) {
           let cmd=tokens[i++].toUpperCase();
           if(cmd==='FD'){moveTurtle(parseFloat(tokens[i++]));}
@@ -83,30 +119,15 @@
           else if(cmd==='HM'){turtle.x=canvas.width/2;turtle.y=canvas.height/2;turtle.angle=0;}
           else if(cmd==='REPEAT'){
             let count=parseInt(tokens[i++]);
-            if(tokens[i]!=='[') continue;
-            i++; // skip [
-            let blockStart=i;
-            let depth=1;
-            while(i<tokens.length && depth>0){
-              if(tokens[i]==='[') depth++;
-              else if(tokens[i]===']') depth--;
-              i++;
-            }
+            if(tokens[i]!=='[') throw new Error("Expected '[' after REPEAT");
+            i++; let blockStart=i, depth=1;
+            while(i<tokens.length && depth>0){ if(tokens[i]==='[') depth++; else if(tokens[i]===']') depth--; i++; }
+            if(depth!==0) throw new Error("Unmatched '[' in REPEAT");
             let block=tokens.slice(blockStart,i-1);
-            for(let j=0;j<count;j++){
-              let innerI=0;
-              (function runBlock(){
-                let saveI=i;
-                i=0;
-                let savedTokens=tokens;
-                tokens=block;
-                exec();
-                tokens=savedTokens;
-                i=saveI;
-              })();
-            }
+            for(let j=0;j<count;j++){ let saveI=i; let savedTokens=tokens; let innerI=0; tokens=block; i=0; exec(); tokens=savedTokens; i=saveI; }
           }
           else if(cmd===']'){ return; }
+          else { throw new Error("Unknown command: "+cmd); }
         }
       }
       exec();
@@ -118,6 +139,7 @@
       if(!input.trim()) return;
       openDrawer();
       setCanvasSize();
+      initCanvas();
       const tokens=tokenizeInput(input);
       executeTokens(tokens);
     }
