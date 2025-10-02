@@ -123,4 +123,28 @@ function moveTurtle(d){ let rad=turtle.angle*Math.PI/180; let nx=turtle.x+d*Math
 
 // Tokenizer & executor
 function tokenizeInput(input){ return input.replace(/\[/g,' [ ').replace(/\]/g,' ] ').split(/\s+/).filter(t=>t.trim()!==''); }
-function executeTokens(tokens){ let i=0; function exec(){ while(i<tokens.length){ let cmd=tokens[i++].toUpperCase(); if(cmd==='FD'){moveTurtle(parseFloat(tokens[i++]));} else if(cmd==='BK'){moveTurtle(-parseFloat(tokens[i++]));} else if(cmd==='RT'){turtle.angle+=parseFloat(tokens[i++]);} else if(cmd==='LT'){turtle.angle-=parseFloat(tokens[i++]);} else if(cmd==='PU'){turtle.penDown=false;} else if(cmd==='PD'){turtle.penDown=true;} else if(cmd==='CS'){initTurtle();} else if(cmd==='HM'){turtle.x=svg.clientWidth/2;turtle.y=svg.clientHeight/2;turtle.angle=0;drawTurtle();} else if(cmd==='REPEAT'){let count=parseInt(tokens[i++]); if(tokens[i]!=='[') throw new Error("Expected '[' after REPEAT"); i++; let bs=i, depth=1; while(i<tokens.length&&depth>0){if(tokens[i]==='[')depth++;else if(tokens[i]===']')depth--; i++;} if(depth!==0)throw new Error("Unmatched '[' in REPEAT"); let block=tokens.slice(bs,i-1); for(let j=0;j<count;j++){let saveI=i; let saved=tokens;
+function executeTokens(tokens){ let i=0; function exec(){ while(i<tokens.length){ let cmd=tokens[i++].toUpperCase(); if(cmd==='FD'){moveTurtle(parseFloat(tokens[i++]));} else if(cmd==='BK'){moveTurtle(-parseFloat(tokens[i++]));} else if(cmd==='RT'){turtle.angle+=parseFloat(tokens[i++]);} else if(cmd==='LT'){turtle.angle-=parseFloat(tokens[i++]);} else if(cmd==='PU'){turtle.penDown=false;} else if(cmd==='PD'){turtle.penDown=true;} else if(cmd==='CS'){initTurtle();} else if(cmd==='HM'){turtle.x=svg.clientWidth/2;turtle.y=svg.clientHeight/2;turtle.angle=0;drawTurtle();} else if(cmd==='REPEAT'){let count=parseInt(tokens[i++]); if(tokens[i]!=='[') throw new Error("Expected '[' after REPEAT"); i++; let bs=i, depth=1; while(i<tokens.length&&depth>0){if(tokens[i]==='[')depth++;else if(tokens[i]===']')depth--; i++;} if(depth!==0)throw new Error("Unmatched '[' in REPEAT"); let block=tokens.slice(bs,i-1); for(let j=0;j<count;j++){let saveI=i; let saved=tokens; tokens=block; i=0; exec(); tokens=saved; i=saveI;}} else if(cmd===']'){return;} else{throw new Error("Unknown command: "+cmd);}}} exec(); }
+
+function runCommands(){ const input=editor.getValue(); if(!input.trim()) return; openDrawer(); initTurtle(); const tokens=tokenizeInput(input); executeTokens(tokens); }
+
+// Buttons
+function resetEditor(){ editor.setValue(''); initTurtle(); }
+function loadSample(){ editor.setValue(`CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`); }
+function appendCommand(cmd){ editor.setValue(editor.getValue()+cmd+' '); editor.focus(); }
+
+// Zoom/Pan
+svg.addEventListener('wheel',e=>{ e.preventDefault(); zoom*=e.deltaY<0?1.1:0.9; drawTurtle(); });
+svg.addEventListener('pointerdown', e=>{ pointers[e.pointerId]=e; svg.setPointerCapture(e.pointerId); e.preventDefault(); });
+svg.addEventListener('pointermove', e=>{
+  pointers[e.pointerId]=e; e.preventDefault();
+  const ids=Object.keys(pointers);
+  if(ids.length===1){ let dx=e.clientX-pointers[ids[0]].clientX; let dy=e.clientY-pointers[ids[0]].clientY; pan.x+=dx; pan.y+=dy; pointers[ids[0]]=e; }
+  else if(ids.length===2){ let t1=pointers[ids[0]]; let t2=pointers[ids[1]]; let currDist=Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY); if(lastDistance!=null){ let scale=currDist/lastDistance; zoom*=scale; let midX=(t1.clientX+t2.clientX)/2, midY=(t1.clientY+t2.clientY)/2; pan.x=pan.x*scale+midX*(1-scale); pan.y=pan.y*scale+midY*(1-scale); } lastDistance=currDist; }
+  drawTurtle();
+});
+svg.addEventListener('pointerup',e=>{ delete pointers[e.pointerId]; if(Object.keys(pointers).length<2) lastDistance=null; });
+svg.addEventListener('pointercancel',e=>{ delete pointers[e.pointerId]; if(Object.keys(pointers).length<2) lastDistance=null; });
+window.addEventListener('resize',setSVGSize);
+</script>
+</body>
+</html>
