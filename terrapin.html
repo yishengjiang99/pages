@@ -2,182 +2,74 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Terrapin Logo Emulator</title>
   <style>
-    body {
-      margin: 0;
-      padding: 1vmin;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: space-between;
-      height: 100vh;
-      width: 100vw;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-      background-color: #f0f0f0;
-      user-select: none;
-      box-sizing: border-box;
-    }
-    h1 {
-      font-size: clamp(1rem, 3vmin, 1.5rem);
-      margin: 1vmin 0;
-      text-align: center;
-    }
-    #turtleCanvas {
-      border: 1px solid black;
-      width: clamp(200px, 90vmin, 400px);
-      height: clamp(200px, 90vmin, 400px);
-      background-color: #fff;
-    }
-    #editor {
-      width: clamp(200px, 90vmin, 400px);
-      height: 20vmin;
-      margin: 1vmin 0;
-      border: 1px solid #ccc;
-    }
-    .controls {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-      gap: 0.5vmin;
-      width: clamp(200px, 90vmin, 400px);
-      margin: 0.5vmin 0;
-    }
-    button {
-      padding: 0.5vmin;
-      font-size: clamp(0.7rem, 2vmin, 0.9rem);
-      border: 1px solid #333;
-      background-color: #e0e0e0;
-      cursor: pointer;
-      border-radius: 4px;
-      transition: background-color 0.2s, outline 0.2s;
-    }
-    button:hover { background-color: #d0d0d0; }
-    button:active { background-color: #c0c0c0; }
-    .command-buttons button { background-color: #4CAF50; color: white; }
-    .command-buttons button:hover { background-color: #45a049; }
-    .number-buttons button { background-color: #2196F3; color: white; }
-    .number-buttons button:hover { background-color: #1e88e5; }
-    .action-buttons button { background-color: #ff5722; color: white; font-weight: bold; }
-    .action-buttons button:hover { background-color: #e64a19; }
-    .action-buttons .run-button:focus,
-    .action-buttons .run-button:focus-visible {
-      outline: 3px solid #ff9800;
-      outline-offset: 2px;
-      background-color: #ff7043;
-    }
-    .action-buttons .reset-button { background-color: #f44336; }
-    .action-buttons .reset-button:hover { background-color: #d32f2f; }
-    .action-buttons .sample-button { background-color: #9c27b0; }
-    .action-buttons .sample-button:hover { background-color: #7b1fa2; }
+    body {margin:0;padding:0;height:100vh;width:100vw;overflow:hidden;display:flex;flex-direction:column;font-family:Arial,sans-serif;}
+    h1 {font-size:1.2rem;margin:0.5rem;text-align:center;}
+    #editor {flex:1;width:100%;}
+    .controls {display:flex;justify-content:center;gap:0.5rem;padding:0.5rem;background:#f0f0f0;border-top:1px solid #ccc;}
+    button {padding:0.5rem 1rem;font-size:0.9rem;border:none;border-radius:4px;cursor:pointer;}
+    .run-button {background:#4CAF50;color:#fff;}
+    .reset-button {background:#f44336;color:#fff;}
+    .sample-button {background:#2196F3;color:#fff;}
+    #drawer {position:fixed;top:0;right:-420px;width:400px;max-width:90vw;height:100%;background:#fff;border-left:2px solid #333;box-shadow:-4px 0 8px rgba(0,0,0,0.3);transition:right 0.3s ease-in-out;display:flex;flex-direction:column;align-items:center;padding:1rem;}
+    #drawer.open {right:0;}
+    #turtleCanvas {border:1px solid black;width:100%;height:auto;background:#fff;flex:1;}
+    #closeDrawer {align-self:flex-end;margin-bottom:0.5rem;background:#ff5722;color:#fff;font-weight:bold;border-radius:4px;padding:0.3rem 0.6rem;}
   </style>
 </head>
 <body>
   <h1>Terrapin Logo Emulator</h1>
-  <canvas id="turtleCanvas"></canvas>
   <div id="editor"></div>
-
-  <div class="controls command-buttons">
-    <button onclick="appendCommand('FORWARD')">FORWARD</button>
-    <button onclick="appendCommand('BACK')">BACK</button>
-    <button onclick="appendCommand('RIGHT')">RIGHT</button>
-    <button onclick="appendCommand('LEFT')">LEFT</button>
-    <button onclick="appendCommand('PENUP')">PENUP</button>
-    <button onclick="appendCommand('PENDOWN')">PENDOWN</button>
-    <button onclick="appendCommand('CLEARSCREEN')">CLEARSCREEN</button>
-    <button onclick="appendCommand('HOME')">HOME</button>
-    <button onclick="appendCommand('REPEAT')">REPEAT</button>
-  </div>
-  <div class="controls number-buttons">
-    <button onclick="appendCommand('10')">10</button>
-    <button onclick="appendCommand('50')">50</button>
-    <button onclick="appendCommand('100')">100</button>
-  </div>
-  <div class="controls action-buttons">
-    <button class="run-button" onclick="runCode()">Run</button>
+  <div class="controls">
+    <button class="run-button" onclick="runCommands()">Run</button>
     <button class="reset-button" onclick="resetEditor()">Reset</button>
     <button class="sample-button" onclick="loadSample()">Sample</button>
+    <button onclick="appendCommand('FD')">FD</button>
+    <button onclick="appendCommand('BK')">BK</button>
+    <button onclick="appendCommand('RT')">RT</button>
+    <button onclick="appendCommand('LT')">LT</button>
+    <button onclick="appendCommand('PU')">PU</button>
+    <button onclick="appendCommand('PD')">PD</button>
+    <button onclick="appendCommand('CS')">CS</button>
+    <button onclick="appendCommand('HM')">HM</button>
   </div>
 
-  <!-- Monaco Editor Loader -->
-  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+  <div id="drawer">
+    <button id="closeDrawer" onclick="closeDrawer()">✖</button>
+    <canvas id="turtleCanvas"></canvas>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
   <script>
     let editor;
-
-    require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' } });
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
     require(['vs/editor/editor.main'], function () {
       editor = monaco.editor.create(document.getElementById('editor'), {
-        value: 'REPEAT 4 [\n  FORWARD 100\n  RIGHT 90\n]',
-        language: 'plaintext',
-        theme: 'vs-light',
-        fontSize: 14,
-        minimap: { enabled: false },
-        automaticLayout: true,
+        value: '', language: 'plaintext', theme: 'vs-dark', automaticLayout: true, minimap: { enabled: false }
       });
     });
 
-    // --- Append helpers ---
-    function appendCommand(cmd) {
-      const pos = editor.getPosition();
-      editor.executeEdits('', [{
-        range: new monaco.Range(pos.lineNumber, pos.column, pos.lineNumber, pos.column),
-        text: (/\d+/.test(cmd) ? cmd + '\n' : cmd + ' '),
-        forceMoveMarkers: true
-      }]);
-      editor.focus();
-    }
-    function resetEditor() { editor.setValue(''); }
-    function loadSample() {
-      editor.setValue(`TO FLOWER
-  REPEAT 6 [
-    REPEAT 36 [
-      FORWARD 5
-      RIGHT 5
-    ]
-    RIGHT 180
-    REPEAT 36 [
-      FORWARD 5
-      RIGHT 5
-    ]
-    RIGHT 180
-    RIGHT 60
-  ]
-END
-CLEARSCREEN
-PENUP
-SETXY 0 0
-PENDOWN
-FLOWER`);
-    }
+    const drawer = document.getElementById('drawer');
+    const canvas = document.getElementById('turtleCanvas');
+    const ctx = canvas.getContext('2d');
+    let turtle = { x: 0, y: 0, angle: 0, penDown: true };
 
-    // --- Parser + Interpreter (short version, integrated) ---
-    function preprocess(s) { return s.replace(/\r\n?/g,'\n').split('\n').map(l=>l.split(';')[0]).join('\n'); }
-    function tokenize(s) { const re=/(\[|\])|("(?:[^"\\]|\\.)*")|([^\s\[\]]+)/g; const t=[]; let m; while(m=re.exec(s))t.push(m[1]||m[2]||m[3]); return t; }
-    function parseLogo(src){const tokens=tokenize(preprocess(src));const ctx={tokens,pos:0};const cmds=[];while(ctx.pos<tokens.length){cmds.push(parseCmd(ctx));}return cmds;}
-    function next(ctx){return ctx.tokens[ctx.pos++];}function peek(ctx){return ctx.tokens[ctx.pos];}
-    function parseCmd(ctx){if(ctx.pos>=ctx.tokens.length)return null;let tok=next(ctx),up=tok.toUpperCase();
-      if(up==='REPEAT'){let times=+next(ctx); if(next(ctx)!=='[') throw Error('Expected ['); return {type:'REPEAT',times,body:parseBlock(ctx)};}
-      if(tok==='[') return {type:'BLOCK',body:parseBlock(ctx)};
-      const map={FD:'FD',FORWARD:'FD',BK:'BK',BACK:'BK',RT:'RT',RIGHT:'RT',LT:'LT',LEFT:'LT',PU:'PU',PENUP:'PU',PD:'PD',PENDOWN:'PD',SETXY:'SETXY',SETH:'SETH',SETHEADING:'SETH',HOME:'HOME',CLEAR:'CLEAR',CLEARSCREEN:'CLEAR',CS:'CLEAR',COLOR:'COLOR'};
-      if(map[up]){let type=map[up]; if(['FD','BK','RT','LT','SETH','COLOR'].includes(type)) return {type,args:[+next(ctx)]};
-        if(type==='SETXY') return {type,args:[+next(ctx),+next(ctx)]}; return {type};}
-      return {type:tok,args:[]};
-    }
-    function parseBlock(ctx){let body=[];while(ctx.pos<ctx.tokens.length){if(peek(ctx)===']'){ctx.pos++;break;}body.push(parseCmd(ctx));}return body;}
+    function openDrawer() { drawer.classList.add('open'); }
+    function closeDrawer() { drawer.classList.remove('open'); }
+    function setCanvasSize() { canvas.width = drawer.clientWidth - 20; canvas.height = drawer.clientHeight - 60; initCanvas(); }
+    function initCanvas() { turtle.x = canvas.width / 2; turtle.y = canvas.height / 2; ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); turtle.angle=0; turtle.penDown=true; drawTurtle(); }
+    function drawTurtle() { ctx.save(); ctx.translate(turtle.x,turtle.y); ctx.rotate((turtle.angle*Math.PI)/180); ctx.fillStyle='green'; ctx.beginPath(); ctx.moveTo(0,-15); ctx.lineTo(-5,5); ctx.lineTo(5,5); ctx.closePath(); ctx.fill(); ctx.restore(); }
+    function moveTurtle(distance) { const rad=(turtle.angle*Math.PI)/180; const newX=turtle.x+distance*Math.cos(rad); const newY=turtle.y-distance*Math.sin(rad); if(turtle.penDown){ctx.beginPath();ctx.moveTo(turtle.x,turtle.y);ctx.lineTo(newX,newY);ctx.strokeStyle='black';ctx.lineWidth=2;ctx.stroke();} turtle.x=newX;turtle.y=newY; }
+    function tokenizeInput(input) { return input.split(/\s+/).filter(t=>t.trim()!==''); }
+    function executeCommands(tokens) { let i=0; while(i<tokens.length){ const cmd=tokens[i].toUpperCase(); if(cmd==='FD'){moveTurtle(parseFloat(tokens[++i]));} else if(cmd==='BK'){moveTurtle(-parseFloat(tokens[++i]));} else if(cmd==='RT'){turtle.angle+=parseFloat(tokens[++i]);} else if(cmd==='LT'){turtle.angle-=parseFloat(tokens[++i]);} else if(cmd==='PU'){turtle.penDown=false;} else if(cmd==='PD'){turtle.penDown=true;} else if(cmd==='CS'){initCanvas();} else if(cmd==='HM'){turtle.x=canvas.width/2;turtle.y=canvas.height/2;turtle.angle=0;} i++; } drawTurtle(); }
+    function runCommands() { const input=editor.getValue(); if(!input.trim()) return; openDrawer(); setCanvasSize(); const tokens=tokenizeInput(input); executeCommands(tokens); }
+    function resetEditor() { editor.setValue(''); initCanvas(); }
+    function loadSample() { editor.setValue(`REPEAT 36 [\n  FD 10\n  RT 10\n]`); }
+    function appendCommand(cmd) { editor.setValue(editor.getValue()+cmd+' '); editor.focus(); }
 
-    class Turtle {
-      constructor(ctx,w,h){this.ctx=ctx;this.w=w;this.h=h;this.x=w/2;this.y=h/2;this.a=0;this.pen=true;this.color='black';this.clear();}
-      clear(){this.ctx.fillStyle='white';this.ctx.fillRect(0,0,this.w,this.h);}
-      forward(d){const r=this.a*Math.PI/180;const nx=this.x+d*Math.cos(r);const ny=this.y-d*Math.sin(r);if(this.pen){this.ctx.beginPath();this.ctx.moveTo(this.x,this.y);this.ctx.lineTo(nx,ny);this.ctx.strokeStyle=this.color;this.ctx.stroke();}this.x=nx;this.y=ny;}
-      back(d){this.forward(-d);} right(d){this.a-=d;} left(d){this.a+=d;}
-      pu(){this.pen=false;} pd(){this.pen=true;} setxy(x,y){this.x=this.w/2+x;this.y=this.h/2-y;} seth(a){this.a=a;} home(){this.x=this.w/2;this.y=this.h/2;this.a=0;} setColor(c){this.color=c;}
-    }
-    function run(commands,turtle){for(const c of commands){switch(c.type){case'FD':turtle.forward(c.args[0]);break;case'BK':turtle.back(c.args[0]);break;case'RT':turtle.right(c.args[0]);break;case'LT':turtle.left(c.args[0]);break;case'PU':turtle.pu();break;case'PD':turtle.pd();break;case'SETXY':turtle.setxy(c.args[0],c.args[1]);break;case'SETH':turtle.seth(c.args[0]);break;case'HOME':turtle.home();break;case'CLEAR':turtle.clear();break;case'COLOR':turtle.setColor(c.args[0]);break;case'REPEAT':for(let i=0;i<c.times;i++)run(c.body,turtle);break;}}}
-
-    // --- Canvas + runCode ---
-    const canvas=document.getElementById('turtleCanvas');const ctx=canvas.getContext('2d');canvas.width=400;canvas.height=400;let turtle=new Turtle(ctx,canvas.width,canvas.height);
-    function runCode(){turtle.clear();turtle=new Turtle(ctx,canvas.width,canvas.height);const code=editor.getValue();const ast=parseLogo(code);run(ast,turtle);}
+    window.addEventListener('resize', setCanvasSize);
   </script>
 </body>
 </html>
