@@ -7,7 +7,7 @@
 <style>
 body {margin:0;padding:0;height:100vh;width:100vw;overflow:hidden;display:flex;flex-direction:column;font-family:Arial,sans-serif;touch-action:none;-ms-touch-action:none;}
 h1 {font-size:1.2rem;margin:0.5rem;text-align:center;}
-#editor {flex:1;width:100%;}
+#editor {flex:1;min-height:200px;width:100%;}
 .controls {position:fixed;bottom:0;left:0;width:100%;display:flex;flex-direction:column;align-items:center;gap:0.4rem;padding:0.5rem;background:#f0f0f0;border-top:1px solid #ccc;z-index:1000;}
 .control-row {display:flex;flex-wrap:wrap;justify-content:center;gap:0.5rem;}
 button {padding:0.4rem 0.8rem;font-size:0.85rem;border:none;border-radius:4px;cursor:pointer;}
@@ -64,7 +64,7 @@ button {padding:0.4rem 0.8rem;font-size:0.85rem;border:none;border-radius:4px;cu
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
 <script>
 let editor;
-require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
 require(['vs/editor/editor.main'], function() {
   editor = monaco.editor.create(document.getElementById('editor'), {
     value: '',
@@ -74,43 +74,34 @@ require(['vs/editor/editor.main'], function() {
     minimap: { enabled: false }
   });
 
-  // On editor change, parse and mark errors
-  editor.onDidChangeModelContent(() => {
+  editor.onDidChangeModelContent(()=>{ 
     const input = editor.getValue();
     try { tokenizeInput(input); clearMarkers(); } 
     catch(e){ markError(e.message); }
   });
 
-  // On load, decode hash if present
   const hash = location.hash.slice(1);
   if(hash){
-    try{
-      const decoded = atob(hash);
-      editor.setValue(decoded);
-    }catch(e){}
-  }else{ loadSample(); }
+    try{ const decoded = atob(hash); editor.setValue(decoded); }catch(e){}
+  } else { loadSample(); }
+
   try{ tokenizeInput(editor.getValue()); clearMarkers(); } catch(e){ markError(e.message); }
 });
 
-// Error markers
+// Monaco error markers
 function clearMarkers(){ monaco.editor.setModelMarkers(editor.getModel(),'logo',[]); }
 function markError(msg){ monaco.editor.setModelMarkers(editor.getModel(),'logo',[{startLineNumber:1,startColumn:1,endLineNumber:1,endColumn:1,message:msg,severity:monaco.MarkerSeverity.Error}]);}
 
-// Share button
-function shareEditor(){
-  const code = editor.getValue();
-  const encoded = btoa(code);
-  const url = location.origin + location.pathname + '#' + encoded;
-  navigator.clipboard.writeText(url).then(()=>alert("Copied link!"));
+// Share
+function shareEditor(){ 
+  const code = editor.getValue(); 
+  const encoded = btoa(code); 
+  const url = location.origin + location.pathname + '#' + encoded; 
+  navigator.clipboard.writeText(url).then(()=>alert("Copied link!")); 
 }
 
 // SVG Turtle
-const drawer = document.getElementById('drawer');
-const svg = document.getElementById('turtleSVG');
-const viewport = document.getElementById('viewport');
-const linesEl = document.getElementById('lines');
-const turtleEl = document.getElementById('turtle');
-
+const drawer=document.getElementById('drawer'), svg=document.getElementById('turtleSVG'), viewport=document.getElementById('viewport'), linesEl=document.getElementById('lines'), turtleEl=document.getElementById('turtle');
 let turtle={x:0,y:0,angle:0,penDown:true}, points=[], zoom=1, pan={x:0,y:0};
 let pointers={}, lastDistance=null;
 
@@ -123,7 +114,7 @@ function moveTurtle(d){ let rad=turtle.angle*Math.PI/180; let nx=turtle.x+d*Math
 
 // Tokenizer & executor
 function tokenizeInput(input){ return input.replace(/\[/g,' [ ').replace(/\]/g,' ] ').split(/\s+/).filter(t=>t.trim()!==''); }
-function executeTokens(tokens){ let i=0; function exec(){ while(i<tokens.length){ let cmd=tokens[i++].toUpperCase(); if(cmd==='FD'){moveTurtle(parseFloat(tokens[i++]));} else if(cmd==='BK'){moveTurtle(-parseFloat(tokens[i++]));} else if(cmd==='RT'){turtle.angle+=parseFloat(tokens[i++]);} else if(cmd==='LT'){turtle.angle-=parseFloat(tokens[i++]);} else if(cmd==='PU'){turtle.penDown=false;} else if(cmd==='PD'){turtle.penDown=true;} else if(cmd==='CS'){initTurtle();} else if(cmd==='HM'){turtle.x=svg.clientWidth/2;turtle.y=svg.clientHeight/2;turtle.angle=0;drawTurtle();} else if(cmd==='REPEAT'){let count=parseInt(tokens[i++]); if(tokens[i]!=='[') throw new Error("Expected '[' after REPEAT"); i++; let bs=i, depth=1; while(i<tokens.length&&depth>0){if(tokens[i]==='[')depth++;else if(tokens[i]===']')depth--; i++;} if(depth!==0)throw new Error("Unmatched '[' in REPEAT"); let block=tokens.slice(bs,i-1); for(let j=0;j<count;j++){let saveI=i; let saved=tokens; tokens=block; i=0; exec(); tokens=saved; i=saveI;}} else if(cmd===']'){return;} else{throw new Error("Unknown command: "+cmd);}}} exec(); }
+function executeTokens(tokens){ let i=0; function exec(){ while(i<tokens.length){ let cmd=tokens[i++].toUpperCase(); if(cmd==='FD'){moveTurtle(parseFloat(tokens[i++]));} else if(cmd==='BK'){moveTurtle(-parseFloat(tokens[i++]));} else if(cmd==='RT'){turtle.angle+=parseFloat(tokens[i++]);} else if(cmd==='LT'){turtle.angle-=parseFloat(tokens[i++]);} else if(cmd==='PU'){turtle.penDown=false;} else if(cmd==='PD'){turtle.penDown=true;} else if(cmd==='CS'){initTurtle();} else if(cmd==='HM'){turtle.x=svg.clientWidth/2;turtle.y=svg.clientHeight/2;turtle.angle=0;drawTurtle();} else if(cmd==='REPEAT'){let count=parseInt(tokens[i++]); if(tokens[i]!=='[') throw new Error("Expected '[' after REPEAT"); i++; let bs=i, depth=1; while(i<tokens.length&&depth>0){if(tokens[i]==='[')depth++;else if(tokens[i]===']')depth--; i++;} if(depth!==0)throw new Error("Unmatched '[' in REPEAT"); let block=tokens.slice(bs,i-1); for(let j=0;j<count;j++){ let saveI=i; let saved=tokens; tokens=block; i=0; exec(); tokens=saved; i=saveI; } } else if(cmd===']'){return;} else{throw new Error("Unknown command: "+cmd);}}} exec(); }
 
 function runCommands(){ const input=editor.getValue(); if(!input.trim()) return; openDrawer(); initTurtle(); const tokens=tokenizeInput(input); executeTokens(tokens); }
 
@@ -138,8 +129,23 @@ svg.addEventListener('pointerdown', e=>{ pointers[e.pointerId]=e; svg.setPointer
 svg.addEventListener('pointermove', e=>{
   pointers[e.pointerId]=e; e.preventDefault();
   const ids=Object.keys(pointers);
-  if(ids.length===1){ let dx=e.clientX-pointers[ids[0]].clientX; let dy=e.clientY-pointers[ids[0]].clientY; pan.x+=dx; pan.y+=dy; pointers[ids[0]]=e; }
-  else if(ids.length===2){ let t1=pointers[ids[0]]; let t2=pointers[ids[1]]; let currDist=Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY); if(lastDistance!=null){ let scale=currDist/lastDistance; zoom*=scale; let midX=(t1.clientX+t2.clientX)/2, midY=(t1.clientY+t2.clientY)/2; pan.x=pan.x*scale+midX*(1-scale); pan.y=pan.y*scale+midY*(1-scale); } lastDistance=currDist; }
+  if(ids.length===1){ 
+    let dx=e.clientX-pointers[ids[0]].clientX; 
+    let dy=e.clientY-pointers[ids[0]].clientY; 
+    pan.x+=dx; pan.y+=dy; 
+    pointers[ids[0]]=e; 
+  } else if(ids.length===2){ 
+    let t1=pointers[ids[0]]; let t2=pointers[ids[1]]; 
+    let currDist=Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY); 
+    if(lastDistance!=null){ 
+      let scale=currDist/lastDistance; 
+      zoom*=scale; 
+      let midX=(t1.clientX+t2.clientX)/2, midY=(t1.clientY+t2.clientY)/2; 
+      pan.x=pan.x*scale+midX*(1-scale); 
+      pan.y=pan.y*scale+midY*(1-scale); 
+    } 
+    lastDistance=currDist; 
+  }
   drawTurtle();
 });
 svg.addEventListener('pointerup',e=>{ delete pointers[e.pointerId]; if(Object.keys(pointers).length<2) lastDistance=null; });
