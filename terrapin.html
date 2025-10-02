@@ -3,25 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Terrapin Logo Emulator - Shareable</title>
+<title>Logo Editor</title>
 <style>
-body {margin:0;padding:0;height:100vh;width:100vw;overflow:hidden;display:flex;flex-direction:column;font-family:Arial,sans-serif;touch-action:none;-ms-touch-action:none;}
-h1 {font-size:1.2rem;margin:0.5rem;text-align:center;}
-#editor {flex:1;min-height:200px;width:100%;}
-.controls {position:fixed;bottom:0;left:0;width:100%;display:flex;flex-direction:column;align-items:center;gap:0.4rem;padding:0.5rem;background:#f0f0f0;border-top:1px solid #ccc;z-index:1000;}
-.control-row {display:flex;flex-wrap:wrap;justify-content:center;gap:0.5rem;}
-button {padding:0.4rem 0.8rem;font-size:0.85rem;border:none;border-radius:4px;cursor:pointer;}
-.run-button {background:#4CAF50;color:#fff;}
-.reset-button {background:#f44336;color:#fff;}
-#shareButton {position:fixed;top:10px;left:10px;background:#ff9800;color:#fff;padding:0.5rem 0.8rem;border:none;border-radius:4px;cursor:pointer;z-index:3000;}
-#drawer {position:fixed;top:0;right:-420px;width:400px;max-width:90vw;height:100%;background:#fff;border-left:2px solid #333;box-shadow:-4px 0 8px rgba(0,0,0,0.3);transition:right 0.3s ease-in-out;display:flex;flex-direction:column;align-items:center;padding:1rem;z-index:2000;touch-action:none;}
-#drawer.open {right:0;}
-#turtleSVG {border:1px solid black;width:100%;height:100%;background:#fff;flex:1;touch-action:none;}
-#closeDrawer {align-self:flex-end;margin-bottom:0.5rem;background:#ff5722;color:#fff;font-weight:bold;border-radius:4px;padding:0.3rem 0.6rem;}
+body{margin:0;padding:0;height:100vh;width:100vw;overflow:hidden;display:flex;flex-direction:column;font-family:Arial,sans-serif;touch-action:none;-ms-touch-action:none;}
+h1{font-size:1.2rem;margin:0.5rem;text-align:center;}
+#editor{flex:1;min-height:200px;width:100%;}
+.controls{position:fixed;bottom:0;left:0;width:100%;display:flex;flex-direction:column;align-items:center;gap:0.4rem;padding:0.5rem;background:#f0f0f0;border-top:1px solid #ccc;z-index:1000;}
+.control-row{display:flex;flex-wrap:wrap;justify-content:center;gap:0.5rem;}
+button{padding:0.4rem 0.8rem;font-size:0.85rem;border:none;border-radius:4px;cursor:pointer;}
+.run-button{background:#4CAF50;color:#fff;}
+.reset-button{background:#f44336;color:#fff;}
+#shareButton{position:fixed;top:10px;left:10px;background:#ff9800;color:#fff;padding:0.5rem 0.8rem;border:none;border-radius:4px;cursor:pointer;z-index:3000;}
+#drawer{position:fixed;top:0;right:-420px;width:400px;max-width:90vw;height:100%;background:#fff;border-left:2px solid #333;box-shadow:-4px 0 8px rgba(0,0,0,0.3);transition:right 0.3s ease-in-out;display:flex;flex-direction:column;align-items:center;padding:1rem;z-index:2000;touch-action:none;}
+#drawer.open{right:0;}
+#turtleSVG{border:1px solid black;width:100%;height:100%;background:#fff;flex:1;touch-action:none;}
+#closeDrawer{align-self:flex-end;margin-bottom:0.5rem;background:#ff5722;color:#fff;font-weight:bold;border-radius:4px;padding:0.3rem 0.6rem;}
 </style>
 </head>
 <body>
-<h1>Terrapin Logo Emulator - Shareable</h1>
+<h1>Logo Editor</h1>
 <button id="shareButton" onclick="shareEditor()">Share</button>
 <div id="editor"></div>
 
@@ -70,27 +70,30 @@ require(['vs/editor/editor.main'], function() {
     minimap: { enabled: false }
   });
 
-  editor.onDidChangeModelContent(()=>{ 
-    const input = editor.getValue();
-    try { tokenizeInput(input); clearMarkers(); } 
-    catch(e){ markError(e.message); }
+  editor.onDidChangeModelContent(()=>{
+    const input=editor.getValue();
+    try{ tokenizeInput(input); clearMarkers(); }catch(e){ markError(e.message);}
   });
 
-  const hash = location.hash.slice(1);
-  if(hash){
-    try{ const decoded = atob(hash); editor.setValue(decoded); }catch(e){}
-  } else { editor.setValue('CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]'); }
+  // Long press shows command palette
+  let pressTimer;
+  editor.onMouseDown(e=>{ pressTimer=setTimeout(()=>alert("Command palette placeholder"),700); });
+  editor.onMouseUp(e=>{ clearTimeout(pressTimer); });
+
+  const hash=location.hash.slice(1);
+  if(hash){ try{ const decoded=atob(hash); editor.setValue(decoded); }catch(e){} } 
+  else { editor.setValue('CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]'); }
 
   try{ tokenizeInput(editor.getValue()); clearMarkers(); } catch(e){ markError(e.message); }
 });
 
-function clearMarkers(){ monaco.editor.setModelMarkers(editor.getModel(),'logo',[]); }
+function clearMarkers(){ monaco.editor.setModelMarkers(editor.getModel(),'logo',[]);}
 function markError(msg){ monaco.editor.setModelMarkers(editor.getModel(),'logo',[{startLineNumber:1,startColumn:1,endLineNumber:1,endColumn:1,message:msg,severity:monaco.MarkerSeverity.Error}]);}
 
 function shareEditor(){ 
-  const code = editor.getValue(); 
-  const encoded = btoa(code); 
-  const url = location.origin + location.pathname + '#' + encoded; 
+  const code=editor.getValue();
+  const encoded=btoa(code);
+  const url=location.origin+location.pathname+'#'+encoded;
   navigator.clipboard.writeText(url).then(()=>alert("Copied link!")); 
 }
 
@@ -98,18 +101,39 @@ const drawer=document.getElementById('drawer'), svg=document.getElementById('tur
 let turtle={x:0,y:0,angle:0,penDown:true}, points=[], zoom=1, pan={x:0,y:0};
 let pointers={}, lastDistance=null;
 
-function openDrawer(){ drawer.classList.add('open'); setSVGSize(); initTurtle(); }
-function closeDrawer(){ drawer.classList.remove('open'); }
-function setSVGSize(){ svg.setAttribute('width',drawer.clientWidth-20); svg.setAttribute('height',drawer.clientHeight-60); }
-function initTurtle(){ turtle.x=svg.clientWidth/2; turtle.y=svg.clientHeight/2; turtle.angle=0; turtle.penDown=true; points=[]; drawTurtle(); }
+function openDrawer(){ drawer.classList.add('open'); setSVGSize(); initTurtle();}
+function closeDrawer(){ drawer.classList.remove('open');}
+function setSVGSize(){ svg.setAttribute('width',drawer.clientWidth-20); svg.setAttribute('height',drawer.clientHeight-60);}
+function initTurtle(){ turtle.x=svg.clientWidth/2; turtle.y=svg.clientHeight/2; turtle.angle=0; turtle.penDown=true; points=[]; drawTurtle();}
 function drawTurtle(){ linesEl.setAttribute('points', points.map(p=>p.join(',')).join(' ')); turtleEl.setAttribute('transform',`translate(${turtle.x},${turtle.y}) rotate(${-turtle.angle})`); viewport.setAttribute('transform',`translate(${pan.x},${pan.y}) scale(${zoom})`);}
 function moveTurtle(d){ let rad=turtle.angle*Math.PI/180; let nx=turtle.x+d*Math.cos(rad); let ny=turtle.y-d*Math.sin(rad); if(turtle.penDown) points.push([nx,ny]); turtle.x=nx; turtle.y=ny; drawTurtle(); }
 
 function tokenizeInput(input){ return input.replace(/\[/g,' [ ').replace(/\]/g,' ] ').split(/\s+/).filter(t=>t.trim()!==''); }
-function executeTokens(tokens){ let i=0; function exec(){ while(i<tokens.length){ let cmd=tokens[i++].toUpperCase(); if(cmd==='FD'){moveTurtle(parseFloat(tokens[i++]));} else if(cmd==='BK'){moveTurtle(-parseFloat(tokens[i++]));} else if(cmd==='RT'){turtle.angle+=parseFloat(tokens[i++]);} else if(cmd==='LT'){turtle.angle-=parseFloat(tokens[i++]);} else if(cmd==='PU'){turtle.penDown=false;} else if(cmd==='PD'){turtle.penDown=true;} else if(cmd==='CS'){initTurtle();} else if(cmd==='HM'){turtle.x=svg.clientWidth/2;turtle.y=svg.clientHeight/2;turtle.angle=0;drawTurtle();} else if(cmd==='REPEAT'){let count=parseInt(tokens[i++]); if(tokens[i]!=='[') throw new Error("Expected '[' after REPEAT"); i++; let bs=i, depth=1; while(i<tokens.length&&depth>0){if(tokens[i]==='[')depth++;else if(tokens[i]===']')depth--; i++;} if(depth!==0)throw new Error("Unmatched '[' in REPEAT"); let block=tokens.slice(bs,i-1); for(let j=0;j<count;j++){ let saveI=i; let saved=tokens; tokens=block; i=0; exec(); tokens=saved; i=saveI; } } else if(cmd===']'){return;} else{throw new Error("Unknown command: "+cmd);}}} exec(); }
 
-function runCommands(){ const input=editor.getValue(); if(!input.trim()) return; openDrawer(); initTurtle(); const tokens=tokenizeInput(input); executeTokens(tokens); }
+function executeTokens(tokens){
+  let i=0;
+  function exec(){
+    while(i<tokens.length){
+      let cmd=tokens[i++].toUpperCase();
+      if(cmd==='FD'){ moveTurtle(parseFloat(tokens[i++])); }
+      else if(cmd==='BK'){ moveTurtle(-parseFloat(tokens[i++])); }
+      else if(cmd==='RT'){ turtle.angle+=parseFloat(tokens[i++]); }
+      else if(cmd==='LT'){ turtle.angle-=parseFloat(tokens[i++]); }
+      else if(cmd==='PU'){ turtle.penDown=false; }
+      else if(cmd==='PD'){ turtle.penDown=true; }
+      else if(cmd==='CS'){ initTurtle(); }
+      else if(cmd==='HM'){ turtle.x=svg.clientWidth/2; turtle.y=svg.clientHeight/2; turtle.angle=0; drawTurtle(); }
+      else if(cmd==='SETXY'){ let x=parseFloat(tokens[i++]), y=parseFloat(tokens[i++]); if(!isNaN(x)&&!isNaN(y)){ turtle.x=svg.clientWidth/2 + x; turtle.y=svg.clientHeight/2 - y; drawTurtle();} else throw new Error(`Invalid SETXY args: ${x},${y}`);}
+      else if(cmd==='SETH'||cmd==='SETHEADING'){ let angle=parseFloat(tokens[i++]); if(!isNaN(angle)){ turtle.angle=angle; drawTurtle(); } else throw new Error(`Invalid SETHEADING arg: ${tokens[i-1]}`);}
+      else if(cmd==='REPEAT'){ let count=parseInt(tokens[i++]); if(tokens[i]!=='[')throw new Error("Expected '[' after REPEAT"); i++; let bs=i, depth=1; while(i<tokens.length&&depth>0){if(tokens[i]==='[')depth++; else if(tokens[i]===']')depth--; i++;} if(depth!==0)throw new Error("Unmatched '[' in REPEAT"); let block=tokens.slice(bs,i-1); for(let j=0;j<count;j++){ let saveI=i; let saved=tokens; tokens=block; i=0; exec(); tokens=saved; i=saveI; }} 
+      else if(cmd===']'){ return; }
+      else{ throw new Error("Unknown command: "+cmd); }
+    }
+  }
+  exec();
+}
 
+function runCommands(){ const input=editor.getValue(); if(!input.trim()) return; openDrawer(); initTurtle(); const tokens=tokenizeInput(input); executeTokens(tokens);}
 function resetEditor(){ editor.setValue(''); initTurtle(); }
 function appendCommand(cmd){ editor.setValue(editor.getValue()+cmd+' '); editor.focus(); }
 
@@ -120,20 +144,14 @@ svg.addEventListener('pointermove', e=>{
   const ids=Object.keys(pointers);
   if(ids.length===1){ 
     let dx=e.clientX-pointers[ids[0]].clientX; 
-    let dy=e.clientY-pointers[ids[0]].clientY; 
+    let dy=e.clientY-pointers[0].clientY; 
     pan.x+=dx; pan.y+=dy; 
     pointers[ids[0]]=e; 
   } else if(ids.length===2){ 
-    let t1=pointers[ids[0]]; let t2=pointers[ids[1]]; 
+    let t1=pointers[ids[0]], t2=pointers[ids[1]];
     let currDist=Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY); 
-    if(lastDistance!=null){ 
-      let scale=currDist/lastDistance; 
-      zoom*=scale; 
-      let midX=(t1.clientX+t2.clientX)/2, midY=(t1.clientY+t2.clientY)/2; 
-      pan.x=pan.x*scale+midX*(1-scale); 
-      pan.y=pan.y*scale+midY*(1-scale); 
-    } 
-    lastDistance=currDist; 
+    if(lastDistance!=null){ let scale=currDist/lastDistance; zoom*=scale; let midX=(t1.clientX+t2.clientX)/2, midY=(t1.clientY+t2.clientY)/2; pan.x=pan.x*scale+midX*(1-scale); pan.y=pan.y*scale+midY*(1-scale); }
+    lastDistance=currDist;
   }
   drawTurtle();
 });
