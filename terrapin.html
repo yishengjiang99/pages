@@ -17,10 +17,9 @@ html,body{
 #editor{
   position:absolute;
   top:0;
-  bottom:120px;
+  bottom:140px;
   left:0;
   right:0;
-  min-height:200px;
 }
 #drawer{
   position:fixed;
@@ -46,24 +45,39 @@ html,body{
   background:#eee;
   display:grid;
   grid-template-rows:auto auto auto;
-  gap:2px;
-  padding:4px 2px calc(env(safe-area-inset-bottom) + 4px) 2px;
+  gap:4px;
+  padding:6px 6px calc(env(safe-area-inset-bottom) + 6px) 6px;
   z-index:200;
 }
 .controls-row{
   display:flex;
-  justify-content:center;
-  gap:2px;
+  justify-content:space-between;
+  gap:6px;
 }
 button{
   flex:1;
-  padding:10px;
-  font-size:16px;
+  padding:14px;
+  font-size:18px;
   border:none;
-  border-radius:4px;
+  border-radius:6px;
   background:#ddd;
 }
 button:active{ background:#bbb; }
+#toast{
+  position:fixed;
+  bottom:calc(120px + env(safe-area-inset-bottom));
+  left:50%;
+  transform:translateX(-50%);
+  background:#333;
+  color:#fff;
+  padding:10px 16px;
+  border-radius:6px;
+  opacity:0;
+  transition:opacity 0.3s ease;
+  pointer-events:none;
+  z-index:300;
+}
+#toast.show{ opacity:1; }
 </style>
 </head>
 <body>
@@ -92,6 +106,7 @@ button:active{ background:#bbb; }
    <button onclick="showDrawer()">Show</button>
  </div>
 </div>
+<div id="toast">Link copied!</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
 <script>
@@ -106,7 +121,7 @@ require(['vs/editor/editor.main'], function(){
     minimap:{enabled:false}
   });
 
-  // Long press to show command palette (simplified)
+  // Long press cmd palette stub
   let pressTimer;
   editor.onMouseDown(()=>{
     clearTimeout(pressTimer);
@@ -114,14 +129,19 @@ require(['vs/editor/editor.main'], function(){
   });
   editor.onMouseUp(()=>clearTimeout(pressTimer));
 
-  // parse check
+  // Parse check
   editor.onDidChangeModelContent(()=>{
     const input=editor.getValue();
-    try{ tokenizeInput(input); clearMarkers(); }
-    catch(e){ markError(e.message); }
+    try{
+      tokenizeInput(input);
+      // do not clear markers unless parsing succeeds
+      clearMarkers();
+    }catch(e){
+      markError(e.message);
+    }
   });
 
-  // load from hash
+  // Load from hash
   const hash=location.hash.slice(1);
   if(hash){
     try{ editor.setValue(atob(hash)); }catch(e){}
@@ -129,7 +149,6 @@ require(['vs/editor/editor.main'], function(){
     editor.setValue(`CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`);
   }
 
-  // initial parse
   try{ tokenizeInput(editor.getValue()); clearMarkers(); }
   catch(e){ markError(e.message); }
 });
@@ -153,7 +172,13 @@ function shareCode(){
   const val=editor.getValue();
   const url=location.origin+location.pathname+'#'+btoa(val);
   navigator.clipboard.writeText(url);
-  alert("Link copied!");
+  showToast("Link copied!");
+}
+function showToast(msg){
+  const toast=document.getElementById('toast');
+  toast.textContent=msg;
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'),2000);
 }
 
 // Drawer
