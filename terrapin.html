@@ -1,25 +1,74 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <title>Logo Editor</title>
 <style>
-html,body{margin:0;padding:0;height:100%;overflow:hidden;touch-action:none;font-family:sans-serif}
-#editor{position:absolute;top:0;bottom:120px;left:0;right:0;min-height:200px}
-#drawer{position:fixed;top:0;right:-100%;width:80%;max-width:500px;height:100%;background:#fff;box-shadow:-2px 0 5px rgba(0,0,0,0.3);transition:right 0.3s ease;z-index:100;display:flex;flex-direction:column}
-#drawer.show{right:0}
-#svgContainer{flex:1;overflow:hidden;background:#fafafa}
-#controls{position:fixed;bottom:0;left:0;right:0;background:#eee;display:grid;grid-template-rows:auto auto auto;gap:2px;padding:2px;z-index:200}
-.controls-row{display:flex;justify-content:center;gap:2px}
-button{flex:1;padding:6px;font-size:14px}
-#shareBtn{position:fixed;top:10px;left:10px;z-index:300;background:#2196F3;color:#fff;border:none;border-radius:4px;padding:6px 10px;cursor:pointer}
+html,body{
+  margin:0;
+  padding:0;
+  height:100%;
+  overflow:hidden;
+  touch-action:none;
+  font-family:sans-serif;
+  -webkit-user-select:none;
+  user-select:none;
+}
+#editor{
+  position:absolute;
+  top:0;
+  bottom:120px;
+  left:0;
+  right:0;
+  min-height:200px;
+}
+#drawer{
+  position:fixed;
+  top:0;
+  right:-100%;
+  width:80%;
+  max-width:500px;
+  height:100%;
+  background:#fff;
+  box-shadow:-2px 0 5px rgba(0,0,0,0.3);
+  transition:right 0.3s ease;
+  z-index:100;
+  display:flex;
+  flex-direction:column;
+}
+#drawer.show{ right:0; }
+#svgContainer{ flex:1; overflow:hidden; background:#fafafa; }
+#controls{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  background:#eee;
+  display:grid;
+  grid-template-rows:auto auto auto;
+  gap:2px;
+  padding:4px 2px calc(env(safe-area-inset-bottom) + 4px) 2px;
+  z-index:200;
+}
+.controls-row{
+  display:flex;
+  justify-content:center;
+  gap:2px;
+}
+button{
+  flex:1;
+  padding:10px;
+  font-size:16px;
+  border:none;
+  border-radius:4px;
+  background:#ddd;
+}
+button:active{ background:#bbb; }
 </style>
 </head>
 <body>
 <div id="editor"></div>
 <div id="drawer"><div id="svgContainer"><svg id="turtleSVG"></svg></div></div>
-<button id="shareBtn">Share</button>
 <div id="controls">
  <div class="controls-row">
    <button onclick="appendCommand('FD')">FD</button>
@@ -39,6 +88,7 @@ button{flex:1;padding:6px;font-size:14px}
  <div class="controls-row">
    <button onclick="runCommands()">Run</button>
    <button onclick="resetEditor()">Reset</button>
+   <button onclick="shareCode()">Share</button>
    <button onclick="showDrawer()">Show</button>
  </div>
 </div>
@@ -99,14 +149,12 @@ function appendCommand(cmd){
   editor.focus();
 }
 function resetEditor(){ editor.setValue(''); initTurtle(); }
-
-// share link
-document.getElementById('shareBtn').onclick=()=>{
+function shareCode(){
   const val=editor.getValue();
   const url=location.origin+location.pathname+'#'+btoa(val);
   navigator.clipboard.writeText(url);
   alert("Link copied!");
-};
+}
 
 // Drawer
 function showDrawer(){ document.getElementById('drawer').classList.add('show'); }
