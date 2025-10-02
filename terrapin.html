@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Terrapin Logo Emulator - SVG Zoom/Pan</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Terrapin Logo Emulator - Touch Zoom/Pan</title>
 <style>
-body {margin:0;padding:0;height:100vh;width:100vw;overflow-x:hidden;display:flex;flex-direction:column;font-family:Arial,sans-serif;}
+body {margin:0;padding:0;height:100vh;width:100vw;overflow:hidden;display:flex;flex-direction:column;font-family:Arial,sans-serif;touch-action:none;-ms-touch-action:none;}
 h1 {font-size:1.2rem;margin:0.5rem;text-align:center;}
 #editor {flex:1;width:100%;}
 .controls {position:fixed;bottom:0;left:0;width:100%;display:flex;flex-direction:column;align-items:center;gap:0.4rem;padding:0.5rem;background:#f0f0f0;border-top:1px solid #ccc;z-index:1000;}
@@ -17,12 +17,12 @@ button {padding:0.4rem 0.8rem;font-size:0.85rem;border:none;border-radius:4px;cu
 .show-button {background:#9C27B0;color:#fff;}
 #drawer {position:fixed;top:0;right:-420px;width:400px;max-width:90vw;height:100%;background:#fff;border-left:2px solid #333;box-shadow:-4px 0 8px rgba(0,0,0,0.3);transition:right 0.3s ease-in-out;display:flex;flex-direction:column;align-items:center;padding:1rem;z-index:2000;touch-action:none;}
 #drawer.open {right:0;}
-#turtleSVG {border:1px solid black;width:100%;height:100%;background:#fff;flex:1;}
+#turtleSVG {border:1px solid black;width:100%;height:100%;background:#fff;flex:1;touch-action:none;}
 #closeDrawer {align-self:flex-end;margin-bottom:0.5rem;background:#ff5722;color:#fff;font-weight:bold;border-radius:4px;padding:0.3rem 0.6rem;}
 </style>
 </head>
 <body>
-<h1>Terrapin Logo Emulator - SVG</h1>
+<h1>Terrapin Logo Emulator - Touch Zoom/Pan</h1>
 <div id="editor"></div>
 
 <div class="controls">
@@ -81,34 +81,32 @@ const turtleEl = document.getElementById('turtle');
 
 let turtle = {x:0,y:0,angle:0,penDown:true};
 let points = [];
-
-let zoom = 1;
-let pan = {x:0,y:0};
-let isDragging=false;
-let dragStart={x:0,y:0};
+let zoom = 1, pan = {x:0,y:0};
+let pointers = {};
+let lastDistance = null;
 
 function openDrawer() { drawer.classList.add('open'); setSVGSize(); initTurtle(); }
 function closeDrawer() { drawer.classList.remove('open'); }
 function setSVGSize() { svg.setAttribute('width',drawer.clientWidth-20); svg.setAttribute('height',drawer.clientHeight-60); }
 function initTurtle() { turtle.x=svg.clientWidth/2; turtle.y=svg.clientHeight/2; turtle.angle=0; turtle.penDown=true; points=[]; drawTurtle(); }
 function drawTurtle() {
-  let transformedPoints = points.map(p => [p[0], p[1]]);
+  let transformedPoints = points.map(p=>[p[0],p[1]]);
   linesEl.setAttribute('points', transformedPoints.map(p=>p.join(',')).join(' '));
   turtleEl.setAttribute('transform', `translate(${turtle.x},${turtle.y}) rotate(${-turtle.angle})`);
   viewport.setAttribute('transform', `translate(${pan.x},${pan.y}) scale(${zoom})`);
 }
-function moveTurtle(distance) {
+function moveTurtle(distance){
   let rad = turtle.angle*Math.PI/180;
   let newX = turtle.x + distance*Math.cos(rad);
   let newY = turtle.y - distance*Math.sin(rad);
   if(turtle.penDown) points.push([newX,newY]);
-  turtle.x = newX; turtle.y = newY; drawTurtle();
+  turtle.x=newX; turtle.y=newY; drawTurtle();
 }
 
-function tokenizeInput(input) { return input.replace(/\[/g,' [ ').replace(/\]/g,' ] ').split(/\s+/).filter(t=>t.trim()!==''); }
-function executeTokens(tokens) {
+function tokenizeInput(input){ return input.replace(/\[/g,' [ ').replace(/\]/g,' ] ').split(/\s+/).filter(t=>t.trim()!==''); }
+function executeTokens(tokens){
   let i=0;
-  function exec() {
+  function exec(){
     while(i<tokens.length){
       let cmd=tokens[i++].toUpperCase();
       if(cmd==='FD'){moveTurtle(parseFloat(tokens[i++]));}
@@ -134,12 +132,12 @@ function executeTokens(tokens) {
   exec();
 }
 
-function runCommands() {
-  const input = editor.getValue();
+function runCommands(){
+  const input=editor.getValue();
   if(!input.trim()) return;
   openDrawer();
   initTurtle();
-  const tokens = tokenizeInput(input);
+  const tokens=tokenizeInput(input);
   executeTokens(tokens);
 }
 
@@ -148,17 +146,40 @@ function resetEditor(){ editor.setValue(''); initTurtle(); }
 function loadSample(){ editor.setValue(`CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`); }
 function appendCommand(cmd){ editor.setValue(editor.getValue()+cmd+' '); editor.focus(); }
 
-// SVG zoom/pan
-svg.addEventListener('wheel', e => {
+// Touch/Mouse Zoom & Pan
+let lastTouches=null;
+svg.addEventListener('pointerdown', e=>{
+  pointers[e.pointerId]=e;
+  svg.setPointerCapture(e.pointerId);
   e.preventDefault();
-  zoom *= e.deltaY<0?1.1:0.9;
+});
+svg.addEventListener('pointermove', e=>{
+  pointers[e.pointerId]=e;
+  e.preventDefault();
+  let ids = Object.keys(pointers);
+  if(ids.length===1){
+    let dx = e.clientX - pointers[ids[0]].clientX;
+    let dy = e.clientY - pointers[ids[0]].clientY;
+    pan.x += dx; pan.y += dy;
+    pointers[ids[0]]=e;
+  } else if(ids.length===2){
+    let t1 = pointers[ids[0]]; let t2 = pointers[ids[1]];
+    let currDist = Math.hypot(t2.clientX-t1.clientX, t2.clientY-t1.clientY);
+    if(lastDistance!=null){
+      let scale = currDist/lastDistance;
+      zoom *= scale;
+      // pan adjustment to zoom around midpoint
+      let midX = (t1.clientX+t2.clientX)/2, midY=(t1.clientY+t2.clientY)/2;
+      pan.x = pan.x*scale + midX*(1-scale);
+      pan.y = pan.y*scale + midY*(1-scale);
+    }
+    lastDistance = currDist;
+  }
   drawTurtle();
 });
-let pointers = {};
-svg.addEventListener('pointerdown', e => { isDragging=true; dragStart={x:e.clientX-pan.x, y:e.clientY-pan.y}; svg.setPointerCapture(e.pointerId); });
-svg.addEventListener('pointermove', e => { if(!isDragging) return; pan.x=e.clientX-dragStart.x; pan.y=e.clientY-dragStart.y; drawTurtle(); });
-svg.addEventListener('pointerup', e=>{ isDragging=false; svg.releasePointerCapture(e.pointerId); });
-svg.addEventListener('pointerleave', e=>{ isDragging=false; });
+svg.addEventListener('pointerup', e=>{ delete pointers[e.pointerId]; if(Object.keys(pointers).length<2) lastDistance=null; });
+svg.addEventListener('pointercancel', e=>{ delete pointers[e.pointerId]; if(Object.keys(pointers).length<2) lastDistance=null; });
+svg.addEventListener('wheel', e=>{ e.preventDefault(); zoom *= e.deltaY<0?1.1:0.9; drawTurtle(); });
 window.addEventListener('resize', setSVGSize);
 </script>
 </body>
