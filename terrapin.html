@@ -62,11 +62,68 @@
     function initCanvas() { turtle.x = canvas.width / 2; turtle.y = canvas.height / 2; ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#fff'; ctx.fillRect(0,0,canvas.width,canvas.height); turtle.angle=0; turtle.penDown=true; drawTurtle(); }
     function drawTurtle() { ctx.save(); ctx.translate(turtle.x,turtle.y); ctx.rotate((turtle.angle*Math.PI)/180); ctx.fillStyle='green'; ctx.beginPath(); ctx.moveTo(0,-15); ctx.lineTo(-5,5); ctx.lineTo(5,5); ctx.closePath(); ctx.fill(); ctx.restore(); }
     function moveTurtle(distance) { const rad=(turtle.angle*Math.PI)/180; const newX=turtle.x+distance*Math.cos(rad); const newY=turtle.y-distance*Math.sin(rad); if(turtle.penDown){ctx.beginPath();ctx.moveTo(turtle.x,turtle.y);ctx.lineTo(newX,newY);ctx.strokeStyle='black';ctx.lineWidth=2;ctx.stroke();} turtle.x=newX;turtle.y=newY; }
-    function tokenizeInput(input) { return input.split(/\s+/).filter(t=>t.trim()!==''); }
-    function executeCommands(tokens) { let i=0; while(i<tokens.length){ const cmd=tokens[i].toUpperCase(); if(cmd==='FD'){moveTurtle(parseFloat(tokens[++i]));} else if(cmd==='BK'){moveTurtle(-parseFloat(tokens[++i]));} else if(cmd==='RT'){turtle.angle+=parseFloat(tokens[++i]);} else if(cmd==='LT'){turtle.angle-=parseFloat(tokens[++i]);} else if(cmd==='PU'){turtle.penDown=false;} else if(cmd==='PD'){turtle.penDown=true;} else if(cmd==='CS'){initCanvas();} else if(cmd==='HM'){turtle.x=canvas.width/2;turtle.y=canvas.height/2;turtle.angle=0;} i++; } drawTurtle(); }
-    function runCommands() { const input=editor.getValue(); if(!input.trim()) return; openDrawer(); setCanvasSize(); const tokens=tokenizeInput(input); executeCommands(tokens); }
+
+    function tokenizeInput(input) {
+      return input.replace(/\[/g,' [ ').replace(/\]/g,' ] ').split(/\s+/).filter(t=>t.trim()!=='');
+    }
+
+    function executeTokens(tokens) {
+      let i=0;
+      function exec() {
+        let results=[];
+        while(i<tokens.length) {
+          let cmd=tokens[i++].toUpperCase();
+          if(cmd==='FD'){moveTurtle(parseFloat(tokens[i++]));}
+          else if(cmd==='BK'){moveTurtle(-parseFloat(tokens[i++]));}
+          else if(cmd==='RT'){turtle.angle+=parseFloat(tokens[i++]);}
+          else if(cmd==='LT'){turtle.angle-=parseFloat(tokens[i++]);}
+          else if(cmd==='PU'){turtle.penDown=false;}
+          else if(cmd==='PD'){turtle.penDown=true;}
+          else if(cmd==='CS'){initCanvas();}
+          else if(cmd==='HM'){turtle.x=canvas.width/2;turtle.y=canvas.height/2;turtle.angle=0;}
+          else if(cmd==='REPEAT'){
+            let count=parseInt(tokens[i++]);
+            if(tokens[i]!=='[') continue;
+            i++; // skip [
+            let blockStart=i;
+            let depth=1;
+            while(i<tokens.length && depth>0){
+              if(tokens[i]==='[') depth++;
+              else if(tokens[i]===']') depth--;
+              i++;
+            }
+            let block=tokens.slice(blockStart,i-1);
+            for(let j=0;j<count;j++){
+              let innerI=0;
+              (function runBlock(){
+                let saveI=i;
+                i=0;
+                let savedTokens=tokens;
+                tokens=block;
+                exec();
+                tokens=savedTokens;
+                i=saveI;
+              })();
+            }
+          }
+          else if(cmd===']'){ return; }
+        }
+      }
+      exec();
+      drawTurtle();
+    }
+
+    function runCommands() {
+      const input=editor.getValue();
+      if(!input.trim()) return;
+      openDrawer();
+      setCanvasSize();
+      const tokens=tokenizeInput(input);
+      executeTokens(tokens);
+    }
+
     function resetEditor() { editor.setValue(''); initCanvas(); }
-    function loadSample() { editor.setValue(`REPEAT 36 [\n  FD 10\n  RT 10\n]`); }
+    function loadSample() { editor.setValue(`CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`); }
     function appendCommand(cmd) { editor.setValue(editor.getValue()+cmd+' '); editor.focus(); }
 
     window.addEventListener('resize', setCanvasSize);
