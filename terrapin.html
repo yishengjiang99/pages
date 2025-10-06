@@ -1,510 +1,276 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Terrapin Logo Emulator</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 1vmin;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: space-between;
-            height: 100vh;
-            width: 100vw;
-            overflow: hidden;
-            /* Disable scrolling */
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
-            user-select: none;
-            /* Disable text selection */
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            box-sizing: border-box;
-        }
-
-        h1 {
-            font-size: clamp(1rem, 3vmin, 1.5rem);
-            margin: 1vmin 0;
-            text-align: center;
-        }
-
-        #turtleCanvas {
-            border: 1px solid black;
-            width: clamp(200px, 90vmin, 400px);
-            height: clamp(200px, 90vmin, 400px);
-            background-color: #fff;
-        }
-
-        #commandInput {
-            width: clamp(200px, 90vmin, 400px);
-            height: 15vmin;
-            margin: 1vmin 0;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            padding: 0.5vmin;
-            font-family: 'Courier New', monospace;
-            font-size: clamp(0.8rem, 2.5vmin, 1rem);
-            resize: none;
-            user-select: text;
-            /* Allow text selection in editor */
-            -webkit-user-select: text;
-            -moz-user-select: text;
-            -ms-user-select: text;
-        }
-
-        .controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
-            gap: 0.5vmin;
-            width: clamp(200px, 90vmin, 400px);
-            margin: 0.5vmin 0;
-        }
-
-        button {
-            padding: 0.5vmin;
-            font-size: clamp(0.7rem, 2vmin, 0.9rem);
-            border: 1px solid #333;
-            background-color: #e0e0e0;
-            cursor: pointer;
-            border-radius: 4px;
-            transition: background-color 0.2s, outline 0.2s;
-        }
-
-        button:hover {
-            background-color: #d0d0d0;
-        }
-
-        button:active {
-            background-color: #c0c0c0;
-        }
-
-        .command-buttons button {
-            background-color: #4CAF50;
-            color: white;
-        }
-
-        .command-buttons button:hover {
-            background-color: #45a049;
-        }
-
-        .number-buttons button {
-            background-color: #2196F3;
-            color: white;
-        }
-
-        .number-buttons button:hover {
-            background-color: #1e88e5;
-        }
-
-        .action-buttons button {
-            background-color: #ff5722;
-            color: white;
-            font-weight: bold;
-        }
-
-        .action-buttons button:hover {
-            background-color: #e64a19;
-        }
-
-        .action-buttons .run-button:focus,
-        .action-buttons .run-button:focus-visible {
-            outline: 3px solid #ff9800;
-            outline-offset: 2px;
-            background-color: #ff7043;
-        }
-
-        .action-buttons .reset-button {
-            background-color: #f44336;
-        }
-
-        .action-buttons .reset-button:hover {
-            background-color: #d32f2f;
-        }
-
-        .action-buttons .sample-button {
-            background-color: #9c27b0;
-        }
-
-        .action-buttons .sample-button:hover {
-            background-color: #7b1fa2;
-        }
-
-        @media (max-width: 600px) {
-            .controls {
-                grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
-                gap: 0.3vmin;
-            }
-
-            button {
-                padding: 0.4vmin;
-                font-size: clamp(0.6rem, 1.8vmin, 0.8rem);
-            }
-
-            #commandInput {
-                height: 20vmin;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Logo Editor</title>
+<style>
+html,body{
+  margin:0;
+  padding:0;
+  height:100%;
+  overflow:hidden;
+  touch-action:none;
+  font-family:sans-serif;
+  -webkit-user-select:none;
+  user-select:none;
+}
+#editor{
+  position:absolute;
+  top:0;
+  bottom:140px;
+  left:0;
+  right:0;
+}
+#drawer{
+  position:fixed;
+  top:0;
+  right:-100%;
+  width:80%;
+  max-width:500px;
+  height:100%;
+  background:#fff;
+  box-shadow:-2px 0 5px rgba(0,0,0,0.3);
+  transition:right 0.3s ease;
+  z-index:100;
+  display:flex;
+  flex-direction:column;
+}
+#drawer.show{ right:0; }
+#svgContainer{ flex:1; overflow:hidden; background:#fafafa; }
+#controls{
+  position:fixed;
+  bottom:0;
+  left:0;
+  right:0;
+  background:#eee;
+  display:grid;
+  grid-template-rows:auto auto auto;
+  gap:4px;
+  padding:6px 6px calc(env(safe-area-inset-bottom) + 6px) 6px;
+  z-index:200;
+}
+.controls-row{
+  display:flex;
+  justify-content:space-between;
+  gap:6px;
+}
+button{
+  flex:1;
+  padding:14px;
+  font-size:18px;
+  border:none;
+  border-radius:6px;
+  background:#ddd;
+}
+button:active{ background:#bbb; }
+#toast{
+  position:fixed;
+  bottom:calc(120px + env(safe-area-inset-bottom));
+  left:50%;
+  transform:translateX(-50%);
+  background:#333;
+  color:#fff;
+  padding:10px 16px;
+  border-radius:6px;
+  opacity:0;
+  transition:opacity 0.3s ease;
+  pointer-events:none;
+  z-index:300;
+}
+#toast.show{ opacity:1; }
+</style>
 </head>
-
 <body>
-    <h1>Terrapin Logo Emulator</h1>
-    <canvas id="turtleCanvas"></canvas>
-    <textarea id="commandInput" placeholder="Enter Logo commands or use buttons below"></textarea>
-    <pre id="debug"></pre>
-    <div class="controls command-buttons">
-        <button onclick="appendCommand('FORWARD')">FORWARD</button>
-        <button onclick="appendCommand('BACK')">BACK</button>
-        <button onclick="appendCommand('RIGHT')">RIGHT</button>
-        <button onclick="appendCommand('LEFT')">LEFT</button>
-        <button onclick="appendCommand('PENUP')">PENUP</button>
-        <button onclick="appendCommand('PENDOWN')">PENDOWN</button>
-        <button onclick="appendCommand('CLEARSCREEN')">CLEARSCREEN</button>
-        <button onclick="appendCommand('HOME')">HOME</button>
-        <button onclick="appendCommand('REPEAT')">REPEAT</button>
-    </div>
-    <div class="controls number-buttons">
-        <button onclick="appendCommand('10')">10</button>
-        <button onclick="appendCommand('50')">50</button>
-        <button onclick="appendCommand('100')">100</button>
-    </div>
-    <div class="controls action-buttons">
-        <button class="run-button" onclick="runCommands()">Run Commands</button>
-        <button class="reset-button" onclick="resetEditor()">Reset</button>
-        <button class="sample-button" onclick="loadSample()">Sample</button>
-    </div>
+<div id="editor"></div>
+<div id="drawer"><div id="svgContainer"><svg id="turtleSVG"></svg></div></div>
+<div id="controls">
+ <div class="controls-row">
+   <button onclick="appendCommand('FD')">FD</button>
+   <button onclick="appendCommand('BK')">BK</button>
+   <button onclick="appendCommand('RT')">RT</button>
+   <button onclick="appendCommand('LT')">LT</button>
+   <button onclick="appendCommand('PU')">PU</button>
+   <button onclick="appendCommand('PD')">PD</button>
+   <button onclick="appendCommand('CS')">CS</button>
+   <button onclick="appendCommand('HM')">HM</button>
+ </div>
+ <div class="controls-row">
+   <button onclick="appendCommand('10')">10</button>
+   <button onclick="appendCommand('45')">45</button>
+   <button onclick="appendCommand('90')">90</button>
+ </div>
+ <div class="controls-row">
+   <button onclick="runCommands()">Run</button>
+   <button onclick="resetEditor()">Reset</button>
+   <button onclick="shareCode()">Share</button>
+   <button onclick="showDrawer()">Show</button>
+ </div>
+</div>
+<div id="toast">Link copied!</div>
 
-    <script>
-        // Get canvas and editor
-        const canvas = document.getElementById('turtleCanvas');
-        const ctx = canvas.getContext('2d');
-        const commandInput = document.getElementById('commandInput');
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+<script>
+let editor, markers=[];
+require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+require(['vs/editor/editor.main'], function(){
+  editor = monaco.editor.create(document.getElementById('editor'), {
+    value:'',
+    language:'plaintext',
+    theme:'vs-dark',
+    automaticLayout:true,
+    minimap:{enabled:false}
+  });
 
-        // Set canvas size
-        const setCanvasSize = () => {
-            const size = Math.min(window.innerWidth * 0.9, window.innerHeight * 0.4, 400);
-            canvas.width = size;
-            canvas.height = size;
-            initCanvas();
-        };
+  // Long press cmd palette stub
+  let pressTimer;
+  editor.onMouseDown(()=>{
+    clearTimeout(pressTimer);
+    pressTimer=setTimeout(()=>{alert('Command Palette (not yet implemented)');},600);
+  });
+  editor.onMouseUp(()=>clearTimeout(pressTimer));
 
-        // Turtle state
-        let turtle = {
-            x: 0,
-            y: 0,
-            angle: 0,
-            penDown: true
-        };
+  // Parse check
+  editor.onDidChangeModelContent(()=>{
+    const input=editor.getValue();
+    try{
+      tokenizeInput(input);
+      // do not clear markers unless parsing succeeds
+      clearMarkers();
+    }catch(e){
+      markError(e.message);
+    }
+  });
 
-        // Store procedures
-        let procedures = {};
+  // Load from hash
+  const hash=location.hash.slice(1);
+  if(hash){
+    try{ editor.setValue(atob(hash)); }catch(e){}
+  } else {
+    editor.setValue(`CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`);
+  }
 
-        // Initialize canvas
-        function initCanvas() {
-            turtle.x = canvas.width / 2;
-            turtle.y = canvas.height / 2;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            turtle.angle = 0;
-            turtle.penDown = true;
-            drawTurtle();
-        }
+  try{ tokenizeInput(editor.getValue()); clearMarkers(); }
+  catch(e){ markError(e.message); }
+});
 
-        // Draw turtle
-        function drawTurtle() {
-            ctx.save();
-            ctx.translate(turtle.x, turtle.y);
-            ctx.rotate((turtle.angle * Math.PI) / 180);
-            ctx.fillStyle = 'green';
-            ctx.beginPath();
-            ctx.moveTo(0, -15);
-            ctx.lineTo(-5, 5);
-            ctx.lineTo(5, 5);
-            ctx.closePath();
-            ctx.fill();
-            ctx.restore();
-        }
+function clearMarkers(){ monaco.editor.setModelMarkers(editor.getModel(),"owner",[]); }
+function markError(msg){ monaco.editor.setModelMarkers(editor.getModel(),"owner",[{
+  startLineNumber:1,startColumn:1,endLineNumber:1,endColumn:1,
+  message:msg,severity:monaco.MarkerSeverity.Error
+}]); }
+function appendCommand(cmd){
+  const pos=editor.getPosition();
+  editor.executeEdits("insert-cmd",[{
+    range:new monaco.Range(pos.lineNumber,pos.column,pos.lineNumber,pos.column),
+    text:cmd+" ",
+    forceMoveMarkers:true
+  }]);
+  editor.focus();
+}
+function resetEditor(){ editor.setValue(''); initTurtle(); }
+function shareCode(){
+  const val=editor.getValue();
+  const url=location.origin+location.pathname+'#'+btoa(val);
+  navigator.clipboard.writeText(url);
+  showToast("Link copied!");
+}
+function showToast(msg){
+  const toast=document.getElementById('toast');
+  toast.textContent=msg;
+  toast.classList.add('show');
+  setTimeout(()=>toast.classList.remove('show'),2000);
+}
 
-        // Append command to editor
-        function appendCommand(cmd) {
-            if (/\d+/.test(cmd)) {
-                if (commandInput.value.endsWith(' ')) {
-                    commandInput.value = commandInput.value.trimEnd() + ' ' + cmd + '\n';
-                } else {
-                    commandInput.value += cmd + '\n';
-                }
-            } else {
-                commandInput.value += cmd + ' ';
-            }
-            commandInput.focus();
-        }
+// Drawer
+function showDrawer(){ document.getElementById('drawer').classList.add('show'); }
+function openDrawer(){ showDrawer(); }
+function hideDrawer(){ document.getElementById('drawer').classList.remove('show'); }
 
-        // Reset editor and canvas
-        function resetEditor() {
-            commandInput.value = '';
-            procedures = {};
-            initCanvas();
-        }
+// Turtle SVG
+const svg=document.getElementById('turtleSVG');
+let turtle, zoom=1, pan={x:0,y:0}, paths=[];
+function setSVGSize(){ svg.setAttribute('width','100%'); svg.setAttribute('height','100%'); drawTurtle(); }
+function initTurtle(){ turtle={x:svg.clientWidth/2,y:svg.clientHeight/2,angle:0,penDown:true}; paths=[]; drawTurtle(); }
+function drawTurtle(){
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  const g=document.createElementNS("http://www.w3.org/2000/svg","g");
+  g.setAttribute("transform",`translate(${pan.x},${pan.y}) scale(${zoom})`);
+  paths.forEach(p=>g.appendChild(p));
+  const tri=document.createElementNS("http://www.w3.org/2000/svg","polygon");
+  tri.setAttribute("points","0,-10 -5,5 5,5");
+  tri.setAttribute("fill","green");
+  tri.setAttribute("transform",`translate(${turtle.x},${turtle.y}) rotate(${turtle.angle})`);
+  g.appendChild(tri);
+  svg.appendChild(g);
+}
+function moveTurtle(d){
+  const rad=turtle.angle*Math.PI/180;
+  const nx=turtle.x+Math.cos(rad)*d, ny=turtle.y+Math.sin(rad)*d;
+  if(turtle.penDown){
+    const line=document.createElementNS("http://www.w3.org/2000/svg","line");
+    line.setAttribute("x1",turtle.x); line.setAttribute("y1",turtle.y);
+    line.setAttribute("x2",nx); line.setAttribute("y2",ny);
+    line.setAttribute("stroke","black");
+    paths.push(line);
+  }
+  turtle.x=nx; turtle.y=ny;
+  drawTurtle();
+}
 
-        // Load sample sequence (six-petal flower)
-        function loadSample() {
-            commandInput.value = `TO FLOWER
-  REPEAT 6 [
-    REPEAT 36 [
-      FORWARD 5
-      RIGHT 5
-    ]
-    RIGHT 180
-    REPEAT 36 [
-      FORWARD 5
-      RIGHT 5
-    ]
-    RIGHT 180
-    RIGHT 60
-  ]
-END
-CLEARSCREEN
-PENUP
-SETXY 0 0
-PENDOWN
-FLOWER`;
-            commandInput.focus();
-        }
+// Tokenizer & executor
+function tokenizeInput(input){return input.trim().split(/\s+/);}
+function executeTokens(tokens){
+  let i=0;
+  function exec(){
+    while(i<tokens.length){
+      let cmd=tokens[i++].toUpperCase();
+      if(cmd==='FD'){ moveTurtle(parseFloat(tokens[i++])); }
+      else if(cmd==='BK'){ moveTurtle(-parseFloat(tokens[i++])); }
+      else if(cmd==='RT'){ turtle.angle+=parseFloat(tokens[i++]); drawTurtle(); }
+      else if(cmd==='LT'){ turtle.angle-=parseFloat(tokens[i++]); drawTurtle(); }
+      else if(cmd==='PU'){ turtle.penDown=false; }
+      else if(cmd==='PD'){ turtle.penDown=true; }
+      else if(cmd==='CS'){ initTurtle(); }
+      else if(cmd==='HM'){ turtle.x=svg.clientWidth/2; turtle.y=svg.clientHeight/2; turtle.angle=0; drawTurtle(); }
+      else if(cmd==='SETXY'){ let x=parseFloat(tokens[i++]); let y=parseFloat(tokens[i++]); if(!isNaN(x)&&!isNaN(y)){ turtle.x=svg.clientWidth/2+x; turtle.y=svg.clientHeight/2-y; drawTurtle(); } }
+      else if(cmd==='SETH'||cmd==='SETHEADING'){ let a=parseFloat(tokens[i++]); if(!isNaN(a)){ turtle.angle=a; drawTurtle(); } }
+      else if(cmd==='REPEAT'){ 
+        let count=parseInt(tokens[i++]); 
+        if(tokens[i++]!=='[') throw new Error("Expected [");
+        let bs=i, depth=1; 
+        while(i<tokens.length&&depth>0){ if(tokens[i]==='[') depth++; else if(tokens[i]===']') depth--; i++; }
+        let block=tokens.slice(bs,i-1);
+        for(let j=0;j<count;j++){ let saved=tokens,si=i; tokens=block; i=0; exec(); tokens=saved;i=si; }
+      }
+      else if(cmd===']'){ return; }
+      else{ throw new Error("Unknown command: "+cmd); }
+    }
+  }
+  exec();
+}
+function runCommands(){ openDrawer(); initTurtle(); const tokens=tokenizeInput(editor.getValue()); executeTokens(tokens); }
 
-        // Parse command blocks (e.g., REPEAT or procedure bodies)
-        function parseBlock(tokens, startIndex) {
-            let index = startIndex;
-            let block = [];
-            let depth = 0;
-
-            if (tokens[index] !== '[') {
-                console.warn(`Expected '[' at token ${index}`);
-                return { commands: [], nextIndex: index };
-            }
-
-            index++;
-            while (index < tokens.length) {
-                const token = tokens[index];
-                if (token === '[') {
-                    depth++;
-                    block.push(token);
-                } else if (token === ']') {
-                    depth--;
-                    if (depth === 0) {
-                        index++;
-                        break;
-                    }
-                    block.push(token);
-                } else {
-                    block.push(token);
-                }
-                index++;
-            }
-
-            if (depth !== 0) {
-                console.warn('Mismatched brackets in block');
-            }
-            return { commands: block, nextIndex: index };
-        }
-
-        // Tokenize input, preserving blocks and handling newlines
-        function tokenizeInput(input) {
-            const tokens = [];
-            let currentToken = '';
-            let i = 0;
-            let inBlock = false;
-
-            while (i < input.length) {
-                const char = input[i];
-                if (char === '[' || char === ']') {
-                    if (currentToken) {
-                        tokens.push(currentToken.trim());
-                        currentToken = '';
-                    }
-                    tokens.push(char);
-                    inBlock = (char === '[');
-                } else if (/\s/.test(char) && !inBlock) {
-                    if (currentToken) {
-                        tokens.push(currentToken.trim());
-                        currentToken = '';
-                    }
-                } else {
-                    currentToken += char;
-                }
-                i++;
-            }
-            if (currentToken) tokens.push(currentToken.trim());
-            return tokens.filter(token => token !== '');
-        }
-
-        // Split block tokens into individual commands
-        function splitBlockIntoCommands(blockTokens) {
-            const commands = [];
-            let currentCommand = [];
-            let i = 0;
-
-            while (i < blockTokens.length) {
-                const token = blockTokens[i];
-                if (token === '[') {
-                    const { commands: nestedBlock, nextIndex } = parseBlock(blockTokens, i);
-                    currentCommand.push(...nestedBlock, ']');
-                    i = nextIndex;
-                } else {
-                    currentCommand.push(token);
-                    if (token !== ']' && (i + 1 >= blockTokens.length || blockTokens[i + 1] === '[' || blockTokens[i + 1] === ']' || ['FORWARD', 'FD', 'BACK', 'BK', 'RIGHT', 'RT', 'LEFT', 'LT', 'PENUP', 'PU', 'PENDOWN', 'PD', 'CLEARSCREEN', 'CS', 'HOME', 'REPEAT', 'SETXY'].includes(token.toUpperCase()))) {
-                        commands.push(currentCommand);
-                        currentCommand = [];
-                    }
-                    i++;
-                }
-            }
-            if (currentCommand.length > 0) {
-                commands.push(currentCommand);
-            }
-            return commands;
-        }
-
-        // Execute a list of tokens
-        function executeCommands(tokens, startIndex = 0) {
-            let i = startIndex;
-            while (i < tokens.length) {
-                const cmd = tokens[i].toUpperCase();
-                if (cmd === 'TO') {
-                    i++;
-                    const procName = tokens[i];
-                    i++;
-                    const { commands: procBody, nextIndex } = parseBlock(tokens, i);
-                    if (tokens[nextIndex] === 'END') {
-                        procedures[procName.toUpperCase()] = procBody;
-                        i = nextIndex + 1;
-                    } else {
-                        console.warn(`Missing END for procedure ${procName}`);
-                        return;
-                    }
-                } else if (cmd === 'REPEAT') {
-                    i++;
-                    const count = parseInt(tokens[i]);
-                    if (isNaN(count)) {
-                        console.warn(`Invalid REPEAT count: ${tokens[i]}`);
-                        i++;
-                        continue;
-                    }
-                    i++;
-                    const { commands: block, nextIndex } = parseBlock(tokens, i);
-                    const blockCommands = splitBlockIntoCommands(block);
-                    for (let j = 0; j < count; j++) {
-                        blockCommands.forEach(command => {
-                            executeCommands(command);
-                        });
-                    }
-                    i = nextIndex;
-                } else if (cmd === 'FORWARD' || cmd === 'FD') {
-                    i++;
-                    const arg = parseFloat(tokens[i]);
-                    if (!isNaN(arg)) moveTurtle(arg);
-                    else console.warn(`Invalid argument for ${cmd}: ${tokens[i]}`);
-                    i++;
-                } else if (cmd === 'BACK' || cmd === 'BK') {
-                    i++;
-                    const arg = parseFloat(tokens[i]);
-                    if (!isNaN(arg)) moveTurtle(-arg);
-                    else console.warn(`Invalid argument for ${cmd}: ${tokens[i]}`);
-                    i++;
-                } else if (cmd === 'RIGHT' || cmd === 'RT') {
-                    i++;
-                    const arg = parseFloat(tokens[i]);
-                    if (!isNaN(arg)) turtle.angle = (turtle.angle + arg) % 360;
-                    else console.warn(`Invalid argument for ${cmd}: ${tokens[i]}`);
-                    i++;
-                } else if (cmd === 'LEFT' || cmd === 'LT') {
-                    i++;
-                    const arg = parseFloat(tokens[i]);
-                    if (!isNaN(arg)) turtle.angle = (turtle.angle - arg) % 360;
-                    else console.warn(`Invalid argument for ${cmd}: ${tokens[i]}`);
-                    i++;
-                } else if (cmd === 'PENUP' || cmd === 'PU') {
-                    turtle.penDown = false;
-                    i++;
-                } else if (cmd === 'PENDOWN' || cmd === 'PD') {
-                    turtle.penDown = true;
-                    i++;
-                } else if (cmd === 'CLEARSCREEN' || cmd === 'CS') {
-                    initCanvas();
-                    i++;
-                } else if (cmd === 'HOME') {
-                    turtle.x = canvas.width / 2;
-                    turtle.y = canvas.height / 2;
-                    turtle.angle = 0;
-                    i++;
-                } else if (cmd === 'SETXY') {
-                    i++;
-                    const x = parseFloat(tokens[i]);
-                    i++;
-                    const y = parseFloat(tokens[i]);
-                    if (!isNaN(x) && !isNaN(y)) {
-                        turtle.x = canvas.width / 2 + x;
-                        turtle.y = canvas.height / 2 - y;
-                    } else {
-                        console.warn(`Invalid arguments for SETXY: ${tokens[i-1]}, ${tokens[i]}`);
-                    }
-                    i++;
-                } else if (procedures[cmd]) {
-                    const blockCommands = splitBlockIntoCommands(procedures[cmd]);
-                    blockCommands.forEach(command => {
-                        executeCommands(command);
-                    });
-                    i++;
-                } else {
-                    console.warn(`Unknown command: ${cmd}`);
-                    i++;
-                }
-            }
-            drawTurtle();
-        }
-
-        // Move turtle
-        function moveTurtle(distance) {
-            if (isNaN(distance)) return;
-            const rad = (turtle.angle * Math.PI) / 180;
-            const newX = turtle.x + distance * Math.cos(rad);
-            const newY = turtle.y - distance * Math.sin(rad);
-
-            if (turtle.penDown) {
-                ctx.beginPath();
-                ctx.moveTo(turtle.x, turtle.y);
-                ctx.lineTo(newX, newY);
-                ctx.strokeStyle = 'black';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            }
-
-            turtle.x = newX;
-            turtle.y = newY;
-        }
-
-        // Parse and execute commands
-        function runCommands() {
-            const input = commandInput.value.trim();
-            if (!input) return;
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            const tokens = tokenizeInput(input);
-            executeCommands(tokens);
-        }
-
-        // Initialize and handle resize
-        window.addEventListener('resize', setCanvasSize);
-        setCanvasSize();
-    </script>
+// Zoom/Pan
+let pointers={}, lastDistance=null;
+svg.addEventListener('wheel',e=>{ e.preventDefault(); zoom*=e.deltaY<0?1.1:0.9; drawTurtle(); });
+svg.addEventListener('pointerdown',e=>{ pointers[e.pointerId]=e; svg.setPointerCapture(e.pointerId); e.preventDefault(); });
+svg.addEventListener('pointermove',e=>{
+  if(!pointers[e.pointerId]) return; pointers[e.pointerId]=e; e.preventDefault();
+  const ids=Object.keys(pointers);
+  if(ids.length===1){
+    let dx=e.clientX-pointers[ids[0]].clientX; let dy=e.clientY-pointers[ids[0]].clientY;
+    pan.x+=dx; pan.y+=dy; pointers[ids[0]]=e;
+  } else if(ids.length===2){
+    let t1=pointers[ids[0]],t2=pointers[ids[1]]; let curr=Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY);
+    if(lastDistance!=null){ let scale=curr/lastDistance; zoom*=scale; let midX=(t1.clientX+t2.clientX)/2,midY=(t1.clientY+t2.clientY)/2; pan.x=pan.x*scale+midX*(1-scale); pan.y=pan.y*scale+midY*(1-scale); }
+    lastDistance=curr;
+  }
+  drawTurtle();
+});
+svg.addEventListener('pointerup',e=>{ delete pointers[e.pointerId]; if(Object.keys(pointers).length<2) lastDistance=null; });
+svg.addEventListener('pointercancel',e=>{ delete pointers[e.pointerId]; if(Object.keys(pointers).length<2) lastDistance=null; });
+window.addEventListener('resize',setSVGSize);
+setSVGSize(); initTurtle();
+</script>
 </body>
-
 </html>

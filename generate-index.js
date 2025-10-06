@@ -81,7 +81,7 @@ server.listen(PORT, async () => {
   // Launch Puppeteer with --no-sandbox
   const browser = await puppeteer.launch({ 
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'] // Added to fix sandbox issue
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
   
   const items = [];
@@ -96,6 +96,41 @@ server.listen(PORT, async () => {
     try {
       await page.setViewport({ width: 800, height: 600 });
       await page.goto(localUrl, { waitUntil: 'networkidle2' });
+
+      // --- NEW: Handle file inputs and submit buttons ---
+      const hasFileInput = await page.$('input[type="file"]');
+      if (hasFileInput) {
+        const tmpFilePath = path.join(CWD, 'placeholder_upload.png');
+
+        // Create a small placeholder PNG if it doesn't exist
+        if (!fs.existsSync(tmpFilePath)) {
+          const pngHeader = Buffer.from(
+            '89504E470D0A1A0A0000000D4948445200000001000000010806000000' +
+            '1F15C4890000000A49444154789C6360000002000100' +
+            '0502A2D40000000049454E44AE426082', 'hex'
+          );
+          fs.writeFileSync(tmpFilePath, pngHeader);
+        }
+
+        // Upload file to input
+        await hasFileInput.uploadFile(tmpFilePath);
+        console.log(`Uploaded placeholder file to ${relPath}`);
+
+        // Look for a submit button
+        const submitButton = await page.$('button[type="submit"], input[type="submit"]');
+        if (submitButton) {
+          await submitButton.click();
+          console.log(`Clicked submit on ${relPath}`);
+          // Wait briefly for navigation or response
+          try {
+            await page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 5000 });
+          } catch {
+            // Ignore timeout — some forms might not navigate
+          }
+        }
+      }
+      // --- END NEW ---
+
       await page.screenshot({ path: screenshotPath });
       items.push({ relPath, relScreenshot });
       console.log(`Screenshot generated for ${relPath}`);

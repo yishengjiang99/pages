@@ -1,66 +1,180 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paste Image</title>
-    <style>
-        #pasteArea {
-            width: 100%;
-            min-height: 200px;
-            border: 2px dashed #ccc;
-            padding: 20px;
-            text-align: center;
-            margin: 20px 0;
-        }
-        #preview {
-            max-width: 100%;
-            margin-top: 20px;
-        }
-        #error {
-            color: red;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image OCR Extractor</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      max-width: 600px;
+      margin-inline: auto;
+    }
+
+    h1 { text-align: center; }
+
+    #pasteArea {
+      width: 100%;
+      min-height: 200px;
+      border: 2px dashed #ccc;
+      padding: 20px;
+      text-align: center;
+      margin: 20px 0;
+      border-radius: 10px;
+      background: #f9f9f9;
+      cursor: pointer;
+      transition: border-color 0.3s;
+    }
+
+    #pasteArea:hover { border-color: #007bff; }
+
+    #preview {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      margin: 20px auto;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      font-size: 16px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      color: white;
+    }
+
+    #uploadLabel { background-color: #007bff; }
+    #uploadLabel:hover { background-color: #0069d9; }
+
+    #copyBtn { background-color: #28a745; }
+    #copyBtn:hover { background-color: #218838; }
+
+    #ocrResult {
+      width: 100%;
+      min-height: 120px;
+      padding: 10px;
+      margin-top: 20px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      resize: vertical;
+    }
+
+    #progress, #error {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    #error { color: red; }
+
+    @media (max-width: 600px) {
+      body { margin: 10px; }
+      .btn { width: 100%; }
+    }
+  </style>
 </head>
 <body>
-    <h1>Paste an Image</h1>
-    <div id="pasteArea">Click here and press Ctrl+V (or Cmd+V) to paste an image</div>
-    <img id="preview" alt="Pasted image will appear here">
-    <p id="error"></p>
+  <h1>Image OCR Extractor</h1>
+  <div id="pasteArea">📋 Tap here and paste an image (desktop only)</div>
 
-    <script>
-        const pasteArea = document.getElementById('pasteArea');
-        const preview = document.getElementById('preview');
-        const error = document.getElementById('error');
+  <label id="uploadLabel" class="btn" for="fileInput">📸 Take Photo / Upload Image</label>
+  <input type="file" id="fileInput" accept="image/*;capture=camera">
 
-        pasteArea.addEventListener('paste', (event) => {
-            // Get clipboard items
-            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
-            
-            // Find the first image in clipboard items
-            for (let item of items) {
-                if (item.type.indexOf('image') !== -1) {
-                    // Get the image as a file
-                    const blob = item.getAsFile();
-                    // Create a URL for the image
-                    const imageUrl = URL.createObjectURL(blob);
-                    // Display the image
-                    preview.src = imageUrl;
-                    error.textContent = '';
-                    return;
-                }
+  <img id="preview" alt="Your image will appear here">
+  <p id="progress"></p>
+  <textarea id="ocrResult" placeholder="Recognized text will appear here..."></textarea>
+  <button id="copyBtn" class="btn">Copy Text</button>
+  <p id="error"></p>
+
+  <script>
+    const pasteArea = document.getElementById('pasteArea');
+    const fileInput = document.getElementById('fileInput');
+    const preview = document.getElementById('preview');
+    const error = document.getElementById('error');
+    const progress = document.getElementById('progress');
+    const ocrResult = document.getElementById('ocrResult');
+    const copyBtn = document.getElementById('copyBtn');
+
+    // ---- Detect iOS ----
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      pasteArea.textContent = '📸 Paste not supported on iPhone — please upload or take a photo below.';
+      pasteArea.style.opacity = '0.6';
+      pasteArea.style.pointerEvents = 'none';
+    }
+
+    // ---- OCR function ----
+    async function runOCR(image) {
+      progress.textContent = '🔍 Reading text from image...';
+      ocrResult.value = '';
+      try {
+        const result = await Tesseract.recognize(image, 'eng', {
+          logger: info => {
+            if (info.status === 'recognizing text') {
+              progress.textContent = `Processing: ${(info.progress * 100).toFixed(0)}%`;
             }
-            
-            // If no image was found
-            error.textContent = 'No image found in clipboard. Please paste an image.';
+          }
         });
+        ocrResult.value = result.data.text.trim() || 'No readable text found.';
+        progress.textContent = '✅ OCR complete!';
+      } catch (err) {
+        error.textContent = 'Error reading text: ' + err.message;
+      }
+    }
 
-        // Clean up URL objects when page unloads
-        window.addEventListener('unload', () => {
-            if (preview.src) {
-                URL.revokeObjectURL(preview.src);
-            }
-        });
-    </script>
+    // ---- Paste support (desktop only) ----
+    pasteArea.addEventListener('paste', (event) => {
+      if (isIOS) return;
+      const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+      for (let item of items) {
+        if (item.type.indexOf('image') !== -1) {
+          const blob = item.getAsFile();
+          const imageUrl = URL.createObjectURL(blob);
+          preview.src = imageUrl;
+          error.textContent = '';
+          runOCR(imageUrl);
+          return;
+        }
+      }
+      error.textContent = 'No image found in clipboard. Please paste or upload an image.';
+    });
+
+    // ---- File upload / camera ----
+    fileInput.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file && file.type.startsWith('image/')) {
+        const imageUrl = URL.createObjectURL(file);
+        preview.src = imageUrl;
+        error.textContent = '';
+        runOCR(imageUrl);
+      } else {
+        error.textContent = 'Please select a valid image file.';
+      }
+    });
+
+    // ---- Copy text ----
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(ocrResult.value);
+        copyBtn.textContent = '✅ Copied!';
+        setTimeout(() => (copyBtn.textContent = 'Copy Text'), 1500);
+      } catch {
+        alert('Failed to copy text.');
+      }
+    });
+
+    // ---- Cleanup ----
+    window.addEventListener('unload', () => {
+      if (preview.src.startsWith('blob:')) URL.revokeObjectURL(preview.src);
+    });
+  </script>
 </body>
 </html>

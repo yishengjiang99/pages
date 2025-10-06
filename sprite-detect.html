@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Interactive Sprite Frame Refiner</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .controls { margin-bottom: 20px; }
+        #canvasContainer { display: flex; gap: 20px; flex-wrap: wrap; }
+        .guess-panel { border: 1px solid #ccc; padding: 10px; text-align: center; }
+        .guess-panel h4 { margin-top: 0; }
+        .guess-panel button { margin-top: 10px; padding: 8px 15px; cursor: pointer; }
+        #output { border: 1px solid #ccc; padding: 10px; min-height: 50px; white-space: pre-wrap; background-color: #f9f9f9; }
+        .final-result { color: green; font-weight: bold; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <h1>Interactive Sprite Frame Refiner</h1>
+
+    <div class="controls">
+        <input type="file" id="imageLoader" accept="image/png, image/jpeg">
+        <label for="colorTolerance">Color Tolerance (0-255):</label>
+        <input type="number" id="colorTolerance" value="32" min="1" max="255">
+        <button id="processButton">Start Guessing</button>
+    </div>
+
+    <div id="output">... Upload an image to begin ...</div>
+
+    <div id="canvasContainer">
+        </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const imageLoader = document.getElementById('imageLoader');
+            const processButton = document.getElementById('processButton');
+            const outputDiv = document.getElementById('output');
+            const toleranceInput = document.getElementById('colorTolerance');
+            const canvasContainer = document.getElementById('canvasContainer');
+
+            let imageLoaded = null;
+            let currentBestGuess = null; // Stores { cols, rows, width, height }
+            let animationIntervals = [];
+
+            imageLoader.addEventListener('change', handleImage, false);
+            processButton.addEventListener('click', startProcess, false);
+            processButton.disabled = true;
+
+            function handleImage(e) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        imageLoaded = img;
+                        outputDiv.textContent = 'Image loaded. Click "Start Guessing".';
+                        processButton.disabled = false;
+                        canvasContainer.innerHTML = '';
+                        clearIntervals();
+                    };
+                    img.src = event.target.result;
+                };
+                if (e.target.files.length > 0) {
+                    reader.readAsDataURL(e.target.files[0]);
+                }
+            }
+
+            function clearIntervals() {
+                animationIntervals.forEach(clearInterval);
+                animationIntervals = [];
+            }
+
+            // --- Core Process Flow ---
+
+            function startProcess() {
+                if (!imageLoaded) return;
+                
+                // Clear previous state
+                canvasContainer.innerHTML = '';
+                clearIntervals();
+                currentBestGuess = null;
+
+                const width = imageLoaded.width;
+                const height = imageLoaded.height;
+                const tolerance = parseInt(toleranceInput.value);
+
+                // Create a temporary canvas for color filtering
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.width = width;
+                tempCanvas.height = height;
+                tempCtx.drawImage(imageLoaded, 0, 0);
+
+                const originalData = tempCtx.getImageData(0, 0, width, height).data;
+                const dominantColor = getDominantColor(originalData);
+
+                if (!dominantColor) {
+                    outputDiv.textContent = 'Error: Could not detect a dominant color.';
+                    return;
+                }
+
+                // Filter the image data once
+                const filteredImageData = applyTransparencyFilter(originalData, dominantColor, tolerance, width, height);
+
+                // Start the iterative guessing process
+                const guesses = getInitialGuesses(width, height);
+                showGuesses(guesses, filteredImageData, width, height);
+
+                outputDiv.textContent = `Dominant Color: RGB(${dominantColor.r}, ${dominantColor.g}, ${dominantColor.b}).\n\nWild Guess: Please select the animation that looks closest to the intended sprites.`;
+            }
+
+            function showGuesses(guesses, filteredImageData, sheetWidth, sheetHeight) {
+                canvasContainer.innerHTML = '';
+                clearIntervals();
+
+                guesses.forEach((guess, index) => {
+                    if (guess.width <= 0 || guess.height <= 0) return;
+
+                    const frameCount = guess.cols * guess.rows;
+                    const frameWidth = guess.width;
+                    const frameHeight = guess.height;
+                    
+                    const panel = document.createElement('div');
+                    panel.className = 'guess-panel';
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = frameWidth * 2; // Make canvas double the size for better viewing
+                    canvas.height = frameHeight * 2;
+                    canvas.style.border = '2px solid black';
+
+                    panel.appendChild(document.createElement('h4')).textContent = `Guess ${index + 1}: ${guess.cols}x${guess.rows} Grid (${frameWidth}x${frameHeight})`;
+                    panel.appendChild(canvas);
+
+                    const selectButton = document.createElement('button');
+                    selectButton.textContent = 'Select This Grid';
+                    selectButton.onclick = () => selectGuess(guess, filteredImageData, sheetWidth, sheetHeight);
+                    panel.appendChild(selectButton);
+
+                    canvasContainer.appendChild(panel);
+
+                    // Start animation
+                    const interval = animateSprite(canvas, filteredImageData, sheetWidth, sheetHeight, guess.cols, frameWidth, frameHeight, frameCount);
+                    animationIntervals.push(interval);
+                });
+            }
+
+            function selectGuess(guess, filteredImageData, sheetWidth, sheetHeight) {
+                currentBestGuess = guess;
+                
+                // Finalize the coordinates for the selected guess
+                const finalFrames = generateFramesFromGrid(sheetWidth, sheetHeight, guess);
+                printResults(finalFrames);
+
+                // Generate new, closer guesses for refinement
+                const refinedGuesses = refineGuess(guess, sheetWidth, sheetHeight);
+                
+                if (refinedGuesses.length > 0 && currentBestGuess.refinementStep < 3) { // Limit refinement to 3 steps
+                     outputDiv.textContent = `Selected Guess ${currentBestGuess.cols}x${currentBestGuess.rows}. Step ${currentBestGuess.refinementStep} of 3. Please refine again or finalize.`;
+                     showGuesses(refinedGuesses, filteredImageData, sheetWidth, sheetHeight);
+                } else {
+                    // Finalize results
+                    outputDiv.textContent += `\n\nRefinement complete. FINAL COORDINATES ARE PRINTED BELOW.`;
+                    canvasContainer.innerHTML = '';
+                    clearIntervals();
+                }
+            }
+
+            // --- Guessing & Refinement Logic ---
+
+            /**
+             * Generates two initial "wild guesses" based on common grid layouts (2xN, 3xN, 4xN).
+             */
+            function getInitialGuesses(width, height) {
+                const aspect = width / height;
+                const totalFrames = width > height ? 8 : 4; // Start with a target frame count
+                
+                // Heuristic 1: Aim for 4 columns (common sprite rows)
+                let cols1 = Math.min(Math.floor(width / 16), 4);
+                let rows1 = Math.max(1, Math.round(totalFrames / cols1));
+                
+                // Adjust if rows/cols are too high/low
+                if (cols1 * rows1 < 3) { cols1 = 3; rows1 = 1; }
+
+                // Heuristic 2: Aim for a square-ish frame count (e.g., totalFrames = 8, sqrt(8) ~ 3)
+                let cols2 = Math.max(1, Math.round(Math.sqrt(totalFrames)));
+                let rows2 = Math.max(1, Math.round(totalFrames / cols2));
+
+                const guesses = [
+                    { cols: cols1, rows: rows1, width: Math.floor(width / cols1), height: Math.floor(height / rows1), refinementStep: 1 },
+                    { cols: cols2, rows: rows2, width: Math.floor(width / cols2), height: Math.floor(height / rows2), refinementStep: 1 }
+                ];
+                
+                // Filter out duplicates and invalid sizes
+                return guesses.filter((g, i, self) => 
+                    i === self.findIndex((t) => (t.width === g.width && t.height === g.height))
+                );
+            }
+
+            /**
+             * Creates three new guesses around the current best one by adjusting width/height by +/- 1 pixel.
+             */
+            function refineGuess(currentGuess, sheetWidth, sheetHeight) {
+                const { cols, rows, width, height, refinementStep } = currentGuess;
+                const nextStep = refinementStep + 1;
+                
+                const newGuesses = [
+                    // Base size (re-guess)
+                    { cols, rows, width, height, refinementStep: nextStep },
+                    // Width +/- 1
+                    { cols, rows, width: width + 1, height, refinementStep: nextStep },
+                    { cols, rows, width: width - 1, height, refinementStep: nextStep },
+                    // Height +/- 1
+                    { cols, rows, width, height: height + 1, refinementStep: nextStep },
+                    { cols, rows, width, height: height - 1, refinementStep: nextStep }
+                ];
+
+                return newGuesses
+                    .filter(g => g.width > 0 && g.height > 0)
+                    .filter(g => (g.width * g.cols) <= sheetWidth && (g.height * g.rows) <= sheetHeight)
+                    .filter((g, i, self) => 
+                        i === self.findIndex((t) => (t.width === g.width && t.height === g.height))
+                    );
+            }
+
+            // --- Animation and Finalization ---
+
+            function animateSprite(canvas, filteredData, sheetWidth, sheetHeight, cols, frameWidth, frameHeight, frameCount) {
+                const ctx = canvas.getContext('2d');
+                const scale = canvas.width / frameWidth;
+                let frameIndex = 0;
+
+                const drawFrame = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    const col = frameIndex % cols;
+                    const row = Math.floor(frameIndex / cols);
+
+                    const sourceX = col * frameWidth;
+                    const sourceY = row * frameHeight;
+
+                    // Create a temporary ImageData object for the current frame
+                    const tempFrameData = ctx.createImageData(frameWidth, frameHeight);
+                    const tempFrameArr = tempFrameData.data;
+                    
+                    for (let y = 0; y < frameHeight; y++) {
+                        for (let x = 0; x < frameWidth; x++) {
+                            const sheetIndex = ((sourceY + y) * sheetWidth + (sourceX + x)) * 4;
+                            const frameIndex = (y * frameWidth + x) * 4;
+
+                            // Copy pixel data from the filtered sheet
+                            tempFrameArr[frameIndex] = filteredData.data[sheetIndex];
+                            tempFrameArr[frameIndex + 1] = filteredData.data[sheetIndex + 1];
+                            tempFrameArr[frameIndex + 2] = filteredData.data[sheetIndex + 2];
+                            tempFrameArr[frameIndex + 3] = filteredData.data[sheetIndex + 3];
+                        }
+                    }
+
+                    // Draw the temporary frame data onto the animation canvas
+                    const tempCanvasForDraw = document.createElement('canvas');
+                    tempCanvasForDraw.width = frameWidth;
+                    tempCanvasForDraw.height = frameHeight;
+                    tempCanvasForDraw.getContext('2d').putImageData(tempFrameData, 0, 0);
+
+                    ctx.imageSmoothingEnabled = false; // Important for pixel art
+                    ctx.drawImage(tempCanvasForDraw, 0, 0, canvas.width, canvas.height);
+
+                    frameIndex = (frameIndex + 1) % frameCount;
+                };
+
+                return setInterval(drawFrame, 100); // 10 FPS animation
+            }
+
+            function generateFramesFromGrid(sheetWidth, sheetHeight, guess) {
+                const frames = [];
+                for (let r = 0; r < guess.rows; r++) {
+                    for (let c = 0; c < guess.cols; c++) {
+                        const x = c * guess.width;
+                        const y = r * guess.height;
+                        
+                        // Only include frames that are actually within the bounds of the sprite sheet
+                        if (x < sheetWidth && y < sheetHeight) {
+                            frames.push({
+                                x: x,
+                                y: y,
+                                width: Math.min(guess.width, sheetWidth - x),
+                                height: Math.min(guess.height, sheetHeight - y)
+                            });
+                        }
+                    }
+                }
+                return frames;
+            }
+
+            function printResults(frames) {
+                const finalOutput = document.createElement('div');
+                finalOutput.className = 'final-result';
+                finalOutput.textContent = `Final Selected Grid: ${currentBestGuess.cols}x${currentBestGuess.rows} (${currentBestGuess.width}x${currentBestGuess.height} pixels)`;
+
+                let output = '--- FINAL DETECTED FRAME COORDINATES ---\n';
+                frames.forEach((frame, index) => {
+                    output += `Frame ${index + 1}: x: ${frame.x}, y: ${frame.y}, width: ${frame.width}, height: ${frame.height}\n`;
+                });
+
+                outputDiv.textContent = outputDiv.textContent.split('\n\nRefinement complete.')[0]; // Remove previous completion message
+                outputDiv.appendChild(finalOutput);
+
+                const coordsElement = document.createElement('pre');
+                coordsElement.textContent = output;
+                outputDiv.appendChild(coordsElement);
+            }
+
+            // --- Dominant Color Detection & Filtering (Helper functions) ---
+            // (These remain the same as the previous solution)
+
+            function getDominantColor(data) {
+                const colorCounts = new Map();
+                for (let i = 0; i < data.length; i += 16) { 
+                    const r = data[i], g = data[i + 1], b = data[i + 2];
+                    if (data[i + 3] === 0) continue; 
+                    const r_quant = Math.floor(r / 16) * 16;
+                    const g_quant = Math.floor(g / 16) * 16;
+                    const b_quant = Math.floor(b / 16) * 16;
+                    const key = `${r_quant},${g_quant},${b_quant}`;
+                    colorCounts.set(key, (colorCounts.get(key) || 0) + 1);
+                }
+                if (colorCounts.size === 0) return null;
+                let maxCount = 0, dominantKey = null;
+                for (const [key, count] of colorCounts.entries()) {
+                    if (count > maxCount) {
+                        maxCount = count;
+                        dominantKey = key;
+                    }
+                }
+                const [r, g, b] = dominantKey.split(',').map(Number);
+                return { r, g, b };
+            }
+
+            function colorDistanceSquared(r1, g1, b1, r2, g2, b2) {
+                return Math.pow(r1 - r2, 2) + Math.pow(g1 - g2, 2) + Math.pow(b1 - b2, 2);
+            }
+
+            function applyTransparencyFilter(originalData, dominantColor, tolerance, width, height) {
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                const filteredImageData = tempCtx.createImageData(width, height);
+                const data = filteredImageData.data;
+                const toleranceSquared = tolerance * tolerance;
+
+                for (let i = 0; i < originalData.length; i += 4) {
+                    const r = originalData[i], g = originalData[i + 1], b = originalData[i + 2];
+                    const originalAlpha = originalData[i + 3];
+                    const distanceSq = colorDistanceSquared(r, g, b, dominantColor.r, dominantColor.g, dominantColor.b);
+
+                    if (distanceSq <= toleranceSquared && originalAlpha > 0) {
+                        data[i] = dominantColor.r;
+                        data[i + 1] = dominantColor.g;
+                        data[i + 2] = dominantColor.b;
+                        data[i + 3] = 255; // Opaque
+                    } else {
+                        data[i + 3] = 0; // Transparent
+                    }
+                }
+                return filteredImageData;
+            }
+
+        });
+    </script>
+
+</body>
+</html>
