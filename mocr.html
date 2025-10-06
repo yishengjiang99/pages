@@ -1,21 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Paste or Upload Image</title>
+  <title>Image OCR Extractor</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
-      padding: 0;
       max-width: 600px;
       margin-inline: auto;
     }
 
-    h1 {
-      text-align: center;
-    }
+    h1 { text-align: center; }
 
     #pasteArea {
       width: 100%;
@@ -30,9 +28,7 @@
       transition: border-color 0.3s;
     }
 
-    #pasteArea:hover {
-      border-color: #007bff;
-    }
+    #pasteArea:hover { border-color: #007bff; }
 
     #preview {
       display: block;
@@ -43,53 +39,59 @@
       box-shadow: 0 0 8px rgba(0,0,0,0.1);
     }
 
-    #error {
-      color: red;
-      text-align: center;
-    }
-
-    input[type="file"] {
-      display: none;
-    }
-
-    #uploadLabel {
-      display: inline-block;
-      background-color: #007bff;
-      color: white;
-      padding: 10px 20px;
+    .btn {
+      display: block;
+      width: 100%;
+      margin-top: 10px;
+      padding: 10px;
+      font-size: 16px;
+      border: none;
       border-radius: 5px;
       cursor: pointer;
-      text-align: center;
-      margin: 10px auto;
-      font-size: 16px;
+      color: white;
     }
 
-    /* Make layout responsive */
+    #uploadLabel { background-color: #007bff; }
+    #uploadLabel:hover { background-color: #0069d9; }
+
+    #copyBtn { background-color: #28a745; }
+    #copyBtn:hover { background-color: #218838; }
+
+    #ocrResult {
+      width: 100%;
+      min-height: 120px;
+      padding: 10px;
+      margin-top: 20px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      resize: vertical;
+    }
+
+    #progress, #error {
+      text-align: center;
+      margin-top: 10px;
+    }
+
+    #error { color: red; }
+
     @media (max-width: 600px) {
-      body {
-        margin: 10px;
-      }
-
-      #pasteArea {
-        min-height: 150px;
-        padding: 15px;
-        font-size: 14px;
-      }
-
-      #uploadLabel {
-        width: 100%;
-      }
+      body { margin: 10px; }
+      .btn { width: 100%; }
     }
   </style>
 </head>
 <body>
-  <h1>Paste or Upload an Image</h1>
-  <div id="pasteArea">📋 Tap here and press Ctrl+V (or Cmd+V) to paste an image, or upload below</div>
+  <h1>Image OCR Extractor</h1>
+  <div id="pasteArea">📋 Tap here and paste an image (desktop only)</div>
 
-  <label id="uploadLabel" for="fileInput">Select an image</label>
-  <input type="file" id="fileInput" accept="image/*">
+  <label id="uploadLabel" class="btn" for="fileInput">📸 Take Photo / Upload Image</label>
+  <input type="file" id="fileInput" accept="image/*;capture=camera">
 
   <img id="preview" alt="Your image will appear here">
+  <p id="progress"></p>
+  <textarea id="ocrResult" placeholder="Recognized text will appear here..."></textarea>
+  <button id="copyBtn" class="btn">Copy Text</button>
   <p id="error"></p>
 
   <script>
@@ -97,9 +99,40 @@
     const fileInput = document.getElementById('fileInput');
     const preview = document.getElementById('preview');
     const error = document.getElementById('error');
+    const progress = document.getElementById('progress');
+    const ocrResult = document.getElementById('ocrResult');
+    const copyBtn = document.getElementById('copyBtn');
 
-    // Handle clipboard paste
+    // ---- Detect iOS ----
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    if (isIOS) {
+      pasteArea.textContent = '📸 Paste not supported on iPhone — please upload or take a photo below.';
+      pasteArea.style.opacity = '0.6';
+      pasteArea.style.pointerEvents = 'none';
+    }
+
+    // ---- OCR function ----
+    async function runOCR(image) {
+      progress.textContent = '🔍 Reading text from image...';
+      ocrResult.value = '';
+      try {
+        const result = await Tesseract.recognize(image, 'eng', {
+          logger: info => {
+            if (info.status === 'recognizing text') {
+              progress.textContent = `Processing: ${(info.progress * 100).toFixed(0)}%`;
+            }
+          }
+        });
+        ocrResult.value = result.data.text.trim() || 'No readable text found.';
+        progress.textContent = '✅ OCR complete!';
+      } catch (err) {
+        error.textContent = 'Error reading text: ' + err.message;
+      }
+    }
+
+    // ---- Paste support (desktop only) ----
     pasteArea.addEventListener('paste', (event) => {
+      if (isIOS) return;
       const items = (event.clipboardData || event.originalEvent.clipboardData).items;
       for (let item of items) {
         if (item.type.indexOf('image') !== -1) {
@@ -107,34 +140,40 @@
           const imageUrl = URL.createObjectURL(blob);
           preview.src = imageUrl;
           error.textContent = '';
+          runOCR(imageUrl);
           return;
         }
       }
       error.textContent = 'No image found in clipboard. Please paste or upload an image.';
     });
 
-    // Handle file upload
+    // ---- File upload / camera ----
     fileInput.addEventListener('change', (event) => {
       const file = event.target.files[0];
       if (file && file.type.startsWith('image/')) {
         const imageUrl = URL.createObjectURL(file);
         preview.src = imageUrl;
         error.textContent = '';
+        runOCR(imageUrl);
       } else {
         error.textContent = 'Please select a valid image file.';
       }
     });
 
-    // Focus paste area when clicked (for desktop)
-    pasteArea.addEventListener('click', () => {
-      pasteArea.focus();
+    // ---- Copy text ----
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(ocrResult.value);
+        copyBtn.textContent = '✅ Copied!';
+        setTimeout(() => (copyBtn.textContent = 'Copy Text'), 1500);
+      } catch {
+        alert('Failed to copy text.');
+      }
     });
 
-    // Cleanup object URLs
+    // ---- Cleanup ----
     window.addEventListener('unload', () => {
-      if (preview.src.startsWith('blob:')) {
-        URL.revokeObjectURL(preview.src);
-      }
+      if (preview.src.startsWith('blob:')) URL.revokeObjectURL(preview.src);
     });
   </script>
 </body>
