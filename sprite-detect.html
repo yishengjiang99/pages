@@ -2,20 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Dominant Color Sprite Frame Detector</title>
+    <title>Line-Scan Sprite Frame Detector</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         #output { border: 1px solid #ccc; padding: 10px; min-height: 100px; white-space: pre-wrap; background-color: #f9f9f9; }
         #spriteCanvas { border: 1px solid #000; margin-top: 10px; }
-        #previewCanvas { margin-left: 20px; border: 1px dashed #f00; display: inline-block; }
         .canvas-container { display: flex; align-items: flex-start; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
-    <h1>Dominant Color Sprite Frame Detector</h1>
+    <h1>Line-Scan Sprite Frame Detector</h1>
 
-    <p>Upload a sprite sheet. All colors *except* the dominant color will be made transparent.</p>
+    <p>Upload a sprite sheet with frames separated by transparent rows/columns (non-dominant color).</p>
     <input type="file" id="imageLoader" accept="image/png, image/jpeg">
     <label for="colorTolerance">Color Tolerance (0-255):</label>
     <input type="number" id="colorTolerance" value="32" min="1" max="255">
@@ -23,12 +22,8 @@
 
     <div class="canvas-container">
         <div>
-            <h3>Processed Image (Hidden Pixels Transparent)</h3>
+            <h3>Processed Image (Separator Lines are Transparent)</h3>
             <canvas id="spriteCanvas"></canvas>
-        </div>
-        <div>
-            <h3>Original Image Preview</h3>
-            <canvas id="previewCanvas"></canvas>
         </div>
     </div>
     
@@ -38,9 +33,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const canvas = document.getElementById('spriteCanvas');
-            const previewCanvas = document.getElementById('previewCanvas');
             const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            const ptx = previewCanvas.getContext('2d');
             const imageLoader = document.getElementById('imageLoader');
             const processButton = document.getElementById('processButton');
             const outputDiv = document.getElementById('output');
@@ -59,12 +52,10 @@
                     img.onload = () => {
                         imageLoaded = img;
                         
-                        // Set canvas dimensions and draw the image
-                        canvas.width = previewCanvas.width = img.width;
-                        canvas.height = previewCanvas.height = img.height;
+                        canvas.width = img.width;
+                        canvas.height = img.height;
                         
                         ctx.drawImage(img, 0, 0);
-                        ptx.drawImage(img, 0, 0);
 
                         outputDiv.textContent = 'Image loaded. Click Process Frames.';
                         processButton.disabled = false;
@@ -82,20 +73,16 @@
                     return;
                 }
                 
-                // 1. Get initial pixel data
-                let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                let data = imageData.data;
                 const width = canvas.width;
                 const height = canvas.height;
                 const tolerance = parseInt(toleranceInput.value);
 
-                // Reset canvas to original image before analysis
+                // 1. Get initial pixel data from the original image
                 ctx.drawImage(imageLoaded, 0, 0);
-                imageData = ctx.getImageData(0, 0, width, height);
-                data = imageData.data;
-
+                let originalImageData = ctx.getImageData(0, 0, width, height);
+                
                 // 2. Detect Dominant Color
-                const dominantColor = getDominantColor(data);
+                const dominantColor = getDominantColor(originalImageData.data);
                 if (!dominantColor) {
                     outputDiv.textContent = 'Could not detect a dominant color.';
                     return;
@@ -103,162 +90,185 @@
                 
                 outputDiv.textContent = `Dominant Color detected: RGB(${dominantColor.r}, ${dominantColor.g}, ${dominantColor.b}).\n`;
 
-                // 3. Apply Transparency Filter
-                const filteredData = applyTransparencyFilter(data, dominantColor, tolerance, width, height);
-                
-                // Put the filtered image data back onto the canvas
-                ctx.putImageData(filteredData, 0, 0);
+                // 3. Apply Transparency Filter (Creates the data array used for line-scan)
+                const filteredImageData = applyTransparencyFilter(originalImageData.data, dominantColor, tolerance, width, height);
+                ctx.putImageData(filteredImageData, 0, 0); // Display the filtered image
 
-                // 4. Detect Frames on the Filtered Image
-                const frames = detectFrames(filteredData.data, width, height);
+                // 4. Detect Frames using Line-Scan
+                const frames = detectFramesByLineScan(filteredImageData.data, width, height);
                 
                 // 5. Print Results
                 printResults(frames);
             }
 
-            // --- Dominant Color Detection (Simplified Histogram) ---
+            // --- Dominant Color Detection & Filtering (Helper functions from previous solution) ---
 
             function getDominantColor(data) {
                 const colorCounts = new Map();
-                const totalPixels = data.length / 4;
-                
-                // Sample every 4th pixel to speed up processing
                 for (let i = 0; i < data.length; i += 16) { 
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-                    
-                    // Ignore fully transparent pixels (alpha is data[i+3])
+                    const r = data[i], g = data[i + 1], b = data[i + 2];
                     if (data[i + 3] === 0) continue; 
-
-                    // Quantize colors to reduce the number of unique colors (e.g., to 16-bit color space)
-                    // This groups similar colors together, which is crucial for sprite work
                     const r_quant = Math.floor(r / 16) * 16;
                     const g_quant = Math.floor(g / 16) * 16;
                     const b_quant = Math.floor(b / 16) * 16;
-                    
-                    const colorKey = `${r_quant},${g_quant},${b_quant}`;
-                    
-                    colorCounts.set(colorKey, (colorCounts.get(colorKey) || 0) + 1);
+                    const key = `${r_quant},${g_quant},${b_quant}`;
+                    colorCounts.set(key, (colorCounts.get(key) || 0) + 1);
                 }
-
                 if (colorCounts.size === 0) return null;
-
-                // Find the key with the highest count
-                let dominantKey = null;
-                let maxCount = 0;
-
+                let maxCount = 0, dominantKey = null;
                 for (const [key, count] of colorCounts.entries()) {
                     if (count > maxCount) {
                         maxCount = count;
                         dominantKey = key;
                     }
                 }
-                
                 const [r, g, b] = dominantKey.split(',').map(Number);
                 return { r, g, b };
             }
 
-            // --- Transparency Filter ---
-
-            /**
-             * Calculates the squared Euclidean distance between two colors in RGB space.
-             * @param {number} r1, g1, b1 First color components.
-             * @param {number} r2, g2, b2 Second color components.
-             * @returns {number} The squared distance.
-             */
             function colorDistanceSquared(r1, g1, b1, r2, g2, b2) {
                 return Math.pow(r1 - r2, 2) + Math.pow(g1 - g2, 2) + Math.pow(b1 - b2, 2);
             }
 
             function applyTransparencyFilter(originalData, dominantColor, tolerance, width, height) {
-                // Create a new ImageData object for the filtered result
                 const filteredImageData = ctx.createImageData(width, height);
                 const data = filteredImageData.data;
-                const toleranceSquared = tolerance * tolerance; // Compare squared distance to avoid Math.sqrt
+                const toleranceSquared = tolerance * tolerance;
 
                 for (let i = 0; i < originalData.length; i += 4) {
-                    const r = originalData[i];
-                    const g = originalData[i + 1];
-                    const b = originalData[i + 2];
-                    
-                    // Preserve original transparency if it exists (for PNGs)
+                    const r = originalData[i], g = originalData[i + 1], b = originalData[i + 2];
                     const originalAlpha = originalData[i + 3];
-
-                    // Calculate distance from the current pixel color to the dominant color
                     const distanceSq = colorDistanceSquared(r, g, b, dominantColor.r, dominantColor.g, dominantColor.b);
 
-                    // If the color is close to the dominant color (within tolerance) AND not already transparent
                     if (distanceSq <= toleranceSquared && originalAlpha > 0) {
-                        // Keep the pixel as the dominant color, and make it fully opaque
                         data[i] = dominantColor.r;
                         data[i + 1] = dominantColor.g;
                         data[i + 2] = dominantColor.b;
-                        data[i + 3] = 255; // Fully opaque
+                        data[i + 3] = 255; // Opaque
                     } else {
-                        // Treat all other colors as fully transparent
-                        data[i] = data[i + 1] = data[i + 2] = 0; // Black (irrelevant, as alpha is 0)
-                        data[i + 3] = 0; // Fully transparent
+                        data[i + 3] = 0; // Transparent
                     }
                 }
-
                 return filteredImageData;
             }
 
-            // --- Frame Detection (Same as previous solution) ---
+            // --- Frame Detection (Line-Scan Algorithm) ---
 
-            function isNonTransparent(data, x, y, width) {
-                const alphaIndex = (y * width + x) * 4 + 3;
-                return data[alphaIndex] > 0;
+            /**
+             * Checks if a row or column contains *any* non-transparent pixels.
+             * @param {Uint8ClampedArray} data - The image pixel data.
+             * @param {number} coord - The row (y) or column (x) index to check.
+             * @param {string} axis - 'x' for column check, 'y' for row check.
+             * @param {number} width - Image width.
+             * @param {number} height - Image height.
+             * @returns {boolean} True if the line contains a non-transparent pixel (part of a sprite).
+             */
+            function hasNonTransparentPixel(data, coord, axis, width, height) {
+                if (axis === 'y') {
+                    // Scan a single row (y) across the width
+                    for (let x = 0; x < width; x++) {
+                        const alphaIndex = (coord * width + x) * 4 + 3;
+                        if (data[alphaIndex] > 0) return true;
+                    }
+                } else if (axis === 'x') {
+                    // Scan a single column (x) down the height
+                    for (let y = 0; y < height; y++) {
+                        const alphaIndex = (y * width + coord) * 4 + 3;
+                        if (data[alphaIndex] > 0) return true;
+                    }
+                }
+                return false;
             }
 
-            function detectFrames(data, width, height) {
-                const visited = new Array(width * height).fill(false);
+            /**
+             * Finds all boundary coordinates (x or y) where frames begin or end.
+             * @param {Uint8ClampedArray} data - The filtered image data.
+             * @param {number} width - Image width.
+             * @param {number} height - Image height.
+             * @returns {{xCoords: number[], yCoords: number[]}} Arrays of separator coordinates.
+             */
+            function findSeparatorCoords(data, width, height) {
+                const xCoords = [0]; // Start boundary
+                const yCoords = [0]; // Start boundary
+
+                // Scan Y-axis for horizontal separators (transparent rows)
+                let inFrameY = false;
+                for (let y = 0; y < height; y++) {
+                    const isFrameRow = hasNonTransparentPixel(data, y, 'y', width, height);
+                    if (isFrameRow && !inFrameY) {
+                        // Transition from separator to frame: Frame TOP is y
+                        yCoords.push(y);
+                        inFrameY = true;
+                    } else if (!isFrameRow && inFrameY) {
+                        // Transition from frame to separator: Frame BOTTOM is y - 1
+                        yCoords.push(y - 1);
+                        inFrameY = false;
+                    }
+                }
+                // Handle the bottom edge if the last frame hits the border
+                if (inFrameY) yCoords.push(height - 1);
+
+
+                // Scan X-axis for vertical separators (transparent columns)
+                let inFrameX = false;
+                for (let x = 0; x < width; x++) {
+                    const isFrameCol = hasNonTransparentPixel(data, x, 'x', width, height);
+                    if (isFrameCol && !inFrameX) {
+                        // Transition from separator to frame: Frame LEFT is x
+                        xCoords.push(x);
+                        inFrameX = true;
+                    } else if (!isFrameCol && inFrameX) {
+                        // Transition from frame to separator: Frame RIGHT is x - 1
+                        xCoords.push(x - 1);
+                        inFrameX = false;
+                    }
+                }
+                // Handle the right edge if the last frame hits the border
+                if (inFrameX) xCoords.push(width - 1);
+
+                return { xCoords, yCoords };
+            }
+
+            /**
+             * Generates the final frame offsets based on the separator coordinates.
+             * Assumes frames are arranged in a grid based on the lines found.
+             */
+            function detectFramesByLineScan(data, width, height) {
+                const { xCoords, yCoords } = findSeparatorCoords(data, width, height);
                 const frames = [];
 
-                for (let y = 0; y < height; y++) {
-                    for (let x = 0; x < width; x++) {
-                        const index = y * width + x;
+                // Filter out non-frame boundary markers (e.g., from empty rows/cols at edges)
+                const frameXStarts = xCoords.filter((_, i) => i % 2 !== 0); // odd indices (start of a frame)
+                const frameYStarts = yCoords.filter((_, i) => i % 2 !== 0); // odd indices (start of a frame)
+                const frameXEnds = xCoords.filter((_, i) => i % 2 === 0 && i !== 0); // even indices (end of a frame)
+                const frameYEnds = yCoords.filter((_, i) => i % 2 === 0 && i !== 0); // even indices (end of a frame)
 
-                        if (isNonTransparent(data, x, y, width) && !visited[index]) {
-                            
-                            let minX = x, minY = y, maxX = x, maxY = y;
-                            const stack = [{x, y}];
-                            visited[index] = true;
+                if (frameXStarts.length === 0 || frameYStarts.length === 0) {
+                    return [];
+                }
+                
+                // For a grid-based sprite sheet, the width of the first frame is assumed for all frames.
+                // This is a common heuristic for this type of detection.
+                const frameWidth = frameXEnds[0] - frameXStarts[0] + 1;
+                const frameHeight = frameYEnds[0] - frameYStarts[0] + 1;
 
-                            // Breadth-First Search (BFS) for connected components
-                            while (stack.length > 0) {
-                                const {x: cx, y: cy} = stack.pop();
+                // Iterate through all possible intersections of the identified rows/columns
+                for (let i = 0; i < frameYStarts.length; i++) {
+                    for (let j = 0; j < frameXStarts.length; j++) {
+                        const x = frameXStarts[j];
+                        const y = frameYStarts[i];
+                        
+                        // Check if the top-left pixel of this assumed frame is non-transparent.
+                        // This prevents adding frames in grid-slots that are empty.
+                        const alphaIndex = (y * width + x) * 4 + 3;
 
-                                minX = Math.min(minX, cx);
-                                minY = Math.min(minY, cy);
-                                maxX = Math.max(maxX, cx);
-                                maxY = Math.max(maxY, cy);
-
-                                const neighbors = [
-                                    {nx: cx + 1, ny: cy}, {nx: cx - 1, ny: cy}, 
-                                    {nx: cx, ny: cy + 1}, {nx: cx, ny: cy - 1}
-                                ];
-
-                                for (const {nx, ny} of neighbors) {
-                                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
-                                        const nIndex = ny * width + nx;
-                                        if (isNonTransparent(data, nx, ny, width) && !visited[nIndex]) {
-                                            visited[nIndex] = true;
-                                            stack.push({x: nx, y: ny});
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Calculate final frame dimensions
-                            const frame = {
-                                x: minX,
-                                y: minY,
-                                width: maxX - minX + 1,
-                                height: maxY - minY + 1
-                            };
-                            frames.push(frame);
+                        if (data[alphaIndex] > 0) {
+                             frames.push({
+                                x: x,
+                                y: y,
+                                width: frameWidth, // Use the detected width/height
+                                height: frameHeight
+                            });
                         }
                     }
                 }
@@ -270,12 +280,12 @@
                 let currentOutput = outputDiv.textContent;
                 
                 if (frames.length === 0) {
-                    currentOutput += '\n\n**No non-transparent frames detected after filtering.**';
+                    currentOutput += '\n\n**No frames detected using the line-scan method.**';
                     outputDiv.textContent = currentOutput;
                     return;
                 }
 
-                let output = '\n--- Detected Frames ---\n';
+                let output = '\n--- Detected Frames (Line-Scan) ---\n';
                 frames.forEach((frame, index) => {
                     output += `Frame ${index + 1}: x: ${frame.x}, y: ${frame.y}, width: ${frame.width}, height: ${frame.height}\n`;
                 });
