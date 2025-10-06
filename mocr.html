@@ -1,66 +1,141 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paste Image</title>
-    <style>
-        #pasteArea {
-            width: 100%;
-            min-height: 200px;
-            border: 2px dashed #ccc;
-            padding: 20px;
-            text-align: center;
-            margin: 20px 0;
-        }
-        #preview {
-            max-width: 100%;
-            margin-top: 20px;
-        }
-        #error {
-            color: red;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paste or Upload Image</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      padding: 0;
+      max-width: 600px;
+      margin-inline: auto;
+    }
+
+    h1 {
+      text-align: center;
+    }
+
+    #pasteArea {
+      width: 100%;
+      min-height: 200px;
+      border: 2px dashed #ccc;
+      padding: 20px;
+      text-align: center;
+      margin: 20px 0;
+      border-radius: 10px;
+      background: #f9f9f9;
+      cursor: pointer;
+      transition: border-color 0.3s;
+    }
+
+    #pasteArea:hover {
+      border-color: #007bff;
+    }
+
+    #preview {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      margin: 20px auto;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+
+    #error {
+      color: red;
+      text-align: center;
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    #uploadLabel {
+      display: inline-block;
+      background-color: #007bff;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      text-align: center;
+      margin: 10px auto;
+      font-size: 16px;
+    }
+
+    /* Make layout responsive */
+    @media (max-width: 600px) {
+      body {
+        margin: 10px;
+      }
+
+      #pasteArea {
+        min-height: 150px;
+        padding: 15px;
+        font-size: 14px;
+      }
+
+      #uploadLabel {
+        width: 100%;
+      }
+    }
+  </style>
 </head>
 <body>
-    <h1>Paste an Image</h1>
-    <div id="pasteArea">Click here and press Ctrl+V (or Cmd+V) to paste an image</div>
-    <img id="preview" alt="Pasted image will appear here">
-    <p id="error"></p>
+  <h1>Paste or Upload an Image</h1>
+  <div id="pasteArea">📋 Tap here and press Ctrl+V (or Cmd+V) to paste an image, or upload below</div>
 
-    <script>
-        const pasteArea = document.getElementById('pasteArea');
-        const preview = document.getElementById('preview');
-        const error = document.getElementById('error');
+  <label id="uploadLabel" for="fileInput">Select an image</label>
+  <input type="file" id="fileInput" accept="image/*">
 
-        pasteArea.addEventListener('paste', (event) => {
-            // Get clipboard items
-            const items = (event.clipboardData || event.originalEvent.clipboardData).items;
-            
-            // Find the first image in clipboard items
-            for (let item of items) {
-                if (item.type.indexOf('image') !== -1) {
-                    // Get the image as a file
-                    const blob = item.getAsFile();
-                    // Create a URL for the image
-                    const imageUrl = URL.createObjectURL(blob);
-                    // Display the image
-                    preview.src = imageUrl;
-                    error.textContent = '';
-                    return;
-                }
-            }
-            
-            // If no image was found
-            error.textContent = 'No image found in clipboard. Please paste an image.';
-        });
+  <img id="preview" alt="Your image will appear here">
+  <p id="error"></p>
 
-        // Clean up URL objects when page unloads
-        window.addEventListener('unload', () => {
-            if (preview.src) {
-                URL.revokeObjectURL(preview.src);
-            }
-        });
-    </script>
+  <script>
+    const pasteArea = document.getElementById('pasteArea');
+    const fileInput = document.getElementById('fileInput');
+    const preview = document.getElementById('preview');
+    const error = document.getElementById('error');
+
+    // Handle clipboard paste
+    pasteArea.addEventListener('paste', (event) => {
+      const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+      for (let item of items) {
+        if (item.type.indexOf('image') !== -1) {
+          const blob = item.getAsFile();
+          const imageUrl = URL.createObjectURL(blob);
+          preview.src = imageUrl;
+          error.textContent = '';
+          return;
+        }
+      }
+      error.textContent = 'No image found in clipboard. Please paste or upload an image.';
+    });
+
+    // Handle file upload
+    fileInput.addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (file && file.type.startsWith('image/')) {
+        const imageUrl = URL.createObjectURL(file);
+        preview.src = imageUrl;
+        error.textContent = '';
+      } else {
+        error.textContent = 'Please select a valid image file.';
+      }
+    });
+
+    // Focus paste area when clicked (for desktop)
+    pasteArea.addEventListener('click', () => {
+      pasteArea.focus();
+    });
+
+    // Cleanup object URLs
+    window.addEventListener('unload', () => {
+      if (preview.src.startsWith('blob:')) {
+        URL.revokeObjectURL(preview.src);
+      }
+    });
+  </script>
 </body>
 </html>
