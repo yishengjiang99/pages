@@ -1063,5 +1063,61 @@ window.onclick = (event) => {
 drawAxis();
 updateStatus("Ready", "ready");
 </script>
+
+<!-- NAVIGATION INJECTED -->
+<style>
+  body { margin: 0; font-family: Arial, sans-serif; }
+  header {
+    background: #333; color: white; padding: 10px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: 0; z-index: 1000;
+  }
+  header a { color: white; text-decoration: none; font-weight: bold; }
+  .menu-btn { background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; }
+  .drawer {
+    height: 100%; width: 250px; position: fixed; top: 0; left: -250px;
+    background: #444; overflow-x: hidden; transition: 0.3s; padding-top: 60px;
+    z-index: 999;
+  }
+  .drawer.open { left: 0; }
+  .drawer a {
+    padding: 10px 20px; text-decoration: none; color: white; display: block;
+  }
+  .drawer a:hover { background: #575757; }
+  main { margin: 20px; }
+</style>
+<header>
+  <a href="/index.html">← Back to Index</a>
+  <button class="menu-btn" onclick="toggleDrawer()">☰ Menu</button>
+</header>
+<div id="drawer" class="drawer">
+  <a href="__test__/terrapin.html">terrapin.html</a>
+<a href="afd-slogan-generator.html">afd-slogan-generator.html</a>
+<a href="blinker.html">blinker.html</a>
+<a href="compose.html">compose.html</a>
+<a href="edit-wave-info.html">edit-wave-info.html</a>
+<a href="l2r.html">l2r.html</a>
+<a href="midi2svg.html">midi2svg.html</a>
+<a href="mlogo.html">mlogo.html</a>
+<a href="mocr.html">mocr.html</a>
+<a href="paint.html">paint.html</a>
+<a href="radar.html">radar.html</a>
+<a href="reinforcement-policy-neuron-network.html">reinforcement-policy-neuron-network.html</a>
+<a href="sprite-detect.html">sprite-detect.html</a>
+<a href="sprite.html">sprite.html</a>
+<a href="stolzmonat.html">stolzmonat.html</a>
+<a href="strwidth.html">strwidth.html</a>
+<a href="svgtrace.html">svgtrace.html</a>
+<a href="synth.html">synth.html</a>
+<a href="terrapin.html">terrapin.html</a>
+<a href="tetris.html">tetris.html</a>
+<a href="timer.html">timer.html</a>
+<a href="westerwald.html">westerwald.html</a>
+</div>
+<script>
+  function toggleDrawer() {
+    document.getElementById('drawer').classList.toggle('open');
+  }
+</script>
 </body>
 </html>
