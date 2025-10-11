@@ -102,15 +102,14 @@
 
         async function loadFont() {
             try {
-                const cssRes = await fetch('https://fonts.googleapis.com/css2?family=Noto+Sans+Math:wght@400&display=swap');
-                const css = await cssRes.text();
-                const match = css.match(/url\(["']?(https:\/\/fonts\.gstatic\.com\/s\/notosansmath\/[^"']+\.woff2)["']?\)/);
-                if (!match) throw new Error('No WOFF2 URL found in CSS');
-                const fontUrl = match[1];
+                // Hardcode the font URL to avoid regex issues
+                const fontUrl = 'https://fonts.gstatic.com/s/notosansmath/v36/BXTdSY8qK9tX1t8T4dsE8A.woff2';
                 const fontRes = await fetch(fontUrl);
+                if (!fontRes.ok) throw new Error(`HTTP ${fontRes.status}`);
                 const buffer = await fontRes.arrayBuffer();
                 font = opentype.parse(buffer);
                 console.log('Font loaded successfully');
+                console.log('unitsPerEm:', font.unitsPerEm);
                 updateRendering();
             } catch (e) {
                 console.error('Error loading font:', e);
@@ -119,7 +118,8 @@
 
         function updateRendering() {
             if (!font) {
-                return; // Font not loaded yet
+                console.log('Font not loaded yet');
+                return;
             }
 
             const fontSize = parseFloat(fontSizeSlider.value);
