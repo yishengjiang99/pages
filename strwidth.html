@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Noto Sans Math SVG Renderer</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Math:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -37,6 +38,8 @@
         // Define the strings
         const variable1 = "variable1";
         const variable2 = "variable2";
+
+        let font = null;
 
         // Get DOM elements
         const fontSizeSlider = document.getElementById('fontSize');
@@ -81,17 +84,54 @@
         widthText2.setAttribute('fill', 'gray');
         svg.appendChild(widthText2);
 
+        // Custom function to compute advance width by looping over glyphs
+        function computeAdvanceWidth(font, text, fontSize, options = { kerning: true }) {
+            const glyphs = font.stringToGlyphs(text);
+            const scale = fontSize / font.unitsPerEm;
+            let width = 0;
+            for (let i = 0; i < glyphs.length; i++) {
+                const glyph = glyphs[i];
+                width += glyph.advanceWidth * scale;
+                if (options.kerning && i < glyphs.length - 1) {
+                    const kerningValue = font.getKerningValue(glyph, glyphs[i + 1]);
+                    width += kerningValue * scale;
+                }
+            }
+            return width;
+        }
+
+        async function loadFont() {
+            try {
+                const cssRes = await fetch('https://fonts.googleapis.com/css2?family=Noto+Sans+Math:wght@400&display=swap');
+                const css = await cssRes.text();
+                const match = css.match(/url\(["']?(https:\/\/fonts\.gstatic\.com\/s\/notosansmath\/[^"']+\.woff2)["']?\)/);
+                if (!match) throw new Error('No WOFF2 URL found in CSS');
+                const fontUrl = match[1];
+                const fontRes = await fetch(fontUrl);
+                const buffer = await fontRes.arrayBuffer();
+                font = opentype.parse(buffer);
+                console.log('Font loaded successfully');
+                updateRendering();
+            } catch (e) {
+                console.error('Error loading font:', e);
+            }
+        }
+
         function updateRendering() {
-            const fontSize = fontSizeSlider.value;
+            if (!font) {
+                return; // Font not loaded yet
+            }
+
+            const fontSize = parseFloat(fontSizeSlider.value);
             sizeValue.textContent = fontSize;
 
             // Update font-size on text elements
             text1.setAttribute('font-size', fontSize);
             text2.setAttribute('font-size', fontSize);
 
-            // Compute widths
-            const width1 = text1.getComputedTextLength();
-            const width2 = text2.getComputedTextLength();
+            // Compute widths using custom glyph loop method
+            const width1 = computeAdvanceWidth(font, variable1, fontSize, { kerning: true });
+            const width2 = computeAdvanceWidth(font, variable2, fontSize, { kerning: true });
 
             // Position text2 adjacent to text1
             text2.setAttribute('x', 10 + width1 + 10); // 10px gap
@@ -105,8 +145,8 @@
             widthText2.textContent = `Width of ${variable2}: ${width2.toFixed(2)}px`;
         }
 
-        // Initial render
-        updateRendering();
+        // Load font on init
+        loadFont();
 
         // Event listener for slider
         fontSizeSlider.addEventListener('input', updateRendering);
