@@ -87,6 +87,8 @@ server.listen(PORT, async () => {
   const items = [];
 
   for (const file of htmlFiles) {
+    if (file.includes('node_modules')) continue; // Skip node_modules
+    if (file.includes("_test_")) continue; // Skip test files
     const page = await browser.newPage();
     const relPath = path.relative(CWD, file).replace(/\\/g, '/');
     const localUrl = `http://localhost:${PORT}/${relPath}`;
