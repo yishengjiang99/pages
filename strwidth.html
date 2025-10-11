@@ -1,156 +1,171 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Noto Sans Math SVG Renderer</title>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Math:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        svg {
-            border: 1px solid #ccc;
-            margin: 10px 0;
-        }
-        #widthDisplay {
-            font-family: monospace;
-            margin-top: 10px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Kerned Width via Glyph Loop (opentype.js)</title>
+  <script src="https://cdn.jsdelivr.net/npm/opentype.js@1.3.4/dist/opentype.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    svg  { border: 1px solid #ccc; margin: 10px 0; }
+    #widthDisplay { font-family: monospace; margin-top: 10px; }
+  </style>
 </head>
 <body>
-    <label for="fontSize">Font Size: <span id="sizeValue">24</span>px</label>
-    <input type="range" id="fontSize" min="12" max="72" value="24" step="1">
-    
-    <svg width="800" height="200" id="mySvg">
-        <!-- Text elements will be added here -->
-    </svg>
-    
-    <div id="widthDisplay">
-        Width of variable1: <span id="widthValue1">0</span>px<br>
-        Width of variable2: <span id="widthValue2">0</span>px
-    </div>
+  <label for="fontSize">Font Size: <span id="sizeValue">24</span>px</label>
+  <input type="range" id="fontSize" min="12" max="72" value="24" step="1">
 
-    <script>
-        // Define the strings
-        const variable1 = "variable1";
-        const variable2 = "variable2";
+  <svg width="800" height="200" id="mySvg"></svg>
 
-        let font = null;
+  <div id="widthDisplay">
+    Width of variable1: <span id="widthValue1">0</span>px<br>
+    Width of variable2: <span id="widthValue2">0</span>px
+  </div>
 
-        // Get DOM elements
-        const fontSizeSlider = document.getElementById('fontSize');
-        const sizeValue = document.getElementById('sizeValue');
-        const svg = document.getElementById('mySvg');
-        const widthValue1 = document.getElementById('widthValue1');
-        const widthValue2 = document.getElementById('widthValue2');
+  <script>
+    // === CONFIG ===
+    const ttfUrl = '/fonts/NotoSansMath-Regular.ttf'; // <-- host this yourself (TTF/OTF/WOFF, not WOFF2)
+    const renderFamilyName = 'Noto Sans Math Local';  // unique name to avoid fallback surprises
+    const GAP = 10;           // px gap between variable1 and variable2
+    const LETTER_SPACING = 0; // extra tracking in px between glyphs (optional)
 
-        // Create text elements
-        const text1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text1.setAttribute('x', '10');
-        text1.setAttribute('y', '50');
-        text1.setAttribute('font-family', 'Noto Sans Math');
-        text1.setAttribute('font-size', '24');
-        text1.setAttribute('fill', 'black');
-        text1.textContent = variable1;
-        svg.appendChild(text1);
+    // Strings
+    const variable1 = 'variable1';
+    const variable2 = 'variable2';
 
-        const text2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text2.setAttribute('x', '200'); // Initial position, will be adjusted
-        text2.setAttribute('y', '50');
-        text2.setAttribute('font-family', 'Noto Sans Math');
-        text2.setAttribute('font-size', '24');
-        text2.setAttribute('fill', 'black');
-        text2.textContent = variable2;
-        svg.appendChild(text2);
+    // DOM
+    const fontSizeSlider = document.getElementById('fontSize');
+    const sizeValue      = document.getElementById('sizeValue');
+    const svg            = document.getElementById('mySvg');
+    const widthValue1    = document.getElementById('widthValue1');
+    const widthValue2    = document.getElementById('widthValue2');
 
-        // Width display texts in SVG
-        const widthText1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        widthText1.setAttribute('x', '10');
-        widthText1.setAttribute('y', '100');
-        widthText1.setAttribute('font-family', 'Arial');
-        widthText1.setAttribute('font-size', '14');
-        widthText1.setAttribute('fill', 'gray');
-        svg.appendChild(widthText1);
+    // SVG nodes
+    const text1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text1.setAttribute('x', '10');
+    text1.setAttribute('y', '50');
+    text1.setAttribute('font-size', '24');
+    text1.setAttribute('fill', 'black');
+    text1.textContent = variable1;
+    svg.appendChild(text1);
 
-        const widthText2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        widthText2.setAttribute('x', '10');
-        widthText2.setAttribute('y', '120');
-        widthText2.setAttribute('font-family', 'Arial');
-        widthText2.setAttribute('font-size', '14');
-        widthText2.setAttribute('fill', 'gray');
-        svg.appendChild(widthText2);
+    const text2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text2.setAttribute('x', '200'); // temporary; will be placed after measuring
+    text2.setAttribute('y', '50');
+    text2.setAttribute('font-size', '24');
+    text2.setAttribute('fill', 'black');
+    text2.textContent = variable2;
+    svg.appendChild(text2);
 
-        // Custom function to compute advance width by looping over glyphs
-        function computeAdvanceWidth(font, text, fontSize, options = { kerning: true }) {
-            const glyphs = font.stringToGlyphs(text);
-            const scale = fontSize / font.unitsPerEm;
-            let width = 0;
-            for (let i = 0; i < glyphs.length; i++) {
-                const glyph = glyphs[i];
-                width += glyph.advanceWidth * scale;
-                if (options.kerning && i < glyphs.length - 1) {
-                    const kerningValue = font.getKerningValue(glyph, glyphs[i + 1]);
-                    width += kerningValue * scale;
-                }
-            }
-            return width;
+    // Display helper lines
+    const widthText1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    widthText1.setAttribute('x', '10');
+    widthText1.setAttribute('y', '100');
+    widthText1.setAttribute('font-family', 'Arial');
+    widthText1.setAttribute('font-size', '14');
+    widthText1.setAttribute('fill', 'gray');
+    svg.appendChild(widthText1);
+
+    const widthText2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    widthText2.setAttribute('x', '10');
+    widthText2.setAttribute('y', '120');
+    widthText2.setAttribute('font-family', 'Arial');
+    widthText2.setAttribute('font-size', '14');
+    widthText2.setAttribute('fill', 'gray');
+    svg.appendChild(widthText2);
+
+    // Guide line (optional visual)
+    const guide = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    guide.setAttribute('x1', '10');
+    guide.setAttribute('y1', '60');
+    guide.setAttribute('x2', '10');
+    guide.setAttribute('y2', '160');
+    guide.setAttribute('stroke', '#ddd');
+    guide.setAttribute('stroke-dasharray', '4 3');
+    svg.appendChild(guide);
+
+    let otFont = null;
+
+    // --- Core: loop through glyphs and add kerning ---
+    function kernedAdvanceWidth(font, text, fontSize, { kerning = true, letterSpacing = 0 } = {}) {
+      const glyphs = font.stringToGlyphs(text);
+      const scale  = fontSize / font.unitsPerEm;
+      let width = 0;
+
+      for (let i = 0; i < glyphs.length; i++) {
+        const g = glyphs[i];
+        // advanceWidth may be undefined for some special glyphs; default to 0
+        const adv = (g && typeof g.advanceWidth === 'number') ? g.advanceWidth : 0;
+        width += adv * scale;
+
+        if (kerning && i < glyphs.length - 1) {
+          const kern = font.getKerningValue(g, glyphs[i + 1]) || 0;
+          width += kern * scale;
         }
 
-        async function loadFont() {
-            try {
-                // Hardcode the font URL to avoid regex issues
-                const fontUrl = 'https://fonts.gstatic.com/s/notosansmath/v36/BXTdSY8qK9tX1t8T4dsE8A.woff2';
-                const fontRes = await fetch(fontUrl);
-                if (!fontRes.ok) throw new Error(`HTTP ${fontRes.status}`);
-                const buffer = await fontRes.arrayBuffer();
-                font = opentype.parse(buffer);
-                console.log('Font loaded successfully');
-                console.log('unitsPerEm:', font.unitsPerEm);
-                updateRendering();
-            } catch (e) {
-                console.error('Error loading font:', e);
-            }
+        if (letterSpacing && i < glyphs.length - 1) {
+          width += letterSpacing; // already in px
         }
+      }
+      return width;
+    }
 
-        function updateRendering() {
-            if (!font) {
-                console.log('Font not loaded yet');
-                return;
-            }
+    function updateRendering() {
+      if (!otFont) return;
 
-            const fontSize = parseFloat(fontSizeSlider.value);
-            sizeValue.textContent = fontSize;
+      const fontSize = Number(fontSizeSlider.value);
+      sizeValue.textContent = fontSize;
 
-            // Update font-size on text elements
-            text1.setAttribute('font-size', fontSize);
-            text2.setAttribute('font-size', fontSize);
+      // Force rendering to use the exact loaded face
+      text1.setAttribute('font-family', renderFamilyName);
+      text2.setAttribute('font-family', renderFamilyName);
+      text1.setAttribute('font-size', fontSize);
+      text2.setAttribute('font-size', fontSize);
 
-            // Compute widths using custom glyph loop method
-            const width1 = computeAdvanceWidth(font, variable1, fontSize, { kerning: true });
-            const width2 = computeAdvanceWidth(font, variable2, fontSize, { kerning: true });
+      const width1 = kernedAdvanceWidth(otFont, variable1, fontSize, {
+        kerning: true,
+        letterSpacing: LETTER_SPACING
+      });
+      const width2 = kernedAdvanceWidth(otFont, variable2, fontSize, {
+        kerning: true,
+        letterSpacing: LETTER_SPACING
+      });
 
-            // Position text2 adjacent to text1
-            text2.setAttribute('x', 10 + width1 + 10); // 10px gap
+      // Place second word after the first with GAP
+      const x2 = 10 + width1 + GAP;
+      text2.setAttribute('x', x2);
 
-            // Update display values
-            widthValue1.textContent = width1.toFixed(2);
-            widthValue2.textContent = width2.toFixed(2);
+      // Update UI
+      widthValue1.textContent = width1.toFixed(2);
+      widthValue2.textContent = width2.toFixed(2);
+      widthText1.textContent = `Width of ${variable1}: ${width1.toFixed(2)}px`;
+      widthText2.textContent = `Width of ${variable2}: ${width2.toFixed(2)}px`;
 
-            // Update width texts in SVG
-            widthText1.textContent = `Width of ${variable1}: ${width1.toFixed(2)}px`;
-            widthText2.textContent = `Width of ${variable2}: ${width2.toFixed(2)}px`;
-        }
+      // Move guide to the start of text1 (just visual aid)
+      guide.setAttribute('x1', '10');
+      guide.setAttribute('x2', '10');
+    }
 
-        // Load font on init
-        loadFont();
+    async function loadExactFontAndMetrics() {
+      // 1) Load for rendering
+      const face = new FontFace(renderFamilyName, `url(${ttfUrl})`);
+      await face.load();
+      document.fonts.add(face);
 
-        // Event listener for slider
-        fontSizeSlider.addEventListener('input', updateRendering);
-    </script>
+      // 2) Load same file for metrics
+      const resp = await fetch(ttfUrl, { mode: 'cors' });
+      if (!resp.ok) throw new Error(`Font fetch failed: HTTP ${resp.status}`);
+      const buf = await resp.arrayBuffer();
+      otFont = opentype.parse(buf);
+
+      // Wait for fonts to settle, then measure
+      await document.fonts.ready;
+      updateRendering();
+      requestAnimationFrame(updateRendering);
+    }
+
+    loadExactFontAndMetrics().catch(err => console.error(err));
+    fontSizeSlider.addEventListener('input', updateRendering);
+  </script>
 </body>
 </html>
-```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
