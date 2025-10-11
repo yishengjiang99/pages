@@ -28,18 +28,22 @@
         <!-- Text elements will be added here -->
     </svg>
     
-    <div id="widthDisplay">String width: <span id="widthValue">0</span>px</div>
+    <div id="widthDisplay">
+        Width of variable1: <span id="widthValue1">0</span>px<br>
+        Width of variable2: <span id="widthValue2">0</span>px
+    </div>
 
     <script>
         // Define the strings
-        const variable1 = "x + y = 2";
-        const variable2 = "a² + b² = c²";
+        const variable1 = "variable1";
+        const variable2 = "variable2";
 
         // Get DOM elements
         const fontSizeSlider = document.getElementById('fontSize');
         const sizeValue = document.getElementById('sizeValue');
         const svg = document.getElementById('mySvg');
-        const widthValue = document.getElementById('widthValue');
+        const widthValue1 = document.getElementById('widthValue1');
+        const widthValue2 = document.getElementById('widthValue2');
 
         // Create text elements
         const text1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -52,7 +56,7 @@
         svg.appendChild(text1);
 
         const text2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text2.setAttribute('x', '200'); // Position adjacent to text1
+        text2.setAttribute('x', '200'); // Initial position, will be adjusted
         text2.setAttribute('y', '50');
         text2.setAttribute('font-family', 'Noto Sans Math');
         text2.setAttribute('font-size', '24');
@@ -60,14 +64,22 @@
         text2.textContent = variable2;
         svg.appendChild(text2);
 
-        // Width display text
-        const widthText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        widthText.setAttribute('x', '10');
-        widthText.setAttribute('y', '100');
-        widthText.setAttribute('font-family', 'Arial');
-        widthText.setAttribute('font-size', '14');
-        widthText.setAttribute('fill', 'gray');
-        svg.appendChild(widthText);
+        // Width display texts in SVG
+        const widthText1 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        widthText1.setAttribute('x', '10');
+        widthText1.setAttribute('y', '100');
+        widthText1.setAttribute('font-family', 'Arial');
+        widthText1.setAttribute('font-size', '14');
+        widthText1.setAttribute('fill', 'gray');
+        svg.appendChild(widthText1);
+
+        const widthText2 = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        widthText2.setAttribute('x', '10');
+        widthText2.setAttribute('y', '120');
+        widthText2.setAttribute('font-family', 'Arial');
+        widthText2.setAttribute('font-size', '14');
+        widthText2.setAttribute('fill', 'gray');
+        svg.appendChild(widthText2);
 
         function updateRendering() {
             const fontSize = fontSizeSlider.value;
@@ -77,16 +89,20 @@
             text1.setAttribute('font-size', fontSize);
             text2.setAttribute('font-size', fontSize);
 
-            // Position text2 adjacent to text1 based on text1 width
-            const text1Width = text1.getComputedTextLength();
-            text2.setAttribute('x', 10 + text1Width + 10); // 10px gap
+            // Compute widths
+            const width1 = text1.getComputedTextLength();
+            const width2 = text2.getComputedTextLength();
 
-            // Compute total string width (combined)
-            const totalWidth = text1Width + 10 + text2.getComputedTextLength();
-            widthValue.textContent = totalWidth.toFixed(2);
+            // Position text2 adjacent to text1
+            text2.setAttribute('x', 10 + width1 + 10); // 10px gap
 
-            // Update width text in SVG
-            widthText.textContent = `Total string width: ${totalWidth.toFixed(2)}px`;
+            // Update display values
+            widthValue1.textContent = width1.toFixed(2);
+            widthValue2.textContent = width2.toFixed(2);
+
+            // Update width texts in SVG
+            widthText1.textContent = `Width of ${variable1}: ${width1.toFixed(2)}px`;
+            widthText2.textContent = `Width of ${variable2}: ${width2.toFixed(2)}px`;
         }
 
         // Initial render
