@@ -1,160 +1,296 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Sprite Sheet Player + MPEG Export</title>
 <style>
-  body {
-    background:#0f1115;
-    color:#eee;
-    font-family:sans-serif;
-    margin:0;
-    padding:20px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    gap:12px;
-    -webkit-user-select:none;
-    user-select:none;
+  :root {
+    --bg: #0f1115;
+    --text: #eef1f7;
+    --muted: #a9b2c7;
+    --panel: #151a22;
+    --border: #2a3346;
+    --accent: #4da3ff;
   }
-  h2 { margin: 0 0 10px 0; text-align:center; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial; }
+  header { padding:16px; border-bottom:1px solid var(--border); background:#0f1320; text-align:center; }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:6px 0 0; color:var(--muted); font-size:13px; }
+  .wrap { max-width:1000px; margin:0 auto; padding:16px; display:grid; gap:16px; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; }
+  .controls { display:flex; flex-wrap:wrap; gap:12px; align-items:end; }
+  label { font-size:13px; color:var(--muted); display:flex; align-items:center; gap:8px; }
+  input[type="number"], input[type="file"] { padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:#0f1827; color:var(--text); }
+  input[type="range"] { width:180px; }
+  button { border:1px solid var(--border); background:#1b2333; color:var(--text); padding:10px 14px; border-radius:10px; font-size:14px; }
+  button.primary { background:var(--accent); color:#041427; border-color:#3c88d4; }
+  button:disabled { opacity:.55; }
+  .row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+  .hint { color:var(--muted); font-size:12px; }
+  .center { display:flex; justify-content:center; }
   canvas {
     background:#000;
-    border:1px solid #444;
+    border:1px dashed var(--border);
     image-rendering:pixelated;
     display:block;
-    max-width:95vw;
+    /* responsive: centered & max 95% device width */
     width:95%;
+    max-width:95vw;
     height:auto;
     margin:0 auto;
+    border-radius:10px;
   }
-  .controls {
-    display:flex;
-    flex-wrap:wrap;
-    gap:10px;
-    justify-content:center;
-  }
-  label {font-size:14px;}
-  input,button {font-size:14px;padding:6px 10px;}
 </style>
 </head>
 <body>
-<h2>Sprite Player + MPEG Export</h2>
+<header>
+  <h1>Sprite Sheet Player + MPEG Export</h1>
+  <p>Load a sprite sheet, set <strong>Rows × Columns</strong>, choose FPS, play, and export a video.</p>
+</header>
 
-<input type="file" id="fileInput" accept="image/*"><br>
-<label>Rows: <input type="number" id="rows" value="1" min="1" style="width:60px"></label>
-<label>Cols: <input type="number" id="cols" value="1" min="1" style="width:60px"></label>
-<label>FPS: <input type="range" id="fps" min="1" max="60" value="10"></label>
-<span id="fpsLabel">10 fps</span><br>
+<div class="wrap">
+  <section class="panel">
+    <div class="controls">
+      <label>
+        <span>Sprite Sheet:</span>
+        <input type="file" id="fileInput" accept="image/*" />
+      </label>
+      <label>
+        <span>Rows</span>
+        <input type="number" id="rows" value="1" min="1" style="width:80px">
+      </label>
+      <label>
+        <span>Cols</span>
+        <input type="number" id="cols" value="1" min="1" style="width:80px">
+      </label>
+      <label>
+        <span>FPS</span>
+        <input type="range" id="fps" min="1" max="60" value="10">
+        <span id="fpsLabel">10 fps</span>
+      </label>
+      <div class="row">
+        <button id="playBtn" class="primary" disabled>Play</button>
+        <button id="pauseBtn" disabled>Pause</button>
+        <button id="stepBtn" disabled>Step</button>
+        <button id="resetBtn" disabled>Reset</button>
+      </div>
+    </div>
+    <p class="hint">Tip: frame size is computed as <code>image.width / cols</code> × <code>image.height / rows</code>.</p>
+    <div class="center">
+      <canvas id="canvas"></canvas>
+    </div>
+  </section>
 
-<div class="controls">
-  <button id="playBtn">Play</button>
-  <button id="pauseBtn" disabled>Pause</button>
-  <button id="recordBtn" disabled>Start Record</button>
-  <button id="stopRecBtn" disabled>Stop & Download MPEG</button>
+  <section class="panel">
+    <div class="row">
+      <button id="recordBtn" disabled>Start Record</button>
+      <button id="stopRecBtn" disabled>Stop &amp; Save Video</button>
+      <span class="hint" id="recHint">On iOS Safari, the video opens in a new tab; use Share → Save Video.</span>
+    </div>
+  </section>
 </div>
 
-<canvas id="canvas"></canvas>
-
 <script>
-let img=null,frame=0,playing=false,rows=1,cols=1,fps=10;
-const cvs=document.getElementById('canvas'),ctx=cvs.getContext('2d');
-const playBtn=document.getElementById('playBtn'),pauseBtn=document.getElementById('pauseBtn');
-const recBtn=document.getElementById('recordBtn'),stopRecBtn=document.getElementById('stopRecBtn');
-const fpsSlider=document.getElementById('fps'),fpsLabel=document.getElementById('fpsLabel');
-let recorder,chunks=[];
+/* ---------- State ---------- */
+let img = null;
+let frame = 0;
+let playing = false;
+let rows = 1, cols = 1, fps = 10;
+let loopRAF = 0;
 
-fpsSlider.oninput=()=>{fps=parseInt(fpsSlider.value);fpsLabel.textContent=fps+' fps';};
+const cvs = document.getElementById('canvas');
+const ctx = cvs.getContext('2d');
 
-document.getElementById('fileInput').onchange=e=>{
-  const f=e.target.files[0];
-  if(!f)return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    img=new Image();
-    img.onload=()=>{
-      const fw=img.width/cols,fh=img.height/rows;
-      cvs.width=fw;
-      cvs.height=fh;
-      resizeCanvas();
-      recBtn.disabled=false;
-      playBtn.disabled=false;
+const fileInput = document.getElementById('fileInput');
+const rowsInput = document.getElementById('rows');
+const colsInput = document.getElementById('cols');
+const fpsSlider = document.getElementById('fps');
+const fpsLabel = document.getElementById('fpsLabel');
+
+const playBtn = document.getElementById('playBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const stepBtn = document.getElementById('stepBtn');
+const resetBtn = document.getElementById('resetBtn');
+
+const recBtn = document.getElementById('recordBtn');
+const stopRecBtn = document.getElementById('stopRecBtn');
+
+let recorder = null;
+let chunks = [];
+
+/* ---------- Helpers ---------- */
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+function canCaptureCanvas() {
+  return !!HTMLCanvasElement.prototype.captureStream;
+}
+function pickMime() {
+  if (window.MediaRecorder && MediaRecorder.isTypeSupported('video/mp4')) return 'video/mp4';
+  if (window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) return 'video/webm;codecs=vp9';
+  if (window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm')) return 'video/webm';
+  return '';
+}
+function totalFrames() { return (rows|0) * (cols|0); }
+
+function updateCanvasSizeFromImage() {
+  if (!img || !cols || !rows) return;
+  const fw = Math.max(1, Math.floor(img.width / cols));
+  const fh = Math.max(1, Math.floor(img.height / rows));
+  // Canvas internal resolution (used for drawing & recording)
+  cvs.width = fw;
+  cvs.height = fh;
+  // Responsive CSS sizing is handled by stylesheet (95% width, auto height)
+}
+
+function drawFrame() {
+  if (!img) return;
+  const fw = img.width / cols;
+  const fh = img.height / rows;
+  const sx = (frame % cols) * fw;
+  const sy = Math.floor(frame / cols) * fh;
+  ctx.clearRect(0, 0, cvs.width, cvs.height);
+  ctx.drawImage(img, sx, sy, fw, fh, 0, 0, cvs.width, cvs.height);
+}
+
+function play() {
+  if (!img) return;
+  playing = true;
+  playBtn.disabled = true;
+  pauseBtn.disabled = false;
+  stepBtn.disabled = true;
+  let last = 0;
+  function tick(ts) {
+    if (!playing) return;
+    if (ts - last > 1000 / fps) {
+      frame = (frame + 1) % totalFrames();
       drawFrame();
-    };
-    img.src=ev.target.result;
-  };
-  r.readAsDataURL(f);
-};
-document.getElementById('rows').oninput=e=>{rows=parseInt(e.target.value)||1; if(img) resetFrame();}
-document.getElementById('cols').oninput=e=>{cols=parseInt(e.target.value)||1; if(img) resetFrame();}
-
-function resetFrame(){
-  frame=0;
-  const fw=img.width/cols,fh=img.height/rows;
-  cvs.width=fw; cvs.height=fh;
-  resizeCanvas();
+      last = ts;
+    }
+    loopRAF = requestAnimationFrame(tick);
+  }
+  loopRAF = requestAnimationFrame(tick);
+}
+function pause() {
+  playing = false;
+  playBtn.disabled = false;
+  pauseBtn.disabled = true;
+  stepBtn.disabled = false;
+  if (loopRAF) cancelAnimationFrame(loopRAF);
+}
+function stepOnce() {
+  if (!img) return;
+  frame = (frame + 1) % totalFrames();
+  drawFrame();
+}
+function resetAnim() {
+  frame = 0;
   drawFrame();
 }
 
-function drawFrame(){
-  if(!img)return;
-  const fw=img.width/cols,fh=img.height/rows;
-  const x=(frame%cols)*fw,y=Math.floor(frame/cols)*fh;
-  ctx.clearRect(0,0,cvs.width,cvs.height);
-  ctx.drawImage(img,x,y,fw,fh,0,0,cvs.width,cvs.height);
-}
-
-let loop;
-function play(){
-  playing=true; playBtn.disabled=true; pauseBtn.disabled=false;
-  let last=0;
-  loop=requestAnimationFrame(function anim(ts){
-    if(!playing)return;
-    if(ts-last>1000/fps){
-      frame=(frame+1)%(rows*cols);
-      drawFrame(); last=ts;
-    }
-    loop=requestAnimationFrame(anim);
-  });
-}
-function pause(){playing=false; playBtn.disabled=false; pauseBtn.disabled=true;}
-
-playBtn.onclick=play;
-pauseBtn.onclick=pause;
-
-// Recording
-recBtn.onclick=()=>{
-  const stream=cvs.captureStream(fps);
-  recorder=new MediaRecorder(stream,{mimeType:'video/webm;codecs=vp9'});
-  chunks=[];
-  recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-  recorder.onstop=saveVideo;
-  recorder.start();
-  recBtn.disabled=true; stopRecBtn.disabled=false;
-  if(!playing)play();
+/* ---------- UI Wiring ---------- */
+fpsSlider.oninput = () => {
+  fps = parseInt(fpsSlider.value, 10) || 10;
+  fpsLabel.textContent = `${fps} fps`;
 };
-stopRecBtn.onclick=()=>{
-  recorder.stop();
-  recBtn.disabled=false; stopRecBtn.disabled=true;
+
+rowsInput.oninput = () => {
+  rows = Math.max(1, parseInt(rowsInput.value, 10) || 1);
+  if (img) {
+    updateCanvasSizeFromImage();
+    resetAnim();
+  }
+};
+colsInput.oninput = () => {
+  cols = Math.max(1, parseInt(colsInput.value, 10) || 1);
+  if (img) {
+    updateCanvasSizeFromImage();
+    resetAnim();
+  }
+};
+
+fileInput.onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = (ev) => {
+    const im = new Image();
+    im.onload = () => {
+      img = im;
+      // ensure we use current rows/cols values
+      rows = Math.max(1, parseInt(rowsInput.value, 10) || 1);
+      cols = Math.max(1, parseInt(colsInput.value, 10) || 1);
+      updateCanvasSizeFromImage();
+      drawFrame();
+      playBtn.disabled = false;
+      pauseBtn.disabled = true;
+      stepBtn.disabled = false;
+      resetBtn.disabled = false;
+      // Enable record if supported
+      recBtn.disabled = !(canCaptureCanvas() && !!pickMime());
+    };
+    im.src = ev.target.result;
+  };
+  r.readAsDataURL(f);
+};
+
+playBtn.onclick = play;
+pauseBtn.onclick = pause;
+stepBtn.onclick = stepOnce;
+resetBtn.onclick = resetAnim;
+
+/* ---------- Recording (with iOS-friendly save) ---------- */
+recBtn.onclick = () => {
+  const mime = pickMime();
+  if (!canCaptureCanvas() || !window.MediaRecorder || !mime) {
+    alert('Recording not supported in this browser. (iOS without captureStream is a common case.)');
+    return;
+  }
+  const stream = cvs.captureStream(Math.max(1, fps));
+  chunks = [];
+  recorder = new MediaRecorder(stream, { mimeType: mime });
+  recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  recorder.onstop = () => saveVideo(mime);
+  recorder.start();
+  recBtn.disabled = true;
+  stopRecBtn.disabled = false;
+  if (!playing) play();
+};
+
+stopRecBtn.onclick = () => {
+  if (recorder && recorder.state !== 'inactive') recorder.stop();
+  recBtn.disabled = false;
+  stopRecBtn.disabled = true;
   pause();
 };
-function saveVideo(){
-  const blob=new Blob(chunks,{type:'video/webm'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='sprite.mp4'; // actually WebM format
+
+function saveVideo(mime) {
+  const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+  const blob = new Blob(chunks, { type: mime });
+  const url = URL.createObjectURL(blob);
+
+  // iOS Safari: open in new tab so user can Share → Save Video
+  if (isIOS()) {
+    window.open(url, '_blank');
+    return;
+  }
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sprite.${ext}`;
+  document.body.appendChild(a);
   a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
-// Responsive canvas scaling
-function resizeCanvas(){
-  const maxW=window.innerWidth*0.95;
-  const scale=Math.min(maxW/cvs.width,1);
-  cvs.style.width=cvs.width*scale+'px';
-  cvs.style.height=cvs.height*scale+'px';
-}
-window.addEventListener('resize',resizeCanvas);
+/* ---------- Responsive behavior ---------- */
+// Canvas CSS handles max width (95vw). No JS needed for centering.
+// Still, redraw current frame on resize for crispness (no effect on logic).
+window.addEventListener('resize', () => { if (img) drawFrame(); });
 </script>
 </body>
 </html>
