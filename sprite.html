@@ -6,14 +6,37 @@
 <title>Sprite Sheet Player + MPEG Export</title>
 <style>
   body {
-    background:#0f1115;color:#eee;font-family:sans-serif;margin:0;padding:20px;
-    display:flex;flex-direction:column;align-items:center;gap:12px;
-    -webkit-user-select:none;user-select:none;
+    background:#0f1115;
+    color:#eee;
+    font-family:sans-serif;
+    margin:0;
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+    -webkit-user-select:none;
+    user-select:none;
   }
-  canvas {background:#000;border:1px solid #444;image-rendering:pixelated;}
-  .controls{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;}
-  label{font-size:14px;}
-  input,button{font-size:14px;padding:6px 10px;}
+  h2 { margin: 0 0 10px 0; text-align:center; }
+  canvas {
+    background:#000;
+    border:1px solid #444;
+    image-rendering:pixelated;
+    display:block;
+    max-width:95vw;
+    width:95%;
+    height:auto;
+    margin:0 auto;
+  }
+  .controls {
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    justify-content:center;
+  }
+  label {font-size:14px;}
+  input,button {font-size:14px;padding:6px 10px;}
 </style>
 </head>
 <body>
@@ -32,7 +55,7 @@
   <button id="stopRecBtn" disabled>Stop & Download MPEG</button>
 </div>
 
-<canvas id="canvas" width="300" height="300"></canvas>
+<canvas id="canvas"></canvas>
 
 <script>
 let img=null,frame=0,playing=false,rows=1,cols=1,fps=10;
@@ -51,8 +74,10 @@ document.getElementById('fileInput').onchange=e=>{
   r.onload=ev=>{
     img=new Image();
     img.onload=()=>{
-      cvs.width=img.width/cols;
-      cvs.height=img.height/rows;
+      const fw=img.width/cols,fh=img.height/rows;
+      cvs.width=fw;
+      cvs.height=fh;
+      resizeCanvas();
       recBtn.disabled=false;
       playBtn.disabled=false;
       drawFrame();
@@ -61,8 +86,16 @@ document.getElementById('fileInput').onchange=e=>{
   };
   r.readAsDataURL(f);
 };
-document.getElementById('rows').oninput=e=>rows=parseInt(e.target.value)||1;
-document.getElementById('cols').oninput=e=>cols=parseInt(e.target.value)||1;
+document.getElementById('rows').oninput=e=>{rows=parseInt(e.target.value)||1; if(img) resetFrame();}
+document.getElementById('cols').oninput=e=>{cols=parseInt(e.target.value)||1; if(img) resetFrame();}
+
+function resetFrame(){
+  frame=0;
+  const fw=img.width/cols,fh=img.height/rows;
+  cvs.width=fw; cvs.height=fh;
+  resizeCanvas();
+  drawFrame();
+}
 
 function drawFrame(){
   if(!img)return;
@@ -110,9 +143,18 @@ function saveVideo(){
   const blob=new Blob(chunks,{type:'video/webm'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download='sprite.mp4'; // webm file but renamed to .mp4 for convenience
+  a.download='sprite.mp4'; // actually WebM format
   a.click();
 }
+
+// Responsive canvas scaling
+function resizeCanvas(){
+  const maxW=window.innerWidth*0.95;
+  const scale=Math.min(maxW/cvs.width,1);
+  cvs.style.width=cvs.width*scale+'px';
+  cvs.style.height=cvs.height*scale+'px';
+}
+window.addEventListener('resize',resizeCanvas);
 </script>
 </body>
 </html>
