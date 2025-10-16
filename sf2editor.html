@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SoundFont Explorer & Advanced Zone Editor</title>
+<script src="https://cdn.jsdelivr.net/npm/soundfont2@1.0.0/dist/soundfont2.min.js"></script>
+<style>
+body {
+  font-family: system-ui, sans-serif;
+  margin: 0; padding: 0;
+  background: #f5f6f7;
+  color: #222;
+}
+header {
+  background: #222; color: #fff;
+  padding: 10px 16px; font-size: 18px; font-weight: 600;
+}
+main {
+  display: flex; flex-wrap: wrap;
+  gap: 16px; padding: 16px;
+}
+#sidebar {
+  flex: 1 1 280px;
+  max-width: 340px;
+  background: white;
+  border-radius: 8px;
+  padding: 10px;
+  overflow-y: auto;
+  height: 85vh;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+#editorPanel {
+  flex: 3 1 600px;
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+ul { list-style: none; padding-left: 10px; }
+li { cursor: pointer; margin: 3px 0; }
+li:hover { background: #eef; }
+canvas {
+  width: 100%; height: 200px;
+  border: 1px solid #ccc;
+  margin-bottom: 8px;
+}
+.editor label {
+  display: block; margin-top: 6px;
+  font-size: 13px;
+}
+.editor input[type=number] {
+  width: 100%;
+  box-sizing: border-box;
+}
+#adsrCanvas {
+  width: 100%;
+  height: 160px;
+  border: 1px solid #ccc;
+  background: #fafafa;
+  margin-top: 10px;
+}
+button {
+  margin-top: 8px; font-size: 14px;
+}
+</style>
+</head>
+<body>
+<header>🎹 SoundFont Explorer & Advanced Zone Editor</header>
+<main>
+  <section id="sidebar">
+    <input type="file" id="sf2file" accept=".sf2">
+    <h3>Presets</h3>
+    <ul id="presetList"></ul>
+  </section>
+  <section id="editorPanel">
+    <h2 id="zoneTitle">No zone selected</h2>
+    <canvas id="waveCanvas"></canvas>
+    <canvas id="adsrCanvas"></canvas>
+    <button id="playBtn" disabled>▶️ Play Sample</button>
+    <div class="editor" id="zoneEditor"></div>
+    <button id="saveBtn" disabled>💾 Save Edited SoundFont</button>
+  </section>
+</main>
+
+<script>
+const fileInput = document.getElementById("sf2file");
+const presetList = document.getElementById("presetList");
+const canvas = document.getElementById("waveCanvas");
+const adsrCanvas = document.getElementById("adsrCanvas");
+const playBtn = document.getElementById("playBtn");
+const saveBtn = document.getElementById("saveBtn");
+const zoneEditor = document.getElementById("zoneEditor");
+const zoneTitle = document.getElementById("zoneTitle");
+const ctx = canvas.getContext("2d");
+const adsrCtx = adsrCanvas.getContext("2d");
+
+let sf2, parsed, currentZone, currentSample, audioCtx;
+
+// Full SoundFont generator fields (per SF2.1 spec)
+const zoneFields = [
+  "keyRangeLow","keyRangeHigh","velRangeLow","velRangeHigh",
+  "rootKey","overridingRootKey",
+  "coarseTune","fineTune","scaleTuning",
+  "pan","initialAttenuation",
+  "initialFilterFc","initialFilterQ",
+  "delayVolEnv","attackVolEnv","holdVolEnv","decayVolEnv","sustainVolEnv","releaseVolEnv",
+  "delayModEnv","attackModEnv","holdModEnv","decayModEnv","sustainModEnv","releaseModEnv",
+  "modEnvToPitch","modEnvToFilterFc",
+  "delayModLFO","freqModLFO","modLFOToPitch","modLFOToFilterFc","modLFOToVolume",
+  "delayVibLFO","freqVibLFO","vibLFOToPitch",
+  "exclusiveClass","sampleModes","sampleRate","sampleStart","sampleEnd","sampleLoopStart","sampleLoopEnd"
+];
+
+fileInput.onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const buf = await file.arrayBuffer();
+  parsed = await SoundFont2.parse(buf);
+  sf2 = parsed;
+  renderPresets(parsed.presets);
+};
+
+function renderPresets(presets) {
+  presetList.innerHTML = '';
+  presets.forEach((preset, i) => {
+    const li = document.createElement('li');
+    li.textContent = `${i}: ${preset.name}`;
+    li.onclick = () => showPreset(preset);
+    presetList.appendChild(li);
+  });
+}
+
+function showPreset(preset) {
+  presetList.querySelectorAll("ul").forEach(u=>u.remove());
+  const ul = document.createElement("ul");
+  preset.instrument?.zones?.forEach((z, idx) => {
+    const li = document.createElement("li");
+    li.textContent = `Zone ${idx+1} → ${z.sample?.name || 'No sample'}`;
+    li.onclick = (ev)=>{ ev.stopPropagation(); showZone(z, preset.name, idx); };
+    ul.appendChild(li);
+  });
+  presetList.appendChild(ul);
+}
+
+function showZone(zone, presetName, idx) {
+  currentZone = zone;
+  currentSample = zone.sample;
+  zoneTitle.textContent = `${presetName} - Zone ${idx+1} (${currentSample?.name||'no sample'})`;
+  drawWave(currentSample);
+  drawADSR(zone);
+  showZoneEditor(zone);
+  playBtn.disabled = false;
+  saveBtn.disabled = false;
+}
+
+function drawWave(sample){
+  if (!sample?.pcm16) return;
+  const data = sample.pcm16;
+  const W = canvas.width = canvas.clientWidth;
+  const H = canvas.height = 200;
+  ctx.clearRect(0,0,W,H);
+  ctx.beginPath();
+  ctx.moveTo(0,H/2);
+  for (let i=0;i<W;i++){
+    const idx = Math.floor(i * data.length / W);
+    const y = H/2 - data[idx]/32768 * H/2;
+    ctx.lineTo(i,y);
+  }
+  ctx.strokeStyle = "#007bff";
+  ctx.stroke();
+
+  // draw loop markers
+  if (sample.loopStart && sample.loopEnd) {
+    const startX = (sample.loopStart / data.length) * W;
+    const endX = (sample.loopEnd / data.length) * W;
+    ctx.strokeStyle = "red";
+    ctx.setLineDash([5,5]);
+    ctx.beginPath();
+    ctx.moveTo(startX,0); ctx.lineTo(startX,H);
+    ctx.moveTo(endX,0); ctx.lineTo(endX,H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawADSR(zone){
+  const W = adsrCanvas.width = adsrCanvas.clientWidth;
+  const H = adsrCanvas.height = 160;
+  adsrCtx.clearRect(0,0,W,H);
+  const env = {
+    delay: zone.delayVolEnv || 0,
+    attack: zone.attackVolEnv || 0.01,
+    hold: zone.holdVolEnv || 0.01,
+    decay: zone.decayVolEnv || 0.2,
+    sustain: zone.sustainVolEnv || 500,
+    release: zone.releaseVolEnv || 0.3
+  };
+  const total = env.delay + env.attack + env.hold + env.decay + env.release + 0.001;
+  const scaleX = W / total;
+  const baseY = H - 10;
+  const sustainY = baseY - env.sustain/1000 * (H-20);
+
+  let x=0;
+  adsrCtx.strokeStyle="#28a745";
+  adsrCtx.beginPath();
+  adsrCtx.moveTo(x, baseY);
+  x += env.delay*scaleX; adsrCtx.lineTo(x, baseY);
+  x += env.attack*scaleX; adsrCtx.lineTo(x, 10);
+  x += env.hold*scaleX; adsrCtx.lineTo(x, 10);
+  x += env.decay*scaleX; adsrCtx.lineTo(x, sustainY);
+  x += env.release*scaleX; adsrCtx.lineTo(W, baseY);
+  adsrCtx.stroke();
+}
+
+playBtn.onclick = () => {
+  if (!currentSample) return;
+  if (!audioCtx) audioCtx = new AudioContext();
+  const buf = audioCtx.createBuffer(1, currentSample.pcm16.length, currentSample.sampleRate);
+  const ch = buf.getChannelData(0);
+  for (let i=0;i<ch.length;i++) ch[i]=currentSample.pcm16[i]/32768;
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  src.connect(audioCtx.destination);
+  src.start();
+};
+
+function showZoneEditor(zone){
+  zoneEditor.innerHTML = '';
+  zoneFields.forEach(key=>{
+    const val = zone[key] ?? '';
+    const label=document.createElement('label');
+    label.textContent = key;
+    const input=document.createElement('input');
+    input.type='number';
+    input.step='any';
+    input.value=val;
+    input.oninput=()=>{
+      zone[key]=parseFloat(input.value)||0;
+      if (key.includes("VolEnv")) drawADSR(zone);
+    };
+    label.appendChild(input);
+    zoneEditor.appendChild(label);
+  });
+}
+
+saveBtn.onclick = async ()=>{
+  try {
+    const blob = await SoundFont2.write(parsed);
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='edited.sf2';
+    a.click();
+  } catch(e){
+    const blob = new Blob([JSON.stringify(parsed,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='edited_soundfont.json';
+    a.click();
+  }
+};
+</script>
+</body>
+</html>
