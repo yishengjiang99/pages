@@ -4,84 +4,23 @@
 <meta charset="UTF-8">
 <title>Logo Editor</title>
 <style>
-html,body{
-  margin:0;
-  padding:0;
-  height:100%;
-  overflow:hidden;
-  touch-action:none;
-  font-family:sans-serif;
-  -webkit-user-select:none;
-  user-select:none;
-}
-#editor{
-  position:absolute;
-  top:0;
-  bottom:140px;
-  left:0;
-  right:0;
-}
-#drawer{
-  position:fixed;
-  top:0;
-  right:-100%;
-  width:80%;
-  max-width:500px;
-  height:100%;
-  background:#fff;
-  box-shadow:-2px 0 5px rgba(0,0,0,0.3);
-  transition:right 0.3s ease;
-  z-index:100;
-  display:flex;
-  flex-direction:column;
-}
-#drawer.show{ right:0; }
-#svgContainer{ flex:1; overflow:hidden; background:#fafafa; }
-#controls{
-  position:fixed;
-  bottom:0;
-  left:0;
-  right:0;
-  background:#eee;
-  display:grid;
-  grid-template-rows:auto auto auto;
-  gap:4px;
-  padding:6px 6px calc(env(safe-area-inset-bottom) + 6px) 6px;
-  z-index:200;
-}
-.controls-row{
-  display:flex;
-  justify-content:space-between;
-  gap:6px;
-}
-button{
-  flex:1;
-  padding:14px;
-  font-size:18px;
-  border:none;
-  border-radius:6px;
-  background:#ddd;
-}
-button:active{ background:#bbb; }
-#toast{
-  position:fixed;
-  bottom:calc(120px + env(safe-area-inset-bottom));
-  left:50%;
-  transform:translateX(-50%);
-  background:#333;
-  color:#fff;
-  padding:10px 16px;
-  border-radius:6px;
-  opacity:0;
-  transition:opacity 0.3s ease;
-  pointer-events:none;
-  z-index:300;
-}
-#toast.show{ opacity:1; }
+html,body{margin:0;padding:0;height:100%;overflow:hidden;font-family:sans-serif;background:#111;color:#eee;touch-action:none;-webkit-user-select:none;user-select:none;}
+#editor{position:absolute;top:0;bottom:140px;left:0;right:0;}
+#drawer{position:fixed;top:0;right:-100%;width:80%;max-width:500px;height:100%;background:#fff;box-shadow:-2px 0 5px rgba(0,0,0,0.3);transition:right 0.3s ease;z-index:100;display:flex;flex-direction:column;touch-action:none;}
+#drawer.show{right:0;}
+#svgContainer{flex:1;overflow:hidden;background:#fafafa;}
+#turtleSVG{width:100%;height:100%;touch-action:none;}
+#controls{position:fixed;bottom:0;left:0;right:0;background:#222;display:grid;grid-template-rows:auto auto auto;gap:4px;padding:6px 4px calc(env(safe-area-inset-bottom) + 6px) 4px;z-index:200;}
+.controls-row{display:flex;justify-content:center;gap:4px;}
+button{flex:1;padding:14px;font-size:18px;border:none;border-radius:6px;background:#444;color:#fff;}
+button:active{background:#666;}
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 16px;border-radius:4px;opacity:0;transition:opacity 0.3s;z-index:300;}
+#toast.show{opacity:1;}
+textarea{width:100%;height:100%;resize:none;font-family:monospace;font-size:16px;padding:8px;box-sizing:border-box;background:#111;color:#eee;border:none;outline:none;}
 </style>
 </head>
 <body>
-<div id="editor"></div>
+<div id="editor"><textarea id="code"></textarea></div>
 <div id="drawer"><div id="svgContainer"><svg id="turtleSVG"></svg></div></div>
 <div id="controls">
  <div class="controls-row">
@@ -106,89 +45,43 @@ button:active{ background:#bbb; }
    <button onclick="showDrawer()">Show</button>
  </div>
 </div>
-<div id="toast">Link copied!</div>
+<div id="toast"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
 <script>
-let editor, markers=[];
-require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
-require(['vs/editor/editor.main'], function(){
-  editor = monaco.editor.create(document.getElementById('editor'), {
-    value:'',
-    language:'plaintext',
-    theme:'vs-dark',
-    automaticLayout:true,
-    minimap:{enabled:false}
-  });
+const textarea=document.getElementById('code');
+const svg=document.getElementById('turtleSVG');
+let turtle, zoom=1, pan={x:0,y:0}, paths=[];
 
-  // Long press cmd palette stub
-  let pressTimer;
-  editor.onMouseDown(()=>{
-    clearTimeout(pressTimer);
-    pressTimer=setTimeout(()=>{alert('Command Palette (not yet implemented)');},600);
-  });
-  editor.onMouseUp(()=>clearTimeout(pressTimer));
-
-  // Parse check
-  editor.onDidChangeModelContent(()=>{
-    const input=editor.getValue();
-    try{
-      tokenizeInput(input);
-      // do not clear markers unless parsing succeeds
-      clearMarkers();
-    }catch(e){
-      markError(e.message);
-    }
-  });
-
-  // Load from hash
-  const hash=location.hash.slice(1);
-  if(hash){
-    try{ editor.setValue(atob(hash)); }catch(e){}
-  } else {
-    editor.setValue(`CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`);
-  }
-
-  try{ tokenizeInput(editor.getValue()); clearMarkers(); }
-  catch(e){ markError(e.message); }
-});
-
-function clearMarkers(){ monaco.editor.setModelMarkers(editor.getModel(),"owner",[]); }
-function markError(msg){ monaco.editor.setModelMarkers(editor.getModel(),"owner",[{
-  startLineNumber:1,startColumn:1,endLineNumber:1,endColumn:1,
-  message:msg,severity:monaco.MarkerSeverity.Error
-}]); }
-function appendCommand(cmd){
-  const pos=editor.getPosition();
-  editor.executeEdits("insert-cmd",[{
-    range:new monaco.Range(pos.lineNumber,pos.column,pos.lineNumber,pos.column),
-    text:cmd+" ",
-    forceMoveMarkers:true
-  }]);
-  editor.focus();
+// --- Toast ---
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2000);
 }
-function resetEditor(){ editor.setValue(''); initTurtle(); }
+
+// --- Editor helpers ---
+function appendCommand(cmd){
+  const start=textarea.selectionStart;
+  const val=textarea.value;
+  textarea.value=val.slice(0,start)+cmd+" "+val.slice(start);
+  textarea.selectionStart=textarea.selectionEnd=start+cmd.length+1;
+  textarea.focus();
+}
+function resetEditor(){ textarea.value=''; initTurtle(); }
 function shareCode(){
-  const val=editor.getValue();
+  const val=textarea.value;
   const url=location.origin+location.pathname+'#'+btoa(val);
   navigator.clipboard.writeText(url);
   showToast("Link copied!");
 }
-function showToast(msg){
-  const toast=document.getElementById('toast');
-  toast.textContent=msg;
-  toast.classList.add('show');
-  setTimeout(()=>toast.classList.remove('show'),2000);
-}
 
-// Drawer
+// --- Drawer ---
 function showDrawer(){ document.getElementById('drawer').classList.add('show'); }
 function openDrawer(){ showDrawer(); }
 function hideDrawer(){ document.getElementById('drawer').classList.remove('show'); }
 
-// Turtle SVG
-const svg=document.getElementById('turtleSVG');
-let turtle, zoom=1, pan={x:0,y:0}, paths=[];
+// --- Turtle SVG ---
 function setSVGSize(){ svg.setAttribute('width','100%'); svg.setAttribute('height','100%'); drawTurtle(); }
 function initTurtle(){ turtle={x:svg.clientWidth/2,y:svg.clientHeight/2,angle:0,penDown:true}; paths=[]; drawTurtle(); }
 function drawTurtle(){
@@ -217,7 +110,7 @@ function moveTurtle(d){
   drawTurtle();
 }
 
-// Tokenizer & executor
+// --- Tokenizer & Executor ---
 function tokenizeInput(input){return input.trim().split(/\s+/);}
 function executeTokens(tokens){
   let i=0;
@@ -248,29 +141,115 @@ function executeTokens(tokens){
   }
   exec();
 }
-function runCommands(){ openDrawer(); initTurtle(); const tokens=tokenizeInput(editor.getValue()); executeTokens(tokens); }
+function runCommands(){ openDrawer(); initTurtle(); const tokens=tokenizeInput(textarea.value); executeTokens(tokens); }
 
-// Zoom/Pan
-let pointers={}, lastDistance=null;
-svg.addEventListener('wheel',e=>{ e.preventDefault(); zoom*=e.deltaY<0?1.1:0.9; drawTurtle(); });
-svg.addEventListener('pointerdown',e=>{ pointers[e.pointerId]=e; svg.setPointerCapture(e.pointerId); e.preventDefault(); });
-svg.addEventListener('pointermove',e=>{
-  if(!pointers[e.pointerId]) return; pointers[e.pointerId]=e; e.preventDefault();
-  const ids=Object.keys(pointers);
-  if(ids.length===1){
-    let dx=e.clientX-pointers[ids[0]].clientX; let dy=e.clientY-pointers[ids[0]].clientY;
-    pan.x+=dx; pan.y+=dy; pointers[ids[0]]=e;
-  } else if(ids.length===2){
-    let t1=pointers[ids[0]],t2=pointers[ids[1]]; let curr=Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY);
-    if(lastDistance!=null){ let scale=curr/lastDistance; zoom*=scale; let midX=(t1.clientX+t2.clientX)/2,midY=(t1.clientY+t2.clientY)/2; pan.x=pan.x*scale+midX*(1-scale); pan.y=pan.y*scale+midY*(1-scale); }
-    lastDistance=curr;
+// --- Zoom / Pan (desktop + mobile) ---
+let isPanning=false, startX=0, startY=0, pinchStartDist=null;
+function distance(t1,t2){ return Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY); }
+
+svg.addEventListener("wheel", e=>{
+  e.preventDefault();
+  zoom *= e.deltaY<0 ? 1.1 : 0.9;
+  drawTurtle();
+},{passive:false});
+
+svg.addEventListener("touchstart", e=>{
+  if(e.touches.length===1){
+    isPanning=true;
+    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+  } else if(e.touches.length===2){
+    pinchStartDist=distance(e.touches[0], e.touches[1]);
+  }
+  e.preventDefault();
+},{passive:false});
+
+svg.addEventListener("touchmove", e=>{
+  if(e.touches.length===1 && isPanning){
+    let dx=e.touches[0].clientX-startX;
+    let dy=e.touches[0].clientY-startY;
+    pan.x+=dx; pan.y+=dy;
+    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
+  } else if(e.touches.length===2 && pinchStartDist){
+    let curr=distance(e.touches[0], e.touches[1]);
+    let scale=curr/pinchStartDist;
+    zoom*=scale;
+    pinchStartDist=curr;
   }
   drawTurtle();
-});
-svg.addEventListener('pointerup',e=>{ delete pointers[e.pointerId]; if(Object.keys(pointers).length<2) lastDistance=null; });
-svg.addEventListener('pointercancel',e=>{ delete pointers[e.pointerId]; if(Object.keys(pointers).length<2) lastDistance=null; });
+  e.preventDefault();
+},{passive:false});
+
+svg.addEventListener("touchend", e=>{
+  if(e.touches.length<2) pinchStartDist=null;
+  if(e.touches.length===0) isPanning=false;
+},{passive:false});
+
 window.addEventListener('resize',setSVGSize);
 setSVGSize(); initTurtle();
+
+// --- Load from hash ---
+const hash=location.hash.slice(1);
+if(hash){
+  try{ textarea.value=atob(hash); }catch(e){}
+} else {
+  textarea.value=`CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`;
+}
+</script>
+
+<!-- NAVIGATION INJECTED -->
+<style>
+  body { margin: 0; font-family: Arial, sans-serif; }
+  header {
+    background: #333; color: white; padding: 10px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: 0; z-index: 1000;
+  }
+  header a { color: white; text-decoration: none; font-weight: bold; }
+  .menu-btn { background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; }
+  .drawer {
+    height: 100%; width: 250px; position: fixed; top: 0; left: -250px;
+    background: #444; overflow-x: hidden; transition: 0.3s; padding-top: 60px;
+    z-index: 999;
+  }
+  .drawer.open { left: 0; }
+  .drawer a {
+    padding: 10px 20px; text-decoration: none; color: white; display: block;
+  }
+  .drawer a:hover { background: #575757; }
+  main { margin: 20px; }
+</style>
+<header>
+  <a href="/index.html">← Back to Index</a>
+  <button class="menu-btn" onclick="toggleDrawer()">☰ Menu</button>
+</header>
+<div id="drawer" class="drawer">
+  <a href="__test__/terrapin.html">terrapin.html</a>
+<a href="afd-slogan-generator.html">afd-slogan-generator.html</a>
+<a href="blinker.html">blinker.html</a>
+<a href="compose.html">compose.html</a>
+<a href="edit-wave-info.html">edit-wave-info.html</a>
+<a href="l2r.html">l2r.html</a>
+<a href="midi2svg.html">midi2svg.html</a>
+<a href="mlogo.html">mlogo.html</a>
+<a href="mocr.html">mocr.html</a>
+<a href="paint.html">paint.html</a>
+<a href="radar.html">radar.html</a>
+<a href="reinforcement-policy-neuron-network.html">reinforcement-policy-neuron-network.html</a>
+<a href="sprite-detect.html">sprite-detect.html</a>
+<a href="sprite.html">sprite.html</a>
+<a href="stolzmonat.html">stolzmonat.html</a>
+<a href="strwidth.html">strwidth.html</a>
+<a href="svgtrace.html">svgtrace.html</a>
+<a href="synth.html">synth.html</a>
+<a href="terrapin.html">terrapin.html</a>
+<a href="tetris.html">tetris.html</a>
+<a href="timer.html">timer.html</a>
+<a href="westerwald.html">westerwald.html</a>
+</div>
+<script>
+  function toggleDrawer() {
+    document.getElementById('drawer').classList.toggle('open');
+  }
 </script>
 </body>
 </html>

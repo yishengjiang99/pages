@@ -1,152 +1,296 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Swipe to Run</title>
-    <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            overflow: hidden; /* This prevents scrolling */
-        }
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            background-color: #333;
-            color: white;
-            font-family: Arial, sans-serif;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        canvas {
-            border: 2px solid #555;
-            background-color: #1a1a1a;
-            cursor: grab;
-            touch-action: none;
-        }
-        #controls {
-            margin-top: 20px;
-            font-size: 1.2em;
-            color: #ccc;
-        }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Sprite Sheet Player + MPEG Export</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --text: #eef1f7;
+    --muted: #a9b2c7;
+    --panel: #151a22;
+    --border: #2a3346;
+    --accent: #4da3ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial; }
+  header { padding:16px; border-bottom:1px solid var(--border); background:#0f1320; text-align:center; }
+  header h1 { margin:0; font-size:18px; }
+  header p { margin:6px 0 0; color:var(--muted); font-size:13px; }
+  .wrap { max-width:1000px; margin:0 auto; padding:16px; display:grid; gap:16px; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; }
+  .controls { display:flex; flex-wrap:wrap; gap:12px; align-items:end; }
+  label { font-size:13px; color:var(--muted); display:flex; align-items:center; gap:8px; }
+  input[type="number"], input[type="file"] { padding:8px 10px; border:1px solid var(--border); border-radius:10px; background:#0f1827; color:var(--text); }
+  input[type="range"] { width:180px; }
+  button { border:1px solid var(--border); background:#1b2333; color:var(--text); padding:10px 14px; border-radius:10px; font-size:14px; }
+  button.primary { background:var(--accent); color:#041427; border-color:#3c88d4; }
+  button:disabled { opacity:.55; }
+  .row { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
+  .hint { color:var(--muted); font-size:12px; }
+  .center { display:flex; justify-content:center; }
+  canvas {
+    background:#000;
+    border:1px dashed var(--border);
+    image-rendering:pixelated;
+    display:block;
+    /* responsive: centered & max 95% device width */
+    width:95%;
+    max-width:95vw;
+    height:auto;
+    margin:0 auto;
+    border-radius:10px;
+  }
+</style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
-    <div id="controls">Swipe left or right on the canvas to make the orc run!</div>
+<header>
+  <h1>Sprite Sheet Player + MPEG Export</h1>
+  <p>Load a sprite sheet, set <strong>Rows × Columns</strong>, choose FPS, play, and export a video.</p>
+</header>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
+<div class="wrap">
+  <section class="panel">
+    <div class="controls">
+      <label>
+        <span>Sprite Sheet:</span>
+        <input type="file" id="fileInput" accept="image/*" />
+      </label>
+      <label>
+        <span>Rows</span>
+        <input type="number" id="rows" value="1" min="1" style="width:80px">
+      </label>
+      <label>
+        <span>Cols</span>
+        <input type="number" id="cols" value="1" min="1" style="width:80px">
+      </label>
+      <label>
+        <span>FPS</span>
+        <input type="range" id="fps" min="1" max="60" value="10">
+        <span id="fpsLabel">10 fps</span>
+      </label>
+      <div class="row">
+        <button id="playBtn" class="primary" disabled>Play</button>
+        <button id="pauseBtn" disabled>Pause</button>
+        <button id="stepBtn" disabled>Step</button>
+        <button id="resetBtn" disabled>Reset</button>
+      </div>
+    </div>
+    <p class="hint">Tip: frame size is computed as <code>image.width / cols</code> × <code>image.height / rows</code>.</p>
+    <div class="center">
+      <canvas id="canvas"></canvas>
+    </div>
+  </section>
 
-        const orcImage = new Image();
-        orcImage.src = 'public/IMG_2678.jpeg'; // Make sure this path is correct
+  <section class="panel">
+    <div class="row">
+      <button id="recordBtn" disabled>Start Record</button>
+      <button id="stopRecBtn" disabled>Stop &amp; Save Video</button>
+      <span class="hint" id="recHint">On iOS Safari, the video opens in a new tab; use Share → Save Video.</span>
+    </div>
+  </section>
+</div>
 
-        // Sprite sheet dimensions
-        const totalFrames = 12;
-        const rows = 3;
-        const cols = 4;
+<script>
+/* ---------- State ---------- */
+let img = null;
+let frame = 0;
+let playing = false;
+let rows = 1, cols = 1, fps = 10;
+let loopRAF = 0;
 
-        // The image dimensions are not provided, but the number of frames and rows/cols are.
-        // We'll calculate the frame size based on a typical 512x512 sprite sheet, which is a common assumption.
-        // This is a placeholder since the image size wasn't provided for this specific request.
-        // For the provided image `IMG_2678.jpeg` (500x380) with 8 frames in one row, the previous code was correct.
-        // I will assume the user has a new 12-frame sprite sheet that fits the 3x4 layout.
-        const sheetWidth = 500; // Using 500x380 as per the previous request
-        const sheetHeight = 380; // This doesn't match the new 3 rows of 4 columns, so the following calculations will be a guess.
-        
-        // Let's assume the user has provided a new image that is 400x300, 4x3 frames.
-        // This makes the math clean for 12 frames.
-        const assumedSheetWidth = 477;
-        const assumedSheetHeight = 350;
+const cvs = document.getElementById('canvas');
+const ctx = cvs.getContext('2d');
 
-        const frameWidth = assumedSheetWidth / cols; // 400 / 4 = 100
-        const frameHeight = assumedSheetHeight / rows; // 300 / 3 = 100
+const fileInput = document.getElementById('fileInput');
+const rowsInput = document.getElementById('rows');
+const colsInput = document.getElementById('cols');
+const fpsSlider = document.getElementById('fps');
+const fpsLabel = document.getElementById('fpsLabel');
 
-        let currentFrame = 0;
-        let gameFrame = 0;
-        const staggerFrames = 5;
+const playBtn = document.getElementById('playBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+const stepBtn = document.getElementById('stepBtn');
+const resetBtn = document.getElementById('resetBtn');
 
-        // Variables for swipe detection
-        let startX = 0;
-        let endX = 0;
-        let direction = 1;
+const recBtn = document.getElementById('recordBtn');
+const stopRecBtn = document.getElementById('stopRecBtn');
 
-        canvas.addEventListener('touchstart', handleStart, { passive: true });
-        canvas.addEventListener('mousedown', handleStart);
-        canvas.addEventListener('touchend', handleEnd);
-        canvas.addEventListener('mouseup', handleEnd);
-        canvas.addEventListener('mouseleave', handleEnd);
+let recorder = null;
+let chunks = [];
 
-        function handleStart(e) {
-            if (e.touches) {
-                startX = e.touches[0].clientX;
-            } else {
-                startX = e.clientX;
-            }
-        }
+/* ---------- Helpers ---------- */
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+function canCaptureCanvas() {
+  return !!HTMLCanvasElement.prototype.captureStream;
+}
+function pickMime() {
+  if (window.MediaRecorder && MediaRecorder.isTypeSupported('video/mp4')) return 'video/mp4';
+  if (window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm;codecs=vp9')) return 'video/webm;codecs=vp9';
+  if (window.MediaRecorder && MediaRecorder.isTypeSupported('video/webm')) return 'video/webm';
+  return '';
+}
+function totalFrames() { return (rows|0) * (cols|0); }
 
-        function handleEnd(e) {
-            if (e.changedTouches) {
-                endX = e.changedTouches[0].clientX;
-            } else {
-                endX = e.clientX;
-            }
+function updateCanvasSizeFromImage() {
+  if (!img || !cols || !rows) return;
+  const fw = Math.max(1, Math.floor(img.width / cols));
+  const fh = Math.max(1, Math.floor(img.height / rows));
+  // Canvas internal resolution (used for drawing & recording)
+  cvs.width = fw;
+  cvs.height = fh;
+  // Responsive CSS sizing is handled by stylesheet (95% width, auto height)
+}
 
-            const swipeDistance = endX - startX;
+function drawFrame() {
+  if (!img) return;
+  const fw = img.width / cols;
+  const fh = img.height / rows;
+  const sx = (frame % cols) * fw;
+  const sy = Math.floor(frame / cols) * fh;
+  ctx.clearRect(0, 0, cvs.width, cvs.height);
+  ctx.drawImage(img, sx, sy, fw, fh, 0, 0, cvs.width, cvs.height);
+}
 
-            if (swipeDistance > 20) {
-                direction = 1;
-            } else if (swipeDistance < -20) {
-                direction = -1;
-            }
-        }
+function play() {
+  if (!img) return;
+  playing = true;
+  playBtn.disabled = true;
+  pauseBtn.disabled = false;
+  stepBtn.disabled = true;
+  let last = 0;
+  function tick(ts) {
+    if (!playing) return;
+    if (ts - last > 1000 / fps) {
+      frame = (frame + 1) % totalFrames();
+      drawFrame();
+      last = ts;
+    }
+    loopRAF = requestAnimationFrame(tick);
+  }
+  loopRAF = requestAnimationFrame(tick);
+}
+function pause() {
+  playing = false;
+  playBtn.disabled = false;
+  pauseBtn.disabled = true;
+  stepBtn.disabled = false;
+  if (loopRAF) cancelAnimationFrame(loopRAF);
+}
+function stepOnce() {
+  if (!img) return;
+  frame = (frame + 1) % totalFrames();
+  drawFrame();
+}
+function resetAnim() {
+  frame = 0;
+  drawFrame();
+}
 
-        orcImage.onload = function() {
-            animate();
-        };
+/* ---------- UI Wiring ---------- */
+fpsSlider.oninput = () => {
+  fps = parseInt(fpsSlider.value, 10) || 10;
+  fpsLabel.textContent = `${fps} fps`;
+};
 
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+rowsInput.oninput = () => {
+  rows = Math.max(1, parseInt(rowsInput.value, 10) || 1);
+  if (img) {
+    updateCanvasSizeFromImage();
+    resetAnim();
+  }
+};
+colsInput.oninput = () => {
+  cols = Math.max(1, parseInt(colsInput.value, 10) || 1);
+  if (img) {
+    updateCanvasSizeFromImage();
+    resetAnim();
+  }
+};
 
-            const frameCol = currentFrame % cols;
-            const frameRow = Math.floor(currentFrame / cols);
-            
-            const frameX = frameCol * frameWidth;
-            const frameY = frameRow * frameHeight;
+fileInput.onchange = (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const r = new FileReader();
+  r.onload = (ev) => {
+    const im = new Image();
+    im.onload = () => {
+      img = im;
+      // ensure we use current rows/cols values
+      rows = Math.max(1, parseInt(rowsInput.value, 10) || 1);
+      cols = Math.max(1, parseInt(colsInput.value, 10) || 1);
+      updateCanvasSizeFromImage();
+      drawFrame();
+      playBtn.disabled = false;
+      pauseBtn.disabled = true;
+      stepBtn.disabled = false;
+      resetBtn.disabled = false;
+      // Enable record if supported
+      recBtn.disabled = !(canCaptureCanvas() && !!pickMime());
+    };
+    im.src = ev.target.result;
+  };
+  r.readAsDataURL(f);
+};
 
-            ctx.save();
+playBtn.onclick = play;
+pauseBtn.onclick = pause;
+stepBtn.onclick = stepOnce;
+resetBtn.onclick = resetAnim;
 
-            const orcX = canvas.width / 2;
-            const orcY = canvas.height / 2;
+/* ---------- Recording (with iOS-friendly save) ---------- */
+recBtn.onclick = () => {
+  const mime = pickMime();
+  if (!canCaptureCanvas() || !window.MediaRecorder || !mime) {
+    alert('Recording not supported in this browser. (iOS without captureStream is a common case.)');
+    return;
+  }
+  const stream = cvs.captureStream(Math.max(1, fps));
+  chunks = [];
+  recorder = new MediaRecorder(stream, { mimeType: mime });
+  recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+  recorder.onstop = () => saveVideo(mime);
+  recorder.start();
+  recBtn.disabled = true;
+  stopRecBtn.disabled = false;
+  if (!playing) play();
+};
 
-            ctx.translate(orcX, orcY);
-            ctx.scale(direction, 1);
+stopRecBtn.onclick = () => {
+  if (recorder && recorder.state !== 'inactive') recorder.stop();
+  recBtn.disabled = false;
+  stopRecBtn.disabled = true;
+  pause();
+};
 
-            ctx.drawImage(
-                orcImage,
-                frameX,
-                frameY,
-                frameWidth,
-                frameHeight,
-                -frameWidth / 2,
-                -frameHeight / 2,
-                frameWidth,
-                frameHeight
-            );
+function saveVideo(mime) {
+  const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+  const blob = new Blob(chunks, { type: mime });
+  const url = URL.createObjectURL(blob);
 
-            ctx.restore();
+  // iOS Safari: open in new tab so user can Share → Save Video
+  if (isIOS()) {
+    window.open(url, '_blank');
+    return;
+  }
 
-            if (gameFrame % staggerFrames === 0) {
-                currentFrame = (currentFrame + 1) % totalFrames;
-            }
-            gameFrame++;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `sprite.${ext}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
-            requestAnimationFrame(animate);
-        }
-    </script>
+/* ---------- Responsive behavior ---------- */
+// Canvas CSS handles max width (95vw). No JS needed for centering.
+// Still, redraw current frame on resize for crispness (no effect on logic).
+window.addEventListener('resize', () => { if (img) drawFrame(); });
+</script>
 </body>
 </html>

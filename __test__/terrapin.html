@@ -1,71 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Metronome Worker</title>
-  <style>
-    body { font-family: sans-serif; padding: 2rem; }
-    #time { font-size: 2rem; margin: 1rem 0; }
-    button { margin: 0.5rem; padding: 0.5rem 1rem; font-size: 1rem; }
-  </style>
-</head>
-<body>
-  <h1>Metronome</h1>
-  <div id="time">0.0</div>
-  <button id="startBtn">Start</button>
-  <button id="pauseBtn">Pause</button>
-  <button id="stopBtn">Stop</button>
-
-  <script>
-    const workerCode = `
-      let intervalId = null;
-      let counter = 0;
-
-      self.onmessage = function (e) {
-        const { command } = e.data;
-
-        if (command === "start") {
-          if (!intervalId) {
-            intervalId = setInterval(() => {
-              counter += 0.1;
-              self.postMessage(counter.toFixed(1));
-            }, 100);
-          }
-        }
-
-        if (command === "pause") {
-          if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
-          }
-        }
-
-        if (command === "stop") {
-          if (intervalId) {
-            clearInterval(intervalId);
-            intervalId = null;
-          }
-          counter = 0;
-          self.postMessage("0.0");
-        }
-      };
-    `;
-
-    const blob = new Blob([workerCode], { type: "application/javascript" });
-    const worker = new Worker(URL.createObjectURL(blob));
-
-    const timeDisplay = document.getElementById("time");
-    worker.onmessage = (e) => {
-      timeDisplay.textContent = e.data;
-    };
-
-    document.getElementById("startBtn").onclick = () =>
-      worker.postMessage({ command: "start" });
-    document.getElementById("pauseBtn").onclick = () =>
-      worker.postMessage({ command: "pause" });
-    document.getElementById("stopBtn").onclick = () =>
-      worker.postMessage({ command: "stop" });
-  </script>
 
 <!-- NAVIGATION INJECTED -->
 <style>
@@ -122,5 +54,4 @@
     document.getElementById('drawer').classList.toggle('open');
   }
 </script>
-</body>
-</html>
+
