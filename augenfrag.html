@@ -99,6 +99,12 @@
         .action-btn:hover {
             background: #5a6268;
         }
+        .export-btn {
+            background: #17a2b8;
+        }
+        .export-btn:hover {
+            background: #138496;
+        }
         #image {
             max-width: 100%;
             height: auto;
@@ -175,6 +181,7 @@
         </div>
         
         <button class="action-btn" onclick="resetFilters()">Reset Defaults</button>
+        <button class="export-btn action-btn" onclick="exportToUrl()">Export Settings to URL</button>
         <button class="action-btn" onclick="downloadImage()">Download Image</button>
     </div>
     
@@ -229,6 +236,35 @@
             conValue.textContent = con;
         }
 
+        // Load settings from URL hash
+        function loadFromUrl() {
+            const hash = window.location.hash.substring(1);
+            if (hash) {
+                try {
+                    const params = new URLSearchParams(hash);
+                    if (params.has('hue')) hueSlider.value = params.get('hue');
+                    if (params.has('sat')) satSlider.value = params.get('sat');
+                    if (params.has('bri')) briSlider.value = params.get('bri');
+                    if (params.has('con')) conSlider.value = params.get('con');
+                    updateFilter();
+                } catch (e) {
+                    console.warn('Invalid URL hash parameters');
+                }
+            }
+        }
+
+        // Export current settings to URL hash
+        function exportToUrl() {
+            const params = new URLSearchParams({
+                hue: hueSlider.value,
+                sat: satSlider.value,
+                bri: briSlider.value,
+                con: conSlider.value
+            });
+            window.location.hash = params.toString();
+            alert('Settings exported to URL! Share this link to load the same filters.');
+        }
+
         // Listen to file upload
         fileInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -278,7 +314,11 @@
             link.href = canvas.toDataURL();
             link.click();
         }
+
+        // Load from URL on page load and hash changes
+        window.addEventListener('load', loadFromUrl);
+        window.addEventListener('hashchange', loadFromUrl);
     </script>
 </body>
 </html>
-```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
+```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
