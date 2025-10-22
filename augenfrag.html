@@ -1,324 +1,245 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Filter Adjuster</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 100%;
-            width: 100%;
-            margin: 0;
-            padding: 10px;
-            background-color: #f4f4f4;
-            box-sizing: border-box;
-            overflow-x: hidden;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
-        h1 {
-            text-align: center;
-            font-size: 1.5em;
-            margin: 0 0 10px 0;
-            flex-shrink: 0;
-        }
-        p {
-            text-align: center;
-            font-size: 0.9em;
-            margin: 0 0 15px 0;
-            flex-shrink: 0;
-        }
-        #fileInput {
-            width: 100%;
-            margin-bottom: 15px;
-            padding: 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 1em;
-            flex-shrink: 0;
-        }
-        #controls {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 10px;
-            flex-shrink: 0;
-            overflow-y: auto;
-            max-height: 40vh; /* Limit controls height for viewport fit */
-        }
-        label {
-            display: block;
-            margin: 12px 0 5px;
-            font-weight: bold;
-            font-size: 0.9em;
-        }
-        input[type="range"] {
-            width: 100%;
-            margin-bottom: 5px;
-        }
-        .value-span {
-            font-size: 0.8em;
-            color: #666;
-            display: block;
-        }
-        .presets {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 5px;
-            margin: 15px 0;
-        }
-        button {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 8px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.8em;
-            min-height: 36px;
-        }
-        button:hover {
-            background: #0056b3;
-        }
-        .preset-btn {
-            background: #28a745;
-            grid-column: span 1;
-        }
-        .preset-btn:hover {
-            background: #218838;
-        }
-        .action-btn {
-            background: #6c757d;
-            width: 100%;
-            margin-top: 10px;
-            font-size: 0.9em;
-        }
-        .action-btn:hover {
-            background: #5a6268;
-        }
-        .export-btn {
-            background: #17a2b8;
-        }
-        .export-btn:hover {
-            background: #138496;
-        }
-        #image {
-            max-width: 100%;
-            height: auto;
-            max-height: 50vh; /* Limit image height for single viewport fit */
-            border-radius: 8px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-            display: block;
-            margin: 0 auto;
-            object-fit: contain;
-            flex: 1;
-        }
-        /* Mobile-specific adjustments */
-        @media (max-width: 600px) {
-            body {
-                padding: 5px;
-            }
-            h1 {
-                font-size: 1.2em;
-            }
-            p {
-                font-size: 0.8em;
-            }
-            #controls {
-                padding: 10px;
-                max-height: 35vh;
-            }
-            .presets {
-                grid-template-columns: 1fr;
-                gap: 5px;
-            }
-            button {
-                padding: 10px;
-                font-size: 0.9em;
-            }
-            label {
-                font-size: 0.8em;
-            }
-            #image {
-                max-height: 40vh;
-            }
-        }
-    </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Image Filter Adjuster</title>
+<style>
+  :root {
+    --bg: #f4f4f4;
+    --card: #fff;
+    --text: #333;
+    --accent: #007bff;
+    --accent-hover: #0056b3;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    font-family: system-ui, -apple-system, sans-serif;
+    color: var(--text);
+    touch-action: manipulation;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 4px;
+    gap: 4px;
+  }
+
+  h1 {
+    font-size: 1em;
+    text-align: center;
+    line-height: 1.2;
+    flex-shrink: 0;
+  }
+  p {
+    font-size: 0.7em;
+    text-align: center;
+    margin-bottom: 4px;
+    color: #666;
+  }
+
+  #fileInput {
+    width: 100%;
+    font-size: 0.8em;
+    padding: 4px;
+  }
+
+  #controls {
+    background: var(--card);
+    border-radius: 6px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+    padding: 6px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  label {
+    font-size: 0.75em;
+    font-weight: 600;
+  }
+  input[type="range"] {
+    width: 100%;
+    accent-color: var(--accent);
+  }
+  .value-span {
+    font-size: 0.7em;
+    text-align: right;
+    color: #666;
+  }
+
+  .presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    justify-content: space-between;
+  }
+  .preset-btn {
+    flex: 1 1 28%;
+    font-size: 0.7em;
+    padding: 4px 0;
+    border-radius: 4px;
+    border: none;
+    background: #28a745;
+    color: white;
+  }
+  .preset-btn:hover { background: #218838; }
+
+  .action-btn {
+    font-size: 0.8em;
+    border: none;
+    border-radius: 4px;
+    padding: 5px;
+    color: white;
+    background: #6c757d;
+  }
+  .export-btn { background: #17a2b8; }
+  .export-btn:hover { background: #138496; }
+
+  #image {
+    flex: 1;
+    width: 100%;
+    height: auto;
+    max-height: 40vh;
+    object-fit: contain;
+    border-radius: 6px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    display: none;
+  }
+
+  @media (max-height: 700px) {
+    h1 { font-size: 0.9em; }
+    label { font-size: 0.7em; }
+    .preset-btn, .action-btn { font-size: 0.65em; padding: 3px 0; }
+  }
+</style>
 </head>
 <body>
-    <h1>Image Filter Adjuster</h1>
-    <p>Upload an image and use sliders or presets for common color profiles to adjust filters in real-time. Perfect for eye color corrections!</p>
-    
-    <input type="file" id="fileInput" accept="image/*">
-    
-    <div id="controls">
-        <label for="hue">Hue Rotate (-180° to 180°)</label>
-        <input type="range" id="hue" min="-180" max="180" value="-15" step="1">
-        <span id="hueValue" class="value-span">-15°</span>
-        
-        <label for="sat">Saturation (0 to 2)</label>
-        <input type="range" id="sat" min="0" max="2" value="1.3" step="0.1">
-        <span id="satValue" class="value-span">1.3</span>
-        
-        <label for="bri">Brightness (0.5 to 1.5)</label>
-        <input type="range" id="bri" min="0.5" max="1.5" value="1.05" step="0.05">
-        <span id="briValue" class="value-span">1.05</span>
-        
-        <label for="con">Contrast (0.5 to 2)</label>
-        <input type="range" id="con" min="0.5" max="2" value="1.1" step="0.1">
-        <span id="conValue" class="value-span">1.1</span>
-        
-        <div class="presets">
-            <button class="preset-btn" onclick="applyPreset('blue-correction')">Blue Correction</button>
-            <button class="preset-btn" onclick="applyPreset('green-enhance')">Green Enhance</button>
-            <button class="preset-btn" onclick="applyPreset('hazel-adjust')">Hazel Adjust</button>
-            <button class="preset-btn" onclick="applyPreset('vintage-warm')">Vintage Warm</button>
-            <button class="preset-btn" onclick="applyPreset('cool-tone')">Cool Tone</button>
-            <button class="preset-btn" onclick="applyPreset('neutral')">Neutral</button>
-        </div>
-        
-        <button class="action-btn" onclick="resetFilters()">Reset Defaults</button>
-        <button class="export-btn action-btn" onclick="exportToUrl()">Export Settings to URL</button>
-        <button class="action-btn" onclick="downloadImage()">Download Image</button>
+  <h1>Image Filter Adjuster</h1>
+  <p>Upload an image, tweak filters, or use presets.</p>
+
+  <input type="file" id="fileInput" accept="image/*">
+
+  <div id="controls">
+    <label>Hue (<span id="hueValue">-15°</span>)</label>
+    <input type="range" id="hue" min="-180" max="180" value="-15" step="1">
+
+    <label>Saturation (<span id="satValue">1.3</span>)</label>
+    <input type="range" id="sat" min="0" max="2" value="1.3" step="0.1">
+
+    <label>Brightness (<span id="briValue">1.05</span>)</label>
+    <input type="range" id="bri" min="0.5" max="1.5" value="1.05" step="0.05">
+
+    <label>Contrast (<span id="conValue">1.1</span>)</label>
+    <input type="range" id="con" min="0.5" max="2" value="1.1" step="0.1">
+
+    <div class="presets">
+      <button class="preset-btn" onclick="applyPreset('blue-correction')">Blue</button>
+      <button class="preset-btn" onclick="applyPreset('green-enhance')">Green</button>
+      <button class="preset-btn" onclick="applyPreset('hazel-adjust')">Hazel</button>
+      <button class="preset-btn" onclick="applyPreset('vintage-warm')">Warm</button>
+      <button class="preset-btn" onclick="applyPreset('cool-tone')">Cool</button>
+      <button class="preset-btn" onclick="applyPreset('neutral')">Neutral</button>
     </div>
-    
-    <img id="image" alt="Uploaded image with filters applied" style="display: none;">
-    
-    <script>
-        const fileInput = document.getElementById('fileInput');
-        const image = document.getElementById('image');
-        const hueSlider = document.getElementById('hue');
-        const satSlider = document.getElementById('sat');
-        const briSlider = document.getElementById('bri');
-        const conSlider = document.getElementById('con');
-        const hueValue = document.getElementById('hueValue');
-        const satValue = document.getElementById('satValue');
-        const briValue = document.getElementById('briValue');
-        const conValue = document.getElementById('conValue');
 
-        // Preset configurations for common profiles
-        const presets = {
-            'blue-correction': { hue: -15, sat: 1.3, bri: 1.05, con: 1.1 },
-            'green-enhance': { hue: 60, sat: 1.4, bri: 1.0, con: 1.15 },
-            'hazel-adjust': { hue: -10, sat: 1.2, bri: 1.1, con: 1.0 },
-            'vintage-warm': { hue: 20, sat: 0.9, bri: 0.95, con: 1.2 },
-            'cool-tone': { hue: -30, sat: 1.1, bri: 1.15, con: 1.05 },
-            'neutral': { hue: 0, sat: 1, bri: 1, con: 1 }
-        };
+    <button class="action-btn" onclick="resetFilters()">Reset</button>
+    <button class="export-btn action-btn" onclick="exportToUrl()">Share</button>
+    <button class="action-btn" onclick="downloadImage()">Download</button>
+  </div>
 
-        // Apply preset
-        function applyPreset(name) {
-            const preset = presets[name];
-            if (preset) {
-                hueSlider.value = preset.hue;
-                satSlider.value = preset.sat;
-                briSlider.value = preset.bri;
-                conSlider.value = preset.con;
-                updateFilter();
-            }
-        }
+  <img id="image" alt="Preview">
 
-        // Update filter on slider change
-        function updateFilter() {
-            const hue = hueSlider.value;
-            const sat = satSlider.value;
-            const bri = briSlider.value;
-            const con = conSlider.value;
-            
-            image.style.filter = `hue-rotate(${hue}deg) saturate(${sat}) brightness(${bri}) contrast(${con})`;
-            
-            hueValue.textContent = `${hue}°`;
-            satValue.textContent = sat;
-            briValue.textContent = bri;
-            conValue.textContent = con;
-        }
+<script>
+const image = document.getElementById('image');
+const sliders = ['hue','sat','bri','con'].map(id=>document.getElementById(id));
+const [hue,sat,bri,con] = sliders;
+const values = {
+  hue:document.getElementById('hueValue'),
+  sat:document.getElementById('satValue'),
+  bri:document.getElementById('briValue'),
+  con:document.getElementById('conValue')
+};
+const DEFAULTS = {hue:-15,sat:1.3,bri:1.05,con:1.1};
 
-        // Load settings from URL hash
-        function loadFromUrl() {
-            const hash = window.location.hash.substring(1);
-            if (hash) {
-                try {
-                    const params = new URLSearchParams(hash);
-                    if (params.has('hue')) hueSlider.value = params.get('hue');
-                    if (params.has('sat')) satSlider.value = params.get('sat');
-                    if (params.has('bri')) briSlider.value = params.get('bri');
-                    if (params.has('con')) conSlider.value = params.get('con');
-                    updateFilter();
-                } catch (e) {
-                    console.warn('Invalid URL hash parameters');
-                }
-            }
-        }
+const presets = {
+  'blue-correction':{hue:-15,sat:1.3,bri:1.05,con:1.1},
+  'green-enhance':{hue:60,sat:1.4,bri:1.0,con:1.15},
+  'hazel-adjust':{hue:-10,sat:1.2,bri:1.1,con:1.0},
+  'vintage-warm':{hue:20,sat:0.9,bri:0.95,con:1.2},
+  'cool-tone':{hue:-30,sat:1.1,bri:1.15,con:1.05},
+  'neutral':{hue:0,sat:1,bri:1,con:1}
+};
 
-        // Export current settings to URL hash
-        function exportToUrl() {
-            const params = new URLSearchParams({
-                hue: hueSlider.value,
-                sat: satSlider.value,
-                bri: briSlider.value,
-                con: conSlider.value
-            });
-            window.location.hash = params.toString();
-            alert('Settings exported to URL! Share this link to load the same filters.');
-        }
+function updateFilter() {
+  const vals={hue:hue.value,sat:sat.value,bri:bri.value,con:con.value};
+  image.style.filter=`hue-rotate(${vals.hue}deg) saturate(${vals.sat}) brightness(${vals.bri}) contrast(${vals.con})`;
+  for (const k in vals) values[k].textContent=k==='hue'?`${vals[k]}°`:vals[k];
+}
 
-        // Listen to file upload
-        fileInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    image.src = e.target.result;
-                    image.style.display = 'block';
-                    updateFilter(); // Apply initial filters
-                };
-                reader.readAsDataURL(file);
-            }
-        });
+function applyPreset(name){
+  const p=presets[name];
+  if(!p) return;
+  for(const k in p) document.getElementById(k).value=p[k];
+  updateFilter();
+}
 
-        // Listen to sliders
-        [hueSlider, satSlider, briSlider, conSlider].forEach(slider => {
-            slider.addEventListener('input', updateFilter);
-        });
+function resetFilters(){
+  for(const k in DEFAULTS) document.getElementById(k).value=DEFAULTS[k];
+  updateFilter();
+}
 
-        // Reset function
-        function resetFilters() {
-            hueSlider.value = -15;
-            satSlider.value = 1.3;
-            briSlider.value = 1.05;
-            conSlider.value = 1.1;
-            updateFilter();
-        }
+function exportToUrl(){
+  const params=new URLSearchParams({
+    hue:hue.value,sat:sat.value,bri:bri.value,con:con.value
+  });
+  history.replaceState(null,'','#'+params.toString());
+  alert('Settings saved to URL.');
+}
 
-        // Download function (creates a canvas copy)
-        function downloadImage() {
-            if (!image.src || image.style.display === 'none') {
-                alert('Please upload an image first!');
-                return;
-            }
-            
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = image.naturalWidth;
-            canvas.height = image.naturalHeight;
-            
-            // Apply filter to canvas for download
-            ctx.filter = image.style.filter;
-            ctx.drawImage(image, 0, 0);
-            
-            const link = document.createElement('a');
-            link.download = 'filtered-image.png';
-            link.href = canvas.toDataURL();
-            link.click();
-        }
+function loadFromUrl(){
+  const hash=window.location.hash.substring(1);
+  if(!hash) return;
+  const params=new URLSearchParams(hash);
+  for(const k of ['hue','sat','bri','con'])
+    if(params.has(k)) document.getElementById(k).value=params.get(k);
+  updateFilter();
+}
 
-        // Load from URL on page load and hash changes
-        window.addEventListener('load', loadFromUrl);
-        window.addEventListener('hashchange', loadFromUrl);
-    </script>
+document.getElementById('fileInput').addEventListener('change',e=>{
+  const file=e.target.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    image.src=ev.target.result;
+    image.style.display='block';
+    updateFilter();
+  };
+  reader.readAsDataURL(file);
+});
+
+sliders.forEach(s=>s.addEventListener('input',updateFilter));
+
+function downloadImage(){
+  if(!image.src){alert('Upload an image first');return;}
+  const c=document.createElement('canvas');
+  const ctx=c.getContext('2d');
+  c.width=image.naturalWidth; c.height=image.naturalHeight;
+  ctx.filter=image.style.filter;
+  ctx.drawImage(image,0,0);
+  const link=document.createElement('a');
+  link.download='filtered-image.png';
+  link.href=c.toDataURL('image/png');
+  if(link.click) link.click(); else window.open(link.href,'_blank');
+}
+
+window.addEventListener('load',loadFromUrl);
+window.addEventListener('hashchange',loadFromUrl);
+</script>
 </body>
 </html>
-```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
