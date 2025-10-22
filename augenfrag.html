@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Filter Adjuster</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        #controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: bold;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin-bottom: 10px;
+        }
+        #image {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            display: block;
+            margin: 0 auto;
+        }
+        #fileInput {
+            margin-bottom: 20px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Filter Adjuster</h1>
+    <p>Upload an image and use the sliders to adjust the CSS filters (Hue Rotate, Saturation, Brightness, Contrast) in real-time. Great for correcting eye colors in photos!</p>
+    
+    <input type="file" id="fileInput" accept="image/*">
+    
+    <div id="controls">
+        <label for="hue">Hue Rotate (degrees: -180 to 180)</label>
+        <input type="range" id="hue" min="-180" max="180" value="-15" step="1">
+        <span id="hueValue">-15°</span>
+        
+        <label for="sat">Saturation (0 to 2)</label>
+        <input type="range" id="sat" min="0" max="2" value="1.3" step="0.1">
+        <span id="satValue">1.3</span>
+        
+        <label for="bri">Brightness (0.5 to 1.5)</label>
+        <input type="range" id="bri" min="0.5" max="1.5" value="1.05" step="0.05">
+        <span id="briValue">1.05</span>
+        
+        <label for="con">Contrast (0.5 to 2)</label>
+        <input type="range" id="con" min="0.5" max="2" value="1.1" step="0.1">
+        <span id="conValue">1.1</span>
+        
+        <button onclick="resetFilters()">Reset to Defaults</button>
+        <button onclick="downloadImage()">Download Filtered Image</button>
+    </div>
+    
+    <img id="image" alt="Uploaded image with filters applied" style="display: none;">
+    
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const image = document.getElementById('image');
+        const hueSlider = document.getElementById('hue');
+        const satSlider = document.getElementById('sat');
+        const briSlider = document.getElementById('bri');
+        const conSlider = document.getElementById('con');
+        const hueValue = document.getElementById('hueValue');
+        const satValue = document.getElementById('satValue');
+        const briValue = document.getElementById('briValue');
+        const conValue = document.getElementById('conValue');
+
+        // Update filter on slider change
+        function updateFilter() {
+            const hue = hueSlider.value;
+            const sat = satSlider.value;
+            const bri = briSlider.value;
+            const con = conSlider.value;
+            
+            image.style.filter = `hue-rotate(${hue}deg) saturate(${sat}) brightness(${bri}) contrast(${con})`;
+            
+            hueValue.textContent = `${hue}°`;
+            satValue.textContent = sat;
+            briValue.textContent = bri;
+            conValue.textContent = con;
+        }
+
+        // Listen to file upload
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    image.src = e.target.result;
+                    image.style.display = 'block';
+                    updateFilter(); // Apply initial filters
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Listen to sliders
+        [hueSlider, satSlider, briSlider, conSlider].forEach(slider => {
+            slider.addEventListener('input', updateFilter);
+        });
+
+        // Reset function
+        function resetFilters() {
+            hueSlider.value = -15;
+            satSlider.value = 1.3;
+            briSlider.value = 1.05;
+            conSlider.value = 1.1;
+            updateFilter();
+        }
+
+        // Download function (creates a canvas copy)
+        function downloadImage() {
+            if (!image.src || image.style.display === 'none') {
+                alert('Please upload an image first!');
+                return;
+            }
+            
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = image.naturalWidth;
+            canvas.height = image.naturalHeight;
+            
+            // Temporarily remove filter for clean download, or apply via canvas if needed
+            const originalFilter = image.style.filter;
+            image.style.filter = 'none';
+            
+            ctx.drawImage(image, 0, 0);
+            image.style.filter = originalFilter; // Restore
+            
+            const link = document.createElement('a');
+            link.download = 'filtered-image.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>
+```​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
