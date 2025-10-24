@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mobile-Friendly React To-Do List</title>
+  <title>Daily Habit Tracker</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -22,6 +22,24 @@
       color: #333;
       font-size: 1.5rem;
       margin: 10px 0;
+    }
+    .hero-section {
+      text-align: center;
+      padding: 20px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+    }
+    .hero-section h2 {
+      font-size: 1.3rem;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .hero-section p {
+      font-size: 1rem;
+      color: #555;
+      line-height: 1.5;
     }
     .input-container {
       display: flex;
@@ -56,6 +74,7 @@
     }
     li {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       padding: 12px;
       margin: 8px 0;
@@ -72,34 +91,92 @@
       font-size: 1rem;
       margin: 0 10px;
     }
+    .edit-input {
+      flex-grow: 1;
+      padding: 8px;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin: 0 10px;
+    }
     .checkbox {
       width: 20px;
       height: 20px;
       cursor: pointer;
     }
-    .delete-btn {
+    .action-btn {
       padding: 8px 16px;
       font-size: 0.9rem;
-      background-color: #dc3545;
-      color: white;
+      margin: 2px;
       border: none;
       border-radius: 8px;
       cursor: pointer;
       touch-action: manipulation;
     }
+    .edit-btn {
+      background-color: #007bff;
+      color: white;
+    }
+    .edit-btn:hover {
+      background-color: #0056b3;
+    }
+    .save-btn {
+      background-color: #28a745;
+      color: white;
+    }
+    .save-btn:hover {
+      background-color: #218838;
+    }
+    .cancel-btn {
+      background-color: #6c757d;
+      color: white;
+    }
+    .cancel-btn:hover {
+      background-color: #5a6268;
+    }
+    .delete-btn {
+      background-color: #dc3545;
+      color: white;
+    }
     .delete-btn:hover {
       background-color: #c82333;
+    }
+    .history-squares {
+      display: flex;
+      gap: 4px;
+      margin: 8px 10px;
+    }
+    .square {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+    }
+    .square.completed {
+      background-color: #28a745;
+    }
+    .square.not-completed {
+      background-color: #dc3545;
     }
     @media (max-width: 480px) {
       h1 {
         font-size: 1.2rem;
       }
-      .todo-input, .add-btn, .delete-btn {
+      .hero-section h2 {
+        font-size: 1.1rem;
+      }
+      .hero-section p {
+        font-size: 0.9rem;
+      }
+      .todo-input, .action-btn {
         font-size: 0.9rem;
         padding: 10px;
       }
-      .task-text {
+      .task-text, .edit-input {
         font-size: 0.9rem;
+      }
+      .square {
+        width: 16px;
+        height: 16px;
       }
     }
   </style>
@@ -114,13 +191,49 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <script type="text/babel">
-    function TodoApp() {
+    function HabitTrackerApp() {
       const [todos, setTodos] = React.useState(() => {
-        // Load todos from localStorage on initial render
         const savedTodos = localStorage.getItem('todos');
         return savedTodos ? JSON.parse(savedTodos) : [];
       });
       const [inputValue, setInputValue] = React.useState('');
+      const [editingId, setEditingId] = React.useState(null);
+      const [editText, setEditText] = React.useState('');
+
+      // Function to get the current date in YYYY-MM-DD format
+      const getCurrentDate = () => {
+        const today = new Date();
+        return today.toISOString().split('T')[0];
+      };
+
+      // Reset completion status daily
+      React.useEffect(() => {
+        const checkAndResetTodos = () => {
+          const today = getCurrentDate();
+          const savedDate = localStorage.getItem('lastResetDate');
+
+          if (savedDate !== today) {
+            setTodos((prevTodos) => {
+              const updatedTodos = prevTodos.map((todo) => {
+                const history = todo.history || [];
+                const last7Days = history.slice(-6);
+                return {
+                  ...todo,
+                  completed: false,
+                  history: [...last7Days, { date: today, completed: todo.completed }],
+                };
+              });
+              localStorage.setItem('todos', JSON.stringify(updatedTodos));
+              localStorage.setItem('lastResetDate', today);
+              return updatedTodos;
+            });
+          }
+        };
+
+        checkAndResetTodos();
+        const interval = setInterval(checkAndResetTodos, 60000);
+        return () => clearInterval(interval);
+      }, []);
 
       // Save todos to localStorage whenever they change
       React.useEffect(() => {
@@ -129,7 +242,15 @@
 
       const addTodo = () => {
         if (inputValue.trim()) {
-          setTodos([...todos, { id: Date.now(), text: inputValue.trim(), completed: false }]);
+          setTodos([
+            ...todos,
+            {
+              id: Date.now(),
+              text: inputValue.trim(),
+              completed: false,
+              history: [{ date: getCurrentDate(), completed: false }],
+            },
+          ]);
           setInputValue('');
         }
       };
@@ -144,6 +265,29 @@
 
       const deleteTodo = (id) => {
         setTodos(todos.filter((todo) => todo.id !== id));
+        if (editingId === id) setEditingId(null);
+      };
+
+      const startEditing = (id, text) => {
+        setEditingId(id);
+        setEditText(text);
+      };
+
+      const saveEdit = (id) => {
+        if (editText.trim()) {
+          setTodos(
+            todos.map((todo) =>
+              todo.id === id ? { ...todo, text: editText.trim() } : todo
+            )
+          );
+          setEditingId(null);
+          setEditText('');
+        }
+      };
+
+      const cancelEdit = () => {
+        setEditingId(null);
+        setEditText('');
       };
 
       const handleKeyPress = (e) => {
@@ -152,9 +296,15 @@
         }
       };
 
+      const handleEditKeyPress = (e, id) => {
+        if (e.key === 'Enter') {
+          saveEdit(id);
+        }
+      };
+
       return (
         <div className="container">
-          <h1>To-Do List</h1>
+          <h1>Daily Habit Tracker</h1>
           <div className="input-container">
             <input
               type="text"
@@ -162,12 +312,20 @@
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Add a new task"
+              placeholder="Add a new habit"
             />
             <button className="add-btn" onClick={addTodo}>
               Add
             </button>
           </div>
+          {todos.length === 0 && (
+            <div className="hero-section">
+              <h2>Welcome to Your Daily Habit Tracker</h2>
+              <p>
+                Build better habits with ease! Add habits you want to track daily, mark them as completed each day, and watch your progress with a 7-day history of green (completed) and red (not completed) squares. Your habits reset daily to keep you motivated, and all data is saved locally to persist across sessions.
+              </p>
+            </div>
+          )}
           <ul>
             {todos.map((todo) => (
               <li key={todo.id} className={todo.completed ? 'completed' : ''}>
@@ -177,10 +335,51 @@
                   checked={todo.completed}
                   onChange={() => toggleTodo(todo.id)}
                 />
-                <span className="task-text">{todo.text}</span>
-                <button className="delete-btn" onClick={() => deleteTodo(todo.id)}>
-                  Delete
-                </button>
+                {editingId === todo.id ? (
+                  <>
+                    <input
+                      type="text"
+                      className="edit-input"
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyPress={(e) => handleEditKeyPress(e, todo.id)}
+                    />
+                    <button
+                      className="action-btn save-btn"
+                      onClick={() => saveEdit(todo.id)}
+                    >
+                      Save
+                    </button>
+                    <button className="action-btn cancel-btn" onClick={cancelEdit}>
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="task-text">{todo.text}</span>
+                    <button
+                      className="action-btn edit-btn"
+                      onClick={() => startEditing(todo.id, todo.text)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="action-btn delete-btn"
+                      onClick={() => deleteTodo(todo.id)}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+                <div className="history-squares">
+                  {(todo.history || []).slice(-7).map((day, index) => (
+                    <div
+                      key={index}
+                      className={`square ${day.completed ? 'completed' : 'not-completed'}`}
+                      title={day.date}
+                    ></div>
+                  ))}
+                </div>
               </li>
             ))}
           </ul>
@@ -189,7 +388,7 @@
     }
 
     // Render the app
-    ReactDOM.render(<TodoApp />, document.getElementById('root'));
+    ReactDOM.render(<HabitTrackerApp />, document.getElementById('root'));
   </script>
 </body>
 </html>
