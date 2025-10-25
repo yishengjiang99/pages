@@ -1,135 +1,222 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>Daily Habit Tracker</title>
   <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 10px; background-color: #f5f5f5; min-height: 100vh; }
-    .container { max-width: 100%; margin: 0 auto; padding: 10px; }
+    /* --- Global mobile/iOS hardening --- */
+    * { box-sizing: border-box; }
+    html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+    html, body { touch-action: pan-y; } /* Prefer vertical panning only */
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0; padding: 10px; background-color: #f5f5f5; min-height: 100vh;
+      -webkit-text-size-adjust: 100%;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Prevent text selection everywhere except inputs/buttons */
+    body, body * { user-select: none; -webkit-user-select: none; }
+    input, textarea, button, .allow-select {
+      user-select: text !important; -webkit-user-select: text !important;
+      -webkit-touch-callout: default !important;
+    }
+
+    .container { max-width: 100vw; margin: 0 auto; padding: 10px; }
     h1 { text-align: center; color: #333; font-size: 1.5rem; margin: 10px 0; }
-    .hero-section { text-align: center; padding: 20px; background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; }
+
+    .hero-section {
+      text-align: center; padding: 20px; background-color: #fff;
+      border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+    }
     .hero-section h2 { font-size: 1.3rem; color: #333; margin-bottom: 10px; }
-    .hero-section p { font-size: 1rem; color: #555; line-height: 1.5; }
-    .input-container { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
-    .todo-input { flex: 1; padding: 12px; font-size: 1rem; border: 1px solid #ccc; border-radius: 8px; min-width: 0; }
-    .add-btn { padding: 12px 20px; font-size: 1rem; background-color: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; touch-action: manipulation; }
+    .hero-section p  { font-size: 1rem; color: #555; line-height: 1.5; }
+
+    .top-row {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+      margin-bottom: 12px;
+    }
+    .input-container { display: flex; flex: 1 1 280px; gap: 10px; min-width: 0; }
+    .todo-input {
+      flex: 1; padding: 12px; font-size: 1rem; border: 1px solid #ccc;
+      border-radius: 8px; min-width: 0;
+    }
+    .add-btn, .action-btn {
+      padding: 12px 16px; font-size: 1rem; border: none; border-radius: 8px;
+      cursor: pointer; touch-action: manipulation;
+    }
+    .add-btn { background-color: #28a745; color: #fff; }
     .add-btn:hover { background-color: #218838; }
-    ul { list-style: none; padding: 0; }
-    li { display: flex; flex-wrap: wrap; align-items: center; padding: 12px; margin: 8px 0; background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: move; }
+
+    .right-controls { display: flex; gap: 8px; align-items: center; }
+    .clear-btn { background-color: #dc3545; color: #fff; }
+    .clear-btn:hover { background-color: #c82333; }
+    .progress {
+      font-size: 0.95rem; color: #333; white-space: nowrap;
+    }
+
+    ul { list-style: none; padding: 0; margin: 0; }
+    li {
+      display: flex; flex-wrap: wrap; align-items: center; padding: 12px; margin: 8px 0;
+      background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      cursor: grab; width: 100%;
+    }
     li.completed { background-color: #e9ecef; }
     li.dragging { opacity: 0.5; background-color: #f0f0f0; }
     li.drag-over { border: 2px dashed #007bff; }
-    .task-text { flex-grow: 1; font-size: 1rem; margin: 0 10px; }
-    .task-text.completed { text-decoration: line-through; }
-    .edit-input { flex-grow: 1; padding: 8px; font-size: 1rem; border: 1px solid #ccc; border-radius: 8px; margin: 0 10px; }
-    .edit-input.completed { text-decoration: line-through; }
+
     .checkbox { width: 20px; height: 20px; cursor: pointer; }
-    .action-btn { padding: 8px 16px; font-size: 0.9rem; margin: 2px; border: none; border-radius: 8px; cursor: pointer; touch-action: manipulation; }
-    .edit-btn { background-color: #007bff; color: white; }
+    .task-text {
+      flex: 1 1 auto; min-width: 0; font-size: 1rem; margin: 0 10px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .task-text.completed { text-decoration: line-through; }
+    .edit-input {
+      flex: 1 1 auto; min-width: 0; padding: 8px; font-size: 1rem;
+      border: 1px solid #ccc; border-radius: 8px; margin: 0 10px;
+    }
+    .edit-input.completed { text-decoration: line-through; }
+
+    .mini-move {
+      display: inline-flex; gap: 6px; margin-right: 6px;
+    }
+    .mini-btn {
+      padding: 6px 10px; font-size: 0.85rem; border: none; border-radius: 6px;
+      background: #e9ecef; color: #333; cursor: pointer;
+    }
+
+    .edit-btn { background-color: #007bff; color: #fff; }
     .edit-btn:hover { background-color: #0056b3; }
-    .save-btn { background-color: #28a745; color: white; }
+    .save-btn { background-color: #28a745; color: #fff; }
     .save-btn:hover { background-color: #218838; }
-    .cancel-btn { background-color: #6c757d; color: white; }
+    .cancel-btn { background-color: #6c757d; color: #fff; }
     .cancel-btn:hover { background-color: #5a6268; }
-    .delete-btn { background-color: #dc3545; color: white; }
+    .delete-btn { background-color: #dc3545; color: #fff; }
     .delete-btn:hover { background-color: #c82333; }
-    .history-squares { display: flex; gap: 4px; margin: 8px 10px; }
+
+    .history-squares { display: flex; gap: 4px; margin: 8px 10px; flex-wrap: nowrap; }
     .square { width: 20px; height: 20px; border-radius: 4px; }
     .square.completed { background-color: #28a745; }
     .square.not-completed { background-color: #dc3545; }
-    @media (max-width: 480px) { h1 { font-size: 1.2rem; } .hero-section h2 { font-size: 1.1rem; } .hero-section p { font-size: 0.9rem; } .todo-input, .action-btn { font-size: 0.9rem; padding: 10px; } .task-text, .edit-input { font-size: 0.9rem; } .square { width: 16px; height: 16px; } }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 1.2rem; }
+      .hero-section h2 { font-size: 1.1rem; }
+      .hero-section p  { font-size: 0.9rem; }
+      .todo-input, .action-btn { font-size: 0.95rem; padding: 10px; }
+      .square { width: 16px; height: 16px; }
+    }
   </style>
 </head>
 <body>
   <div id="root"></div>
 
-  <!-- Load React and ReactDOM production builds from CDN -->
+  <!-- React 18 UMD -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 
-  <script type="text/javascript">
-    const { useState, useEffect } = React;
+  <script>
+    const { useState, useEffect, useMemo } = React;
 
     function HabitTrackerApp() {
       const [todos, setTodos] = useState(() => {
-        const savedTodos = localStorage.getItem('todos');
-        return savedTodos ? JSON.parse(savedTodos) : [];
+        const saved = localStorage.getItem('todos');
+        return saved ? JSON.parse(saved) : [];
       });
-      const [tentativeTodos, setTentativeTodos] = useState(todos);
+      const [tentativeTodos, setTentativeTodos] = useState(() => {
+        const saved = localStorage.getItem('todos');
+        return saved ? JSON.parse(saved) : [];
+      });
       const [inputValue, setInputValue] = useState('');
       const [editingId, setEditingId] = useState(null);
       const [editText, setEditText] = useState('');
       const [draggingId, setDraggingId] = useState(null);
 
-      // Sync tentativeTodos when todos changes
+      const isTouch = typeof window !== 'undefined'
+        && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
+      const getDateStr = (d) => d.toISOString().split('T')[0];
+
+      const today = useMemo(() => getDateStr(new Date()), []);
+      const yesterday = useMemo(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 1);
+        return getDateStr(d);
+      }, []);
+
+      // Keep tentative in sync
+      useEffect(() => { setTentativeTodos(todos); }, [todos]);
+
+      // Initialize lastResetDate if missing (first run of the day)
       useEffect(() => {
-        setTentativeTodos(todos);
-      }, [todos]);
+        const savedDate = localStorage.getItem('lastResetDate');
+        if (!savedDate) {
+          localStorage.setItem('lastResetDate', today);
+        }
+      }, [today]);
 
-      // Function to get the current date in YYYY-MM-DD format
-      const getCurrentDate = () => {
-        const today = new Date();
-        return today.toISOString().split('T')[0];
-      };
-
-      // Reset completion status daily
+      // Daily reset (records yesterday's completion and resets for today)
       useEffect(() => {
         const checkAndResetTodos = () => {
-          const today = getCurrentDate();
           const savedDate = localStorage.getItem('lastResetDate');
+          const currentDay = getDateStr(new Date());
 
-          if (savedDate !== today) {
-            setTodos((prevTodos) => {
-              const updatedTodos = prevTodos.map((todo) => {
-                const history = todo.history || [];
-                const last7Days = history.slice(-6);
+          if (savedDate !== currentDay) {
+            setTodos(prev => {
+              const updated = prev.map(todo => {
+                const history = Array.isArray(todo.history) ? todo.history : [];
+                const last6 = history.slice(-6);
+                const recordDate = savedDate || yesterday;
                 return {
                   ...todo,
-                  completed: false,
-                  history: [...last7Days, { date: today, completed: todo.completed }],
+                  // append the completed state of the day we just finished
+                  history: [...last6, { date: recordDate, completed: !!todo.completed }],
+                  // reset for the new day
+                  completed: false
                 };
               });
-              localStorage.setItem('todos', JSON.stringify(updatedTodos));
-              localStorage.setItem('lastResetDate', today);
-              return updatedTodos;
+              localStorage.setItem('todos', JSON.stringify(updated));
+              localStorage.setItem('lastResetDate', currentDay);
+              return updated;
             });
           }
         };
 
+        // Run once on load and then every minute
         checkAndResetTodos();
         const interval = setInterval(checkAndResetTodos, 60000);
         return () => clearInterval(interval);
-      }, []);
+      }, [yesterday]);
 
-      // Save todos to localStorage whenever they change
+      // Persist todos
       useEffect(() => {
         localStorage.setItem('todos', JSON.stringify(todos));
       }, [todos]);
 
       const addTodo = () => {
-        if (inputValue.trim()) {
-          const newTodo = {
-            id: Date.now(),
-            text: inputValue.trim(),
-            completed: false,
-            history: [{ date: getCurrentDate(), completed: false }],
-          };
-          setTodos([...todos, newTodo]);
-          setInputValue('');
-        }
+        const text = inputValue.trim();
+        if (!text) return;
+        const newTodo = {
+          id: Date.now(),
+          text,
+          completed: false,
+          history: [] // keep history empty; we will show today's live state below
+        };
+        setTodos(prev => [...prev, newTodo]);
+        setInputValue('');
       };
 
       const toggleTodo = (id) => {
-        setTodos(
-          todos.map((todo) =>
-            todo.id === id ? { ...todo, completed: !todo.completed } : todo
-          )
-        );
+        setTodos(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
       };
 
       const deleteTodo = (id) => {
-        setTodos(todos.filter((todo) => todo.id !== id));
+        setTodos(prev => prev.filter(t => t.id !== id));
         if (editingId === id) setEditingId(null);
       };
 
@@ -139,15 +226,11 @@
       };
 
       const saveEdit = (id) => {
-        if (editText.trim()) {
-          setTodos(
-            todos.map((todo) =>
-              todo.id === id ? { ...todo, text: editText.trim() } : todo
-            )
-          );
-          setEditingId(null);
-          setEditText('');
-        }
+        const text = editText.trim();
+        if (!text) return;
+        setTodos(prev => prev.map(t => t.id === id ? { ...t, text } : t));
+        setEditingId(null);
+        setEditText('');
       };
 
       const cancelEdit = () => {
@@ -155,194 +238,222 @@
         setEditText('');
       };
 
+      // Desktop drag & drop
       const handleDragStart = (e, id) => {
+        if (isTouch) return; // don't trigger on mobile
         setDraggingId(id);
-        e.dataTransfer.setData('text/plain', id);
+        e.dataTransfer.setData('text/plain', String(id));
       };
-
       const handleDragOver = (e, targetId) => {
+        if (isTouch) return;
         e.preventDefault();
         if (draggingId === targetId) return;
 
-        setTentativeTodos((prevTodos) => {
-          const newTodos = [...prevTodos];
-          const draggedIndex = newTodos.findIndex((todo) => todo.id === Number(draggingId));
-          const targetIndex = newTodos.findIndex((todo) => todo.id === targetId);
-          const [draggedItem] = newTodos.splice(draggedIndex, 1);
-          newTodos.splice(targetIndex, 0, draggedItem);
-          return newTodos;
+        setTentativeTodos(prev => {
+          const next = [...prev];
+          const from = next.findIndex(t => t.id === Number(draggingId));
+          const to = next.findIndex(t => t.id === targetId);
+          if (from === -1 || to === -1) return next;
+          const [item] = next.splice(from, 1);
+          next.splice(to, 0, item);
+          return next;
         });
       };
-
-      const handleDrop = (e, targetId) => {
+      const handleDrop = (e, _targetId) => {
+        if (isTouch) return;
         e.preventDefault();
         setTodos(tentativeTodos);
         setDraggingId(null);
       };
-
       const handleDragEnd = () => {
+        if (isTouch) return;
         setDraggingId(null);
       };
 
-      const handleKeyPress = (e) => {
-        if (e.key === 'Enter') {
-          addTodo();
-        }
+      // Mobile reorder helpers (Up/Down)
+      const moveItem = (arr, from, to) => {
+        const next = [...arr];
+        if (from < 0 || to < 0 || from >= next.length || to >= next.length) return next;
+        const [it] = next.splice(from, 1);
+        next.splice(to, 0, it);
+        return next;
+      };
+      const moveUp = (id) => {
+        setTodos(prev => {
+          const i = prev.findIndex(t => t.id === id);
+          if (i <= 0) return prev;
+          return moveItem(prev, i, i - 1);
+        });
+      };
+      const moveDown = (id) => {
+        setTodos(prev => {
+          const i = prev.findIndex(t => t.id === id);
+          if (i === -1 || i === prev.length - 1) return prev;
+          return moveItem(prev, i, i + 1);
+        });
       };
 
-      const handleEditKeyPress = (e, id) => {
-        if (e.key === 'Enter') {
-          saveEdit(id);
-        }
+      const onInputKeyDown = (e) => {
+        if (e.key === 'Enter') addTodo();
+      };
+      const onEditKeyDown = (e, id) => {
+        if (e.key === 'Enter') saveEdit(id);
       };
 
-      return React.createElement(
-        'div',
-        { className: 'container' },
-        [
-          React.createElement('h1', { key: 'title' }, 'Daily Habit Tracker'),
-          React.createElement(
-            'div',
-            { className: 'input-container', key: 'input-container' },
-            [
+      const clearAll = () => {
+        if (confirm('Clear all habits?')) setTodos([]);
+      };
+
+      const completedCount = useMemo(() => todos.filter(t => t.completed).length, [todos]);
+      const totalCount = todos.length;
+      const progressPct = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
+
+      // Render
+      return React.createElement('div', { className: 'container' }, [
+        React.createElement('h1', { key: 'title' }, 'Daily Habit Tracker'),
+
+        React.createElement('div', { className: 'top-row', key: 'top-row' }, [
+          React.createElement('div', { className: 'input-container', key: 'input-wrap' }, [
+            React.createElement('input', {
+              type: 'text',
+              className: 'todo-input allow-select',
+              value: inputValue,
+              onChange: (e) => setInputValue(e.target.value),
+              onKeyDown: onInputKeyDown,
+              placeholder: 'Add a new habit',
+              key: 'input',
+              inputMode: 'text',
+              autoCapitalize: 'sentences',
+              autoCorrect: 'off',
+              spellCheck: false
+            }),
+            React.createElement('button', { className: 'add-btn', onClick: addTodo, key: 'add' }, 'Add')
+          ]),
+          React.createElement('div', { className: 'right-controls', key: 'right' }, [
+            React.createElement('div', { className: 'progress', key: 'progress', 'aria-live': 'polite' },
+              `Today: ${completedCount}/${totalCount} (${progressPct}%)`
+            ),
+            React.createElement('button', { className: 'clear-btn action-btn', onClick: clearAll, key: 'clear' }, 'Clear All')
+          ])
+        ]),
+
+        tentativeTodos.length === 0
+          ? React.createElement('div', { className: 'hero-section', key: 'hero' }, [
+              React.createElement('h2', { key: 'h2' }, 'Welcome to Your Daily Habit Tracker'),
+              React.createElement('p', { key: 'p' },
+                'Add habits you want to track daily, mark them as completed, and watch your progress. Habits reset each day and a 7-day history shows green (done) / red (not done). All data stays on your device.'
+              )
+            ])
+          : null,
+
+        React.createElement('ul', { key: 'list', role: 'list' },
+          tentativeTodos.map((todo, idx) => {
+            // Compose 7 squares: last 6 history days + today live
+            const squares = [
+              ...(Array.isArray(todo.history) ? todo.history.slice(-6) : []),
+              { date: today, completed: !!todo.completed }
+            ].slice(-7);
+
+            const baseChildren = [
               React.createElement('input', {
-                type: 'text',
-                className: 'todo-input',
-                value: inputValue,
-                onChange: (e) => setInputValue(e.target.value),
-                onKeyPress: handleKeyPress,
-                placeholder: 'Add a new habit',
-                key: 'input',
-              }),
-              React.createElement(
-                'button',
-                { className: 'add-btn', onClick: addTodo, key: 'add-btn' },
-                'Add'
-              ),
-            ]
-          ),
-          tentativeTodos.length === 0
-            ? React.createElement(
-                'div',
-                { className: 'hero-section', key: 'hero' },
-                [
-                  React.createElement('h2', { key: 'hero-title' }, 'Welcome to Your Daily Habit Tracker'),
-                  React.createElement(
-                    'p',
-                    { key: 'hero-text' },
-                    'Build better habits with ease! Add habits you want to track daily, mark them as completed each day, and watch your progress with a 7-day history of green (completed) and red (not completed) squares. Your habits reset daily to keep you motivated, and all data is saved locally to persist across sessions.'
-                  ),
-                ]
-              )
-            : null,
-          React.createElement(
-            'ul',
-            { key: 'todo-list' },
-            tentativeTodos.map((todo) =>
-              React.createElement(
-                'li',
-                {
-                  key: todo.id,
-                  className: `${todo.completed ? 'completed' : ''} ${
-                    draggingId === todo.id ? 'dragging' : ''
-                  } ${
-                    draggingId !== null && draggingId !== todo.id &&
-                    tentativeTodos.findIndex((t) => t.id === todo.id) ===
-                    tentativeTodos.findIndex((t) => t.id === Number(draggingId))
-                      ? 'drag-over'
-                      : ''
-                  }`,
-                  draggable: editingId !== todo.id,
-                  onDragStart: (e) => handleDragStart(e, todo.id),
-                  onDragOver: (e) => handleDragOver(e, todo.id),
-                  onDrop: (e) => handleDrop(e, todo.id),
-                  onDragEnd: handleDragEnd,
-                },
-                [
+                type: 'checkbox',
+                className: 'checkbox',
+                checked: !!todo.completed,
+                onChange: () => toggleTodo(todo.id),
+                key: `cb-${todo.id}`,
+              })
+            ];
+
+            if (isTouch) {
+              baseChildren.push(
+                React.createElement('div', { className: 'mini-move', key: `mv-${todo.id}` }, [
+                  React.createElement('button', {
+                    className: 'mini-btn',
+                    onClick: () => moveUp(todo.id),
+                    key: `up-${todo.id}`,
+                    'aria-label': 'Move up'
+                  }, '▲'),
+                  React.createElement('button', {
+                    className: 'mini-btn',
+                    onClick: () => moveDown(todo.id),
+                    key: `dn-${todo.id}`,
+                    'aria-label': 'Move down'
+                  }, '▼')
+                ])
+              );
+            }
+
+            const contentChildren = editingId === todo.id
+              ? [
                   React.createElement('input', {
-                    type: 'checkbox',
-                    className: 'checkbox',
-                    checked: todo.completed,
-                    onChange: () => toggleTodo(todo.id),
-                    key: `checkbox-${todo.id}`,
+                    type: 'text',
+                    className: `edit-input allow-select ${todo.completed ? 'completed' : ''}`,
+                    value: editText,
+                    onChange: (e) => setEditText(e.target.value),
+                    onKeyDown: (e) => onEditKeyDown(e, todo.id),
+                    key: `edit-${todo.id}`,
+                    inputMode: 'text',
+                    autoCapitalize: 'sentences',
+                    autoCorrect: 'off',
+                    spellCheck: false
                   }),
-                  editingId === todo.id
-                    ? [
-                        React.createElement('input', {
-                          type: 'text',
-                          className: `edit-input ${todo.completed ? 'completed' : ''}`,
-                          value: editText,
-                          onChange: (e) => setEditText(e.target.value),
-                          onKeyPress: (e) => handleEditKeyPress(e, todo.id),
-                          key: `edit-input-${todo.id}`,
-                        }),
-                        React.createElement(
-                          'button',
-                          {
-                            className: 'action-btn save-btn',
-                            onClick: () => saveEdit(todo.id),
-                            key: `save-btn-${todo.id}`,
-                          },
-                          'Save'
-                        ),
-                        React.createElement(
-                          'button',
-                          {
-                            className: 'action-btn cancel-btn',
-                            onClick: cancelEdit,
-                            key: `cancel-btn-${todo.id}`,
-                          },
-                          'Cancel'
-                        ),
-                      ]
-                    : [
-                        React.createElement(
-                          'span',
-                          {
-                            className: `task-text ${todo.completed ? 'completed' : ''}`,
-                            key: `task-text-${todo.id}`,
-                          },
-                          todo.text
-                        ),
-                        React.createElement(
-                          'button',
-                          {
-                            className: 'action-btn edit-btn',
-                            onClick: () => startEditing(todo.id, todo.text),
-                            key: `edit-btn-${todo.id}`,
-                          },
-                          'Edit'
-                        ),
-                        React.createElement(
-                          'button',
-                          {
-                            className: 'action-btn delete-btn',
-                            onClick: () => deleteTodo(todo.id),
-                            key: `delete-btn-${todo.id}`,
-                          },
-                          'Delete'
-                        ),
-                      ],
-                  React.createElement(
-                    'div',
-                    { className: 'history-squares', key: `history-${todo.id}` },
-                    (todo.history || []).slice(-7).map((day, index) =>
-                      React.createElement('div', {
-                        key: `square-${todo.id}-${index}`,
-                        className: `square ${day.completed ? 'completed' : 'not-completed'}`,
-                        title: day.date,
-                      })
-                    )
-                  ),
+                  React.createElement('button', {
+                    className: 'action-btn save-btn',
+                    onClick: () => saveEdit(todo.id),
+                    key: `save-${todo.id}`
+                  }, 'Save'),
+                  React.createElement('button', {
+                    className: 'action-btn cancel-btn',
+                    onClick: cancelEdit,
+                    key: `cancel-${todo.id}`
+                  }, 'Cancel')
                 ]
+              : [
+                  React.createElement('span', {
+                    className: `task-text ${todo.completed ? 'completed' : ''}`,
+                    key: `text-${todo.id}`,
+                    title: todo.text
+                  }, todo.text),
+                  React.createElement('button', {
+                    className: 'action-btn edit-btn',
+                    onClick: () => startEditing(todo.id, todo.text),
+                    key: `editbtn-${todo.id}`
+                  }, 'Edit'),
+                  React.createElement('button', {
+                    className: 'action-btn delete-btn',
+                    onClick: () => deleteTodo(todo.id),
+                    key: `del-${todo.id}`
+                  }, 'Delete')
+                ];
+
+            const history = React.createElement('div', { className: 'history-squares', key: `h-${todo.id}` },
+              squares.map((day, i) =>
+                React.createElement('div', {
+                  key: `sq-${todo.id}-${i}`,
+                  className: `square ${day.completed ? 'completed' : 'not-completed'}`,
+                  title: day.date
+                })
               )
-            )
-          ),
-        ]
-      );
+            );
+
+            return React.createElement('li', {
+              key: todo.id,
+              className: `${todo.completed ? 'completed' : ''} ${draggingId === todo.id ? 'dragging' : ''}`,
+              draggable: !isTouch && editingId !== todo.id,
+              onDragStart: (e) => handleDragStart(e, todo.id),
+              onDragOver: (e) => handleDragOver(e, todo.id),
+              onDrop: (e) => handleDrop(e, todo.id),
+              onDragEnd: handleDragEnd
+            }, [
+              ...baseChildren,
+              ...contentChildren,
+              history
+            ]);
+          })
+        )
+      ]);
     }
 
-    // Render the app
     ReactDOM.render(
       React.createElement(HabitTrackerApp),
       document.getElementById('root')
