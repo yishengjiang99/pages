@@ -47,19 +47,25 @@
   <!-- Load React and ReactDOM production builds from CDN -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <!-- Load Babel for JSX -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <script type="text/babel">
+  <script type="text/javascript">
+    const { useState, useEffect } = React;
+
     function HabitTrackerApp() {
-      const [todos, setTodos] = React.useState(() => {
+      const [todos, setTodos] = useState(() => {
         const savedTodos = localStorage.getItem('todos');
         return savedTodos ? JSON.parse(savedTodos) : [];
       });
-      const [inputValue, setInputValue] = React.useState('');
-      const [editingId, setEditingId] = React.useState(null);
-      const [editText, setEditText] = React.useState('');
-      const [draggingId, setDraggingId] = React.useState(null);
+      const [tentativeTodos, setTentativeTodos] = useState(todos);
+      const [inputValue, setInputValue] = useState('');
+      const [editingId, setEditingId] = useState(null);
+      const [editText, setEditText] = useState('');
+      const [draggingId, setDraggingId] = useState(null);
+
+      // Sync tentativeTodos when todos changes
+      useEffect(() => {
+        setTentativeTodos(todos);
+      }, [todos]);
 
       // Function to get the current date in YYYY-MM-DD format
       const getCurrentDate = () => {
@@ -68,7 +74,7 @@
       };
 
       // Reset completion status daily
-      React.useEffect(() => {
+      useEffect(() => {
         const checkAndResetTodos = () => {
           const today = getCurrentDate();
           const savedDate = localStorage.getItem('lastResetDate');
@@ -97,21 +103,19 @@
       }, []);
 
       // Save todos to localStorage whenever they change
-      React.useEffect(() => {
+      useEffect(() => {
         localStorage.setItem('todos', JSON.stringify(todos));
       }, [todos]);
 
       const addTodo = () => {
         if (inputValue.trim()) {
-          setTodos([
-            ...todos,
-            {
-              id: Date.now(),
-              text: inputValue.trim(),
-              completed: false,
-              history: [{ date: getCurrentDate(), completed: false }],
-            },
-          ]);
+          const newTodo = {
+            id: Date.now(),
+            text: inputValue.trim(),
+            completed: false,
+            history: [{ date: getCurrentDate(), completed: false }],
+          };
+          setTodos([...todos, newTodo]);
           setInputValue('');
         }
       };
@@ -156,23 +160,24 @@
         e.dataTransfer.setData('text/plain', id);
       };
 
-      const handleDragOver = (e) => {
+      const handleDragOver = (e, targetId) => {
         e.preventDefault();
-      };
+        if (draggingId === targetId) return;
 
-      const handleDrop = (e, targetId) => {
-        e.preventDefault();
-        const draggedId = e.dataTransfer.getData('text/plain');
-        if (draggedId === targetId) return;
-
-        setTodos((prevTodos) => {
+        setTentativeTodos((prevTodos) => {
           const newTodos = [...prevTodos];
-          const draggedIndex = newTodos.findIndex((todo) => todo.id === Number(draggedId));
+          const draggedIndex = newTodos.findIndex((todo) => todo.id === Number(draggingId));
           const targetIndex = newTodos.findIndex((todo) => todo.id === targetId);
           const [draggedItem] = newTodos.splice(draggedIndex, 1);
           newTodos.splice(targetIndex, 0, draggedItem);
           return newTodos;
         });
+      };
+
+      const handleDrop = (e, targetId) => {
+        e.preventDefault();
+        setTodos(tentativeTodos);
+        setDraggingId(null);
       };
 
       const handleDragEnd = () => {
@@ -191,107 +196,157 @@
         }
       };
 
-      return (
-        <div className="container">
-          <h1>Daily Habit Tracker</h1>
-          <div className="input-container">
-            <input
-              type="text"
-              className="todo-input"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Add a new habit"
-            />
-            <button className="add-btn" onClick={addTodo}>
-              Add
-            </button>
-          </div>
-          {todos.length === 0 && (
-            <div className="hero-section">
-              <h2>Welcome to Your Daily Habit Tracker</h2>
-              <p>
-                Build better habits with ease! Add habits you want to track daily, mark them as completed each day, and watch your progress with a 7-day history of green (completed) and red (not completed) squares. Your habits reset daily to keep you motivated, and all data is saved locally to persist across sessions.
-              </p>
-            </div>
-          )}
-          <ul>
-            {todos.map((todo) => (
-              <li
-                key={todo.id}
-                className={`${
-                  todo.completed ? 'completed' : ''
-                } ${draggingId === todo.id ? 'dragging' : ''} ${
-                  draggingId !== null && draggingId !== todo.id ? 'drag-over' : ''
-                }`}
-                draggable={editingId !== todo.id}
-                onDragStart={(e) => handleDragStart(e, todo.id)}
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, todo.id)}
-                onDragEnd={handleDragEnd}
-              >
-                <input
-                  type="checkbox"
-                  className="checkbox"
-                  checked={todo.completed}
-                  onChange={() => toggleTodo(todo.id)}
-                />
-                {editingId === todo.id ? (
-                  <>
-                    <input
-                      type="text"
-                      className={`edit-input ${todo.completed ? 'completed' : ''}`}
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      onKeyPress={(e) => handleEditKeyPress(e, todo.id)}
-                    />
-                    <button
-                      className="action-btn save-btn"
-                      onClick={() => saveEdit(todo.id)}
-                    >
-                      Save
-                    </button>
-                    <button className="action-btn cancel-btn" onClick={cancelEdit}>
-                      Cancel
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <span className={`task-text ${todo.completed ? 'completed' : ''}`}>
-                      {todo.text}
-                    </span>
-                    <button
-                      className="action-btn edit-btn"
-                      onClick={() => startEditing(todo.id, todo.text)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="action-btn delete-btn"
-                      onClick={() => deleteTodo(todo.id)}
-                    >
-                      Delete
-                    </button>
-                  </>
-                )}
-                <div className="history-squares">
-                  {(todo.history || []).slice(-7).map((day, index) => (
-                    <div
-                      key={index}
-                      className={`square ${day.completed ? 'completed' : 'not-completed'}`}
-                      title={day.date}
-                    ></div>
-                  ))}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
+      return React.createElement(
+        'div',
+        { className: 'container' },
+        [
+          React.createElement('h1', { key: 'title' }, 'Daily Habit Tracker'),
+          React.createElement(
+            'div',
+            { className: 'input-container', key: 'input-container' },
+            [
+              React.createElement('input', {
+                type: 'text',
+                className: 'todo-input',
+                value: inputValue,
+                onChange: (e) => setInputValue(e.target.value),
+                onKeyPress: handleKeyPress,
+                placeholder: 'Add a new habit',
+                key: 'input',
+              }),
+              React.createElement(
+                'button',
+                { className: 'add-btn', onClick: addTodo, key: 'add-btn' },
+                'Add'
+              ),
+            ]
+          ),
+          tentativeTodos.length === 0
+            ? React.createElement(
+                'div',
+                { className: 'hero-section', key: 'hero' },
+                [
+                  React.createElement('h2', { key: 'hero-title' }, 'Welcome to Your Daily Habit Tracker'),
+                  React.createElement(
+                    'p',
+                    { key: 'hero-text' },
+                    'Build better habits with ease! Add habits you want to track daily, mark them as completed each day, and watch your progress with a 7-day history of green (completed) and red (not completed) squares. Your habits reset daily to keep you motivated, and all data is saved locally to persist across sessions.'
+                  ),
+                ]
+              )
+            : null,
+          React.createElement(
+            'ul',
+            { key: 'todo-list' },
+            tentativeTodos.map((todo) =>
+              React.createElement(
+                'li',
+                {
+                  key: todo.id,
+                  className: `${todo.completed ? 'completed' : ''} ${
+                    draggingId === todo.id ? 'dragging' : ''
+                  } ${
+                    draggingId !== null && draggingId !== todo.id &&
+                    tentativeTodos.findIndex((t) => t.id === todo.id) ===
+                    tentativeTodos.findIndex((t) => t.id === Number(draggingId))
+                      ? 'drag-over'
+                      : ''
+                  }`,
+                  draggable: editingId !== todo.id,
+                  onDragStart: (e) => handleDragStart(e, todo.id),
+                  onDragOver: (e) => handleDragOver(e, todo.id),
+                  onDrop: (e) => handleDrop(e, todo.id),
+                  onDragEnd: handleDragEnd,
+                },
+                [
+                  React.createElement('input', {
+                    type: 'checkbox',
+                    className: 'checkbox',
+                    checked: todo.completed,
+                    onChange: () => toggleTodo(todo.id),
+                    key: `checkbox-${todo.id}`,
+                  }),
+                  editingId === todo.id
+                    ? [
+                        React.createElement('input', {
+                          type: 'text',
+                          className: `edit-input ${todo.completed ? 'completed' : ''}`,
+                          value: editText,
+                          onChange: (e) => setEditText(e.target.value),
+                          onKeyPress: (e) => handleEditKeyPress(e, todo.id),
+                          key: `edit-input-${todo.id}`,
+                        }),
+                        React.createElement(
+                          'button',
+                          {
+                            className: 'action-btn save-btn',
+                            onClick: () => saveEdit(todo.id),
+                            key: `save-btn-${todo.id}`,
+                          },
+                          'Save'
+                        ),
+                        React.createElement(
+                          'button',
+                          {
+                            className: 'action-btn cancel-btn',
+                            onClick: cancelEdit,
+                            key: `cancel-btn-${todo.id}`,
+                          },
+                          'Cancel'
+                        ),
+                      ]
+                    : [
+                        React.createElement(
+                          'span',
+                          {
+                            className: `task-text ${todo.completed ? 'completed' : ''}`,
+                            key: `task-text-${todo.id}`,
+                          },
+                          todo.text
+                        ),
+                        React.createElement(
+                          'button',
+                          {
+                            className: 'action-btn edit-btn',
+                            onClick: () => startEditing(todo.id, todo.text),
+                            key: `edit-btn-${todo.id}`,
+                          },
+                          'Edit'
+                        ),
+                        React.createElement(
+                          'button',
+                          {
+                            className: 'action-btn delete-btn',
+                            onClick: () => deleteTodo(todo.id),
+                            key: `delete-btn-${todo.id}`,
+                          },
+                          'Delete'
+                        ),
+                      ],
+                  React.createElement(
+                    'div',
+                    { className: 'history-squares', key: `history-${todo.id}` },
+                    (todo.history || []).slice(-7).map((day, index) =>
+                      React.createElement('div', {
+                        key: `square-${todo.id}-${index}`,
+                        className: `square ${day.completed ? 'completed' : 'not-completed'}`,
+                        title: day.date,
+                      })
+                    )
+                  ),
+                ]
+              )
+            )
+          ),
+        ]
       );
     }
 
     // Render the app
-    ReactDOM.render(<HabitTrackerApp />, document.getElementById('root'));
+    ReactDOM.render(
+      React.createElement(HabitTrackerApp),
+      document.getElementById('root')
+    );
   </script>
 </body>
 </html>
