@@ -16,10 +16,14 @@
     .add-btn { padding: 12px 20px; font-size: 1rem; background-color: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; touch-action: manipulation; }
     .add-btn:hover { background-color: #218838; }
     ul { list-style: none; padding: 0; }
-    li { display: flex; flex-wrap: wrap; align-items: center; padding: 12px; margin: 8px 0; background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    li.completed { background-color: #e9ecef; text-decoration: line-through; }
+    li { display: flex; flex-wrap: wrap; align-items: center; padding: 12px; margin: 8px 0; background-color: white; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: move; }
+    li.completed { background-color: #e9ecef; }
+    li.dragging { opacity: 0.5; background-color: #f0f0f0; }
+    li.drag-over { border: 2px dashed #007bff; }
     .task-text { flex-grow: 1; font-size: 1rem; margin: 0 10px; }
+    .task-text.completed { text-decoration: line-through; }
     .edit-input { flex-grow: 1; padding: 8px; font-size: 1rem; border: 1px solid #ccc; border-radius: 8px; margin: 0 10px; }
+    .edit-input.completed { text-decoration: line-through; }
     .checkbox { width: 20px; height: 20px; cursor: pointer; }
     .action-btn { padding: 8px 16px; font-size: 0.9rem; margin: 2px; border: none; border-radius: 8px; cursor: pointer; touch-action: manipulation; }
     .edit-btn { background-color: #007bff; color: white; }
@@ -55,6 +59,7 @@
       const [inputValue, setInputValue] = React.useState('');
       const [editingId, setEditingId] = React.useState(null);
       const [editText, setEditText] = React.useState('');
+      const [draggingId, setDraggingId] = React.useState(null);
 
       // Function to get the current date in YYYY-MM-DD format
       const getCurrentDate = () => {
@@ -146,6 +151,34 @@
         setEditText('');
       };
 
+      const handleDragStart = (e, id) => {
+        setDraggingId(id);
+        e.dataTransfer.setData('text/plain', id);
+      };
+
+      const handleDragOver = (e) => {
+        e.preventDefault();
+      };
+
+      const handleDrop = (e, targetId) => {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData('text/plain');
+        if (draggedId === targetId) return;
+
+        setTodos((prevTodos) => {
+          const newTodos = [...prevTodos];
+          const draggedIndex = newTodos.findIndex((todo) => todo.id === Number(draggedId));
+          const targetIndex = newTodos.findIndex((todo) => todo.id === targetId);
+          const [draggedItem] = newTodos.splice(draggedIndex, 1);
+          newTodos.splice(targetIndex, 0, draggedItem);
+          return newTodos;
+        });
+      };
+
+      const handleDragEnd = () => {
+        setDraggingId(null);
+      };
+
       const handleKeyPress = (e) => {
         if (e.key === 'Enter') {
           addTodo();
@@ -184,7 +217,19 @@
           )}
           <ul>
             {todos.map((todo) => (
-              <li key={todo.id} className={todo.completed ? 'completed' : ''}>
+              <li
+                key={todo.id}
+                className={`${
+                  todo.completed ? 'completed' : ''
+                } ${draggingId === todo.id ? 'dragging' : ''} ${
+                  draggingId !== null && draggingId !== todo.id ? 'drag-over' : ''
+                }`}
+                draggable={editingId !== todo.id}
+                onDragStart={(e) => handleDragStart(e, todo.id)}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, todo.id)}
+                onDragEnd={handleDragEnd}
+              >
                 <input
                   type="checkbox"
                   className="checkbox"
@@ -195,7 +240,7 @@
                   <>
                     <input
                       type="text"
-                      className="edit-input"
+                      className={`edit-input ${todo.completed ? 'completed' : ''}`}
                       value={editText}
                       onChange={(e) => setEditText(e.target.value)}
                       onKeyPress={(e) => handleEditKeyPress(e, todo.id)}
@@ -212,7 +257,9 @@
                   </>
                 ) : (
                   <>
-                    <span className="task-text">{todo.text}</span>
+                    <span className={`task-text ${todo.completed ? 'completed' : ''}`}>
+                      {todo.text}
+                    </span>
                     <button
                       className="action-btn edit-btn"
                       onClick={() => startEditing(todo.id, todo.text)}
