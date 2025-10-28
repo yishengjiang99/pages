@@ -168,13 +168,12 @@
       presetList.querySelectorAll("ul").forEach(u => u.remove());
       const ul = document.createElement("ul");
       preset.zones.forEach((z, idx) => {
-        const li = document.createElement("li");
-        li.textContent = `Zone ${idx + 1} → ${z.sample?.name || 'No sample'}`;
-        li.onclick = (ev) => {
-          ev.stopPropagation();
-          showZone(z, preset.header.name, idx);
-        };
-        ul.appendChild(li);
+        z.instrument.zones.forEach(zone => {
+          const li = document.createElement("li");
+          li.textContent = `Zone ${idx + 1} (${zone.sample.header.name || 'no sample'})`;
+          li.onclick = () => showZone(zone, preset.header.name, idx);
+          ul.appendChild(li);
+        });
       });
 
 
@@ -193,8 +192,8 @@
     }
 
     function drawWave(sample) {
-      if (!sample?.pcm16) return;
-      const data = sample.pcm16;
+      if (!sample?.data) return;
+      const data = sample.data;
       const W = canvas.width = canvas.clientWidth;
       const H = canvas.height = 200;
       ctx.clearRect(0, 0, W, H);
@@ -264,22 +263,7 @@
     };
 
     function showZoneEditor(zone) {
-      zoneEditor.innerHTML = '';
-      zoneFields.forEach(key => {
-        const val = zone[key] ?? '';
-        const label = document.createElement('label');
-        label.textContent = key;
-        const input = document.createElement('input');
-        input.type = 'number';
-        input.step = 'any';
-        input.value = val;
-        input.oninput = () => {
-          zone[key] = parseFloat(input.value) || 0;
-          if (key.includes("VolEnv")) drawADSR(zone);
-        };
-        label.appendChild(input);
-        zoneEditor.appendChild(label);
-      });
+      zoneEditor.innerHTML = JSON.stringify(zone.generators, null, 2);
     }
 
     saveBtn.onclick = async () => {
