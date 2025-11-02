@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Ext JS TreeStore via CDN (Classic)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Ext JS Classic theme (Crisp) from CDNJS -->
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/extjs/6.0.0/classic/theme-crisp/resources/theme-crisp-all.css" />
+
+  <!-- Ext JS core (classic toolkit bundle) from CDNJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/extjs/6.0.0/ext-all.js"></script>
+
+  <!-- Theme JS (optional but recommended for theme-specific overrides) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/extjs/6.0.0/classic/theme-crisp/theme-crisp.js"></script>
+
+  <style>
+    html, body { height: 100%; margin: 0; }
+    #app { height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script>
+    Ext.onReady(function () {
+      // TreeStore with inline data
+      const store = Ext.create('Ext.data.TreeStore', {
+        root: {
+          text: 'Root',
+          expanded: true,
+          children: [
+            {
+              text: 'Documents',
+              expanded: true,
+              children: [
+                { text: 'Resume.pdf', leaf: true, size: '128 KB', modified: '2025-10-01' },
+                { text: 'ProjectPlan.docx', leaf: true, size: '84 KB',  modified: '2025-09-18' }
+              ]
+            },
+            {
+              text: 'Pictures',
+              expanded: false,
+              children: [
+                { text: 'Family.jpg',   leaf: true, size: '2.1 MB', modified: '2025-08-12' },
+                { text: 'Vacation.png', leaf: true, size: '3.8 MB', modified: '2025-07-02' }
+              ]
+            },
+            { text: 'todo.txt', leaf: true, size: '2 KB', modified: '2025-11-01' }
+          ]
+        }
+      });
+
+      // TreePanel bound to the store
+      const tree = Ext.create('Ext.tree.Panel', {
+        renderTo: 'app',
+        store,
+        rootVisible: false,
+        useArrows: true,
+        border: false,
+        width: '100%',
+        height: '100%',
+        stateful: true,
+        stateId: 'example-treestore-treepanel',
+        columns: [
+          { xtype: 'treecolumn', text: 'Name', dataIndex: 'text', flex: 1 },
+          { text: 'Size', dataIndex: 'size', width: 120 },
+          { text: 'Modified', dataIndex: 'modified', width: 140 }
+        ],
+        tbar: [
+          { text: 'Expand All', handler: () => tree.expandAll() },
+          { text: 'Collapse All', handler: () => tree.collapseAll() },
+          '-',
+          {
+            text: 'Add File to Pictures',
+            handler: () => {
+              const pictures = store.getRoot().findChild('text', 'Pictures', true);
+              if (pictures) {
+                pictures.appendChild({
+                  text: 'NewPhoto_' + Ext.Number.randomInt(100, 999) + '.png',
+                  leaf: true,
+                  size: Ext.Number.randomInt(500, 3500) + ' KB',
+                  modified: Ext.Date.format(new Date(), 'Y-m-d')
+                });
+                pictures.expand();
+              }
+            }
+          },
+          {
+            text: 'Remove Selected',
+            handler: () => {
+              const sel = tree.getSelection()[0];
+              if (sel && !sel.isRoot()) {
+                sel.erase ? sel.erase() : sel.remove(true);
+              }
+            }
+          }
+        ],
+        listeners: {
+          itemdblclick: (_, rec) => {
+            if (rec.isLeaf()) {
+              Ext.Msg.alert('Open', 'Double-clicked: ' + rec.get('text'));
+            } else {
+              rec.isExpanded() ? rec.collapse() : rec.expand();
+            }
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>
