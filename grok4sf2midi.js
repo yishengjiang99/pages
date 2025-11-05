@@ -4,7 +4,7 @@
 
 function readString(view, offset, length) {
   let str = '';
-  for (let i = 0;i < length;i++) {
+  for (let i = 0; i < length; i++) {
     const char = view.getUint8(offset + i);
     if (char === 0) break;
     str += String.fromCharCode(char);
@@ -15,7 +15,7 @@ function readString(view, offset, length) {
 function readChunk(view, offset) {
   const id = readString(view, offset, 4);
   const size = view.getUint32(offset + 4, true);
-  return {id, size, offset: offset + 8, end: offset + 8 + size};
+  return { id, size, offset: offset + 8, end: offset + 8 + size };
 }
 
 function parseRIFF(view, offset = 0, end = view.byteLength) {
@@ -26,7 +26,7 @@ function parseRIFF(view, offset = 0, end = view.byteLength) {
       const formType = readString(view, chunk.offset, 4);
       chunks[formType] = parseRIFF(view, chunk.offset + 4, chunk.end);
     } else {
-      chunks[chunk.id] = {dataOffset: chunk.offset, size: chunk.size};
+      chunks[chunk.id] = { dataOffset: chunk.offset, size: chunk.size };
     }
     offset = chunk.end + (chunk.size % 2);
   }
@@ -59,8 +59,8 @@ class Zone {
   constructor(generators = [], modulators = []) {
     this.generators = generators;
     this.modulators = modulators;
-    this.keyRange = {lo: 0, hi: 127};
-    this.velRange = {lo: 0, hi: 127};
+    this.keyRange = { lo: 0, hi: 127 };
+    this.velRange = { lo: 0, hi: 127 };
     this.sampleID = null;
     this.instrumentID = null;
   }
@@ -107,7 +107,7 @@ class SoundFontParser {
 
     const shdr = pdta.shdr;
     const numSamples = shdr.size / 46;
-    for (let i = 0;i < numSamples;i++) {
+    for (let i = 0; i < numSamples; i++) {
       const off = shdr.dataOffset + i * 46;
       const name = readString(this.view, off, 20);
       const start = this.view.getUint32(off + 20, true);
@@ -128,21 +128,21 @@ class SoundFontParser {
     const igen = pdta.igen;
     const imod = pdta.imod; // ignore modulators for now, use defaults
 
-    for (let i = 0;i < numInst - 1;i++) {
+    for (let i = 0; i < numInst - 1; i++) {
       const off = inst.dataOffset + i * 22;
       const name = readString(this.view, off, 20);
       const bagNdx = this.view.getUint16(off + 20, true);
       const nextBagNdx = this.view.getUint16(off + 20 + 22, true);
       const numZones = nextBagNdx - bagNdx;
       const zones = [];
-      for (let z = 0;z < numZones;z++) {
+      for (let z = 0; z < numZones; z++) {
         const bagOff = ibag.dataOffset + (bagNdx + z) * 4;
         const genNdx = this.view.getUint16(bagOff, true);
         const modNdx = this.view.getUint16(bagOff + 2, true);
         const nextGenNdx = this.view.getUint16(bagOff + 4, true);
         const numGens = nextGenNdx - genNdx;
         const generators = [];
-        for (let g = 0;g < numGens;g++) {
+        for (let g = 0; g < numGens; g++) {
           const genOff = igen.dataOffset + (genNdx + g) * 4;
           const op = this.view.getUint16(genOff, true);
           const amount = this.view.getInt16(genOff + 2, true);
@@ -150,8 +150,8 @@ class SoundFontParser {
         }
         const zone = new Zone(generators);
         generators.forEach(gen => {
-          if (gen.op === 43) zone.keyRange = {lo: gen.amount & 0xFF, hi: (gen.amount >> 8) & 0xFF};
-          if (gen.op === 44) zone.velRange = {lo: gen.amount & 0xFF, hi: (gen.amount >> 8) & 0xFF};
+          if (gen.op === 43) zone.keyRange = { lo: gen.amount & 0xFF, hi: (gen.amount >> 8) & 0xFF };
+          if (gen.op === 44) zone.velRange = { lo: gen.amount & 0xFF, hi: (gen.amount >> 8) & 0xFF };
           if (gen.op === 53) zone.sampleID = gen.amount;
         });
         zones.push(zone);
@@ -165,7 +165,7 @@ class SoundFontParser {
     const pgen = pdta.pgen;
     const pmod = pdta.pmod;
 
-    for (let i = 0;i < numPresets - 1;i++) {
+    for (let i = 0; i < numPresets - 1; i++) {
       const off = phdr.dataOffset + i * 38;
       const name = readString(this.view, off, 20);
       const program = this.view.getUint16(off + 20, true);
@@ -174,14 +174,14 @@ class SoundFontParser {
       const nextBagNdx = this.view.getUint16(off + 24 + 38, true);
       const numZones = nextBagNdx - bagNdx;
       const zones = [];
-      for (let z = 0;z < numZones;z++) {
+      for (let z = 0; z < numZones; z++) {
         const bagOff = pbag.dataOffset + (bagNdx + z) * 4;
         const genNdx = this.view.getUint16(bagOff, true);
         const modNdx = this.view.getUint16(bagOff + 2, true);
         const nextGenNdx = this.view.getUint16(bagOff + 4, true);
         const numGens = nextGenNdx - genNdx;
         const generators = [];
-        for (let g = 0;g < numGens;g++) {
+        for (let g = 0; g < numGens; g++) {
           const genOff = pgen.dataOffset + (genNdx + g) * 4;
           const op = this.view.getUint16(genOff, true);
           const amount = this.view.getInt16(genOff + 2, true);
@@ -190,8 +190,8 @@ class SoundFontParser {
         const zone = new Zone(generators);
         generators.forEach(gen => {
           if (gen.op === 41) zone.instrumentID = gen.amount;
-          if (gen.op === 43) zone.keyRange = {lo: gen.amount & 0xFF, hi: (gen.amount >> 8) & 0xFF};
-          if (gen.op === 44) zone.velRange = {lo: gen.amount & 0xFF, hi: (gen.amount >> 8) & 0xFF};
+          if (gen.op === 43) zone.keyRange = { lo: gen.amount & 0xFF, hi: (gen.amount >> 8) & 0xFF };
+          if (gen.op === 44) zone.velRange = { lo: gen.amount & 0xFF, hi: (gen.amount >> 8) & 0xFF };
         });
         zones.push(zone);
       }
@@ -210,7 +210,7 @@ class SoundFontParser {
             if (key >= instZone.keyRange.lo && key <= instZone.keyRange.hi &&
               velocity >= instZone.velRange.lo && velocity <= instZone.velRange.hi &&
               instZone.sampleID !== null) {
-              matchingZones.push({zone: instZone, sample: this.samples[instZone.sampleID], presetZone: zone});
+              matchingZones.push({ zone: instZone, sample: this.samples[instZone.sampleID], presetZone: zone });
             }
           });
         }
@@ -229,7 +229,7 @@ function readVLQ(view, offset) {
     bytes++;
     if ((byte & 0x80) === 0) break;
   }
-  return {value, bytes};
+  return { value, bytes };
 }
 
 function parseMIDI(arrayBuffer) {
@@ -241,7 +241,7 @@ function parseMIDI(arrayBuffer) {
   const ntracks = view.getUint16(offset, false); offset += 2;
   const division = view.getUint16(offset, false); offset += 2;
   const tracks = [];
-  for (let i = 0;i < ntracks;i++) {
+  for (let i = 0; i < ntracks; i++) {
     if (readString(view, offset, 4) !== 'MTrk') throw new Error('Bad track');
     offset += 4;
     const length = view.getUint32(offset, false); offset += 4;
@@ -257,20 +257,20 @@ function parseMIDI(arrayBuffer) {
       } else {
         runningStatus = status;
       }
-      let event = {delta: delta.value, status};
+      let event = { delta: delta.value, status };
       if (status === 0xFF) {
         const type = view.getUint8(offset); offset++;
         const len = readVLQ(view, offset); offset += len.bytes;
         event.metaType = type;
         event.data = new Uint8Array(len.value);
-        for (let j = 0;j < len.value;j++) {
+        for (let j = 0; j < len.value; j++) {
           event.data[j] = view.getUint8(offset + j);
         }
         offset += len.value;
       } else if (status === 0xF0 || status === 0xF7) {
         const len = readVLQ(view, offset); offset += len.bytes;
         event.data = new Uint8Array(len.value);
-        for (let j = 0;j < len.value;j++) {
+        for (let j = 0; j < len.value; j++) {
           event.data[j] = view.getUint8(offset + j);
         }
         offset += len.value;
@@ -289,13 +289,19 @@ function parseMIDI(arrayBuffer) {
     tracks.push(track);
     offset = trackEnd;
   }
-  return {format, division, tracks};
+  return { format, division, tracks };
 }
 
 class SoundFontPlayer {
   constructor(sfParser) {
     this.parser = sfParser;
+    if (localStorage.getItem("audioContextType") === "offline") {
+      this.context = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(2, 44100 * 40, 44100);
+    }
     this.context = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  get audioContext() {
+    return this.context;
   }
 
   applyEnvelope(param, startTime, delay, attack, hold, decay, sustain, release, isVolume = true) {
@@ -318,7 +324,7 @@ class SoundFontPlayer {
     if (zones.length === 0) return () => { };
 
     const stopFunctions = [];
-    for (const {sample, zone, presetZone} of zones) {
+    for (const { sample, zone, presetZone } of zones) {
       let effectiveGens = {};
       zone.generators.forEach(gen => effectiveGens[gen.op] = (effectiveGens[gen.op] || 0) + gen.amount);
       presetZone.generators.forEach(gen => effectiveGens[gen.op] = (effectiveGens[gen.op] || 0) + gen.amount);
@@ -437,7 +443,7 @@ class SoundFontPlayer {
           const length = Math.min(leftSample.end - leftSample.start, rightSample.end - rightSample.start);
           leftData = new Float32Array(length);
           rightData = new Float32Array(length);
-          for (let i = 0;i < length;i++) {
+          for (let i = 0; i < length; i++) {
             leftData[i] = this.parser.sampleData[leftSample.start + i] / 32768;
             rightData[i] = this.parser.sampleData[rightSample.start + i] / 32768;
           }
@@ -449,7 +455,7 @@ class SoundFontPlayer {
       if (!isStereo) {
         const length = sample.end - sample.start;
         leftData = new Float32Array(length);
-        for (let i = 0;i < length;i++) {
+        for (let i = 0; i < length; i++) {
           leftData[i] = this.parser.sampleData[sample.start + i] / 32768;
         }
         leftLoopStart = sample.startLoop - sample.start;
@@ -576,7 +582,7 @@ class SoundFontPlayer {
       let tick = 0;
       track.forEach(ev => {
         tick += ev.delta;
-        events.push({tick, ...ev});
+        events.push({ tick, ...ev });
       });
     });
     events.sort((a, b) => a.tick - b.tick);
@@ -584,8 +590,8 @@ class SoundFontPlayer {
     let tempo = 500000;
     let lastTick = 0;
     let currentTime = this.context.currentTime;
-    const activeNotes = Array.from({length: 16}, () => ({}));
-    const channelState = Array.from({length: 16}, () => ({
+    const activeNotes = Array.from({ length: 16 }, () => ({}));
+    const channelState = Array.from({ length: 16 }, () => ({
       bank: 0, preset: 0, volume: 127, expression: 127, pan: 64, mod: 0, pitchBend: 0
     }));
 
@@ -648,5 +654,8 @@ async function loadAndPlay() {
   player.playMIDI(midiBuffer);
 }
 
-window.onkeydown = loadAndPlay;
+// window.onkeydown = loadAndPlay;
 // Call loadAndPlay() to test.
+if (module.exports) {
+  module.exports = { SoundFontParser, SoundFontPlayer, parseMIDI, loadAndPlay };
+}
