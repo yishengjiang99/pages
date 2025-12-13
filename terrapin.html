@@ -1,255 +1,266 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<title>Logo Editor</title>
-<style>
-html,body{margin:0;padding:0;height:100%;overflow:hidden;font-family:sans-serif;background:#111;color:#eee;touch-action:none;-webkit-user-select:none;user-select:none;}
-#editor{position:absolute;top:0;bottom:140px;left:0;right:0;}
-#drawer{position:fixed;top:0;right:-100%;width:80%;max-width:500px;height:100%;background:#fff;box-shadow:-2px 0 5px rgba(0,0,0,0.3);transition:right 0.3s ease;z-index:100;display:flex;flex-direction:column;touch-action:none;}
-#drawer.show{right:0;}
-#svgContainer{flex:1;overflow:hidden;background:#fafafa;}
-#turtleSVG{width:100%;height:100%;touch-action:none;}
-#controls{position:fixed;bottom:0;left:0;right:0;background:#222;display:grid;grid-template-rows:auto auto auto;gap:4px;padding:6px 4px calc(env(safe-area-inset-bottom) + 6px) 4px;z-index:200;}
-.controls-row{display:flex;justify-content:center;gap:4px;}
-button{flex:1;padding:14px;font-size:18px;border:none;border-radius:6px;background:#444;color:#fff;}
-button:active{background:#666;}
-#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#333;color:#fff;padding:8px 16px;border-radius:4px;opacity:0;transition:opacity 0.3s;z-index:300;}
-#toast.show{opacity:1;}
-textarea{width:100%;height:100%;resize:none;font-family:monospace;font-size:16px;padding:8px;box-sizing:border-box;background:#111;color:#eee;border:none;outline:none;}
-</style>
-</head>
-<body>
-<div id="editor"><textarea id="code"></textarea></div>
-<div id="drawer"><div id="svgContainer"><svg id="turtleSVG"></svg></div></div>
-<div id="controls">
- <div class="controls-row">
-   <button onclick="appendCommand('FD')">FD</button>
-   <button onclick="appendCommand('BK')">BK</button>
-   <button onclick="appendCommand('RT')">RT</button>
-   <button onclick="appendCommand('LT')">LT</button>
-   <button onclick="appendCommand('PU')">PU</button>
-   <button onclick="appendCommand('PD')">PD</button>
-   <button onclick="appendCommand('CS')">CS</button>
-   <button onclick="appendCommand('HM')">HM</button>
- </div>
- <div class="controls-row">
-   <button onclick="appendCommand('10')">10</button>
-   <button onclick="appendCommand('45')">45</button>
-   <button onclick="appendCommand('90')">90</button>
- </div>
- <div class="controls-row">
-   <button onclick="runCommands()">Run</button>
-   <button onclick="resetEditor()">Reset</button>
-   <button onclick="shareCode()">Share</button>
-   <button onclick="showDrawer()">Show</button>
- </div>
-</div>
-<div id="toast"></div>
-
-<script>
-const textarea=document.getElementById('code');
-const svg=document.getElementById('turtleSVG');
-let turtle, zoom=1, pan={x:0,y:0}, paths=[];
-
-// --- Toast ---
-function showToast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg;
-  t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2000);
-}
-
-// --- Editor helpers ---
-function appendCommand(cmd){
-  const start=textarea.selectionStart;
-  const val=textarea.value;
-  textarea.value=val.slice(0,start)+cmd+" "+val.slice(start);
-  textarea.selectionStart=textarea.selectionEnd=start+cmd.length+1;
-  textarea.focus();
-}
-function resetEditor(){ textarea.value=''; initTurtle(); }
-function shareCode(){
-  const val=textarea.value;
-  const url=location.origin+location.pathname+'#'+btoa(val);
-  navigator.clipboard.writeText(url);
-  showToast("Link copied!");
-}
-
-// --- Drawer ---
-function showDrawer(){ document.getElementById('drawer').classList.add('show'); }
-function openDrawer(){ showDrawer(); }
-function hideDrawer(){ document.getElementById('drawer').classList.remove('show'); }
-
-// --- Turtle SVG ---
-function setSVGSize(){ svg.setAttribute('width','100%'); svg.setAttribute('height','100%'); drawTurtle(); }
-function initTurtle(){ turtle={x:svg.clientWidth/2,y:svg.clientHeight/2,angle:0,penDown:true}; paths=[]; drawTurtle(); }
-function drawTurtle(){
-  while(svg.firstChild) svg.removeChild(svg.firstChild);
-  const g=document.createElementNS("http://www.w3.org/2000/svg","g");
-  g.setAttribute("transform",`translate(${pan.x},${pan.y}) scale(${zoom})`);
-  paths.forEach(p=>g.appendChild(p));
-  const tri=document.createElementNS("http://www.w3.org/2000/svg","polygon");
-  tri.setAttribute("points","0,-10 -5,5 5,5");
-  tri.setAttribute("fill","green");
-  tri.setAttribute("transform",`translate(${turtle.x},${turtle.y}) rotate(${turtle.angle})`);
-  g.appendChild(tri);
-  svg.appendChild(g);
-}
-function moveTurtle(d){
-  const rad=turtle.angle*Math.PI/180;
-  const nx=turtle.x+Math.cos(rad)*d, ny=turtle.y+Math.sin(rad)*d;
-  if(turtle.penDown){
-    const line=document.createElementNS("http://www.w3.org/2000/svg","line");
-    line.setAttribute("x1",turtle.x); line.setAttribute("y1",turtle.y);
-    line.setAttribute("x2",nx); line.setAttribute("y2",ny);
-    line.setAttribute("stroke","black");
-    paths.push(line);
-  }
-  turtle.x=nx; turtle.y=ny;
-  drawTurtle();
-}
-
-// --- Tokenizer & Executor ---
-function tokenizeInput(input){return input.trim().split(/\s+/);}
-function executeTokens(tokens){
-  let i=0;
-  function exec(){
-    while(i<tokens.length){
-      let cmd=tokens[i++].toUpperCase();
-      if(cmd==='FD'){ moveTurtle(parseFloat(tokens[i++])); }
-      else if(cmd==='BK'){ moveTurtle(-parseFloat(tokens[i++])); }
-      else if(cmd==='RT'){ turtle.angle+=parseFloat(tokens[i++]); drawTurtle(); }
-      else if(cmd==='LT'){ turtle.angle-=parseFloat(tokens[i++]); drawTurtle(); }
-      else if(cmd==='PU'){ turtle.penDown=false; }
-      else if(cmd==='PD'){ turtle.penDown=true; }
-      else if(cmd==='CS'){ initTurtle(); }
-      else if(cmd==='HM'){ turtle.x=svg.clientWidth/2; turtle.y=svg.clientHeight/2; turtle.angle=0; drawTurtle(); }
-      else if(cmd==='SETXY'){ let x=parseFloat(tokens[i++]); let y=parseFloat(tokens[i++]); if(!isNaN(x)&&!isNaN(y)){ turtle.x=svg.clientWidth/2+x; turtle.y=svg.clientHeight/2-y; drawTurtle(); } }
-      else if(cmd==='SETH'||cmd==='SETHEADING'){ let a=parseFloat(tokens[i++]); if(!isNaN(a)){ turtle.angle=a; drawTurtle(); } }
-      else if(cmd==='REPEAT'){ 
-        let count=parseInt(tokens[i++]); 
-        if(tokens[i++]!=='[') throw new Error("Expected [");
-        let bs=i, depth=1; 
-        while(i<tokens.length&&depth>0){ if(tokens[i]==='[') depth++; else if(tokens[i]===']') depth--; i++; }
-        let block=tokens.slice(bs,i-1);
-        for(let j=0;j<count;j++){ let saved=tokens,si=i; tokens=block; i=0; exec(); tokens=saved;i=si; }
-      }
-      else if(cmd===']'){ return; }
-      else{ throw new Error("Unknown command: "+cmd); }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terrapin Logo Emulator - SVG Zoom/Pan</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      width: 100vw;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      font-family: Arial, sans-serif;
     }
-  }
-  exec();
-}
-function runCommands(){ openDrawer(); initTurtle(); const tokens=tokenizeInput(textarea.value); executeTokens(tokens); }
 
-// --- Zoom / Pan (desktop + mobile) ---
-let isPanning=false, startX=0, startY=0, pinchStartDist=null;
-function distance(t1,t2){ return Math.hypot(t2.clientX-t1.clientX,t2.clientY-t1.clientY); }
+    h1 {
+      font-size: 1.2rem;
+      margin: 0.5rem;
+      text-align: center;
+    }
 
-svg.addEventListener("wheel", e=>{
-  e.preventDefault();
-  zoom *= e.deltaY<0 ? 1.1 : 0.9;
-  drawTurtle();
-},{passive:false});
+    #editor {
+      flex: 1;
+      width: 100%;
+    }
 
-svg.addEventListener("touchstart", e=>{
-  if(e.touches.length===1){
-    isPanning=true;
-    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
-  } else if(e.touches.length===2){
-    pinchStartDist=distance(e.touches[0], e.touches[1]);
-  }
-  e.preventDefault();
-},{passive:false});
+    .controls {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem;
+      background: #f0f0f0;
+      border-top: 1px solid #ccc;
+      z-index: 1000;
+    }
 
-svg.addEventListener("touchmove", e=>{
-  if(e.touches.length===1 && isPanning){
-    let dx=e.touches[0].clientX-startX;
-    let dy=e.touches[0].clientY-startY;
-    pan.x+=dx; pan.y+=dy;
-    startX=e.touches[0].clientX; startY=e.touches[0].clientY;
-  } else if(e.touches.length===2 && pinchStartDist){
-    let curr=distance(e.touches[0], e.touches[1]);
-    let scale=curr/pinchStartDist;
-    zoom*=scale;
-    pinchStartDist=curr;
-  }
-  drawTurtle();
-  e.preventDefault();
-},{passive:false});
+    .control-row {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.5rem;
+    }
 
-svg.addEventListener("touchend", e=>{
-  if(e.touches.length<2) pinchStartDist=null;
-  if(e.touches.length===0) isPanning=false;
-},{passive:false});
+    button {
+      padding: 0.4rem 0.8rem;
+      font-size: 0.85rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
 
-window.addEventListener('resize',setSVGSize);
-setSVGSize(); initTurtle();
+    .run-button {
+      background: #4CAF50;
+      color: #fff;
+    }
 
-// --- Load from hash ---
-const hash=location.hash.slice(1);
-if(hash){
-  try{ textarea.value=atob(hash); }catch(e){}
-} else {
-  textarea.value=`CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`;
-}
-</script>
+    .reset-button {
+      background: #f44336;
+      color: #fff;
+    }
 
-<!-- NAVIGATION INJECTED -->
-<style>
-  body { margin: 0; font-family: Arial, sans-serif; }
-  header {
-    background: #333; color: white; padding: 10px 20px;
-    display: flex; justify-content: space-between; align-items: center;
-    position: sticky; top: 0; z-index: 1000;
-  }
-  header a { color: white; text-decoration: none; font-weight: bold; }
-  .menu-btn { background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; }
-  .drawer {
-    height: 100%; width: 250px; position: fixed; top: 0; left: -250px;
-    background: #444; overflow-x: hidden; transition: 0.3s; padding-top: 60px;
-    z-index: 999;
-  }
-  .drawer.open { left: 0; }
-  .drawer a {
-    padding: 10px 20px; text-decoration: none; color: white; display: block;
-  }
-  .drawer a:hover { background: #575757; }
-  main { margin: 20px; }
-</style>
-<header>
-  <a href="/index.html">← Back to Index</a>
-  <button class="menu-btn" onclick="toggleDrawer()">☰ Menu</button>
-</header>
-<div id="drawer" class="drawer">
-  <a href="__test__/terrapin.html">terrapin.html</a>
-<a href="afd-slogan-generator.html">afd-slogan-generator.html</a>
-<a href="blinker.html">blinker.html</a>
-<a href="compose.html">compose.html</a>
-<a href="edit-wave-info.html">edit-wave-info.html</a>
-<a href="l2r.html">l2r.html</a>
-<a href="midi2svg.html">midi2svg.html</a>
-<a href="mlogo.html">mlogo.html</a>
-<a href="mocr.html">mocr.html</a>
-<a href="paint.html">paint.html</a>
-<a href="radar.html">radar.html</a>
-<a href="reinforcement-policy-neuron-network.html">reinforcement-policy-neuron-network.html</a>
-<a href="sprite-detect.html">sprite-detect.html</a>
-<a href="sprite.html">sprite.html</a>
-<a href="stolzmonat.html">stolzmonat.html</a>
-<a href="strwidth.html">strwidth.html</a>
-<a href="svgtrace.html">svgtrace.html</a>
-<a href="synth.html">synth.html</a>
-<a href="terrapin.html">terrapin.html</a>
-<a href="tetris.html">tetris.html</a>
-<a href="timer.html">timer.html</a>
-<a href="westerwald.html">westerwald.html</a>
-</div>
-<script>
-  function toggleDrawer() {
-    document.getElementById('drawer').classList.toggle('open');
-  }
-</script>
+    .sample-button {
+      background: #2196F3;
+      color: #fff;
+    }
+
+    .show-button {
+      background: #9C27B0;
+      color: #fff;
+    }
+
+    #drawer {
+      position: fixed;
+      top: 0;
+      right: -420px;
+      width: 400px;
+      max-width: 90vw;
+      height: 100%;
+      background: #fff;
+      border-left: 2px solid #333;
+      box-shadow: -4px 0 8px rgba(0, 0, 0, 0.3);
+      transition: right 0.3s ease-in-out;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+      z-index: 2000;
+      touch-action: none;
+    }
+
+    #drawer.open {
+      right: 0;
+    }
+
+    #turtleSVG {
+      border: 1px solid black;
+      width: 100%;
+      height: 100%;
+      background: #fff;
+      flex: 1;
+    }
+
+    #closeDrawer {
+      align-self: flex-end;
+      margin-bottom: 0.5rem;
+      background: #ff5722;
+      color: #fff;
+      font-weight: bold;
+      border-radius: 4px;
+      padding: 0.3rem 0.6rem;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Terrapin Logo Emulator - SVG</h1>
+  <div id="editor"></div>
+
+  <div class="controls">
+    <div class="control-row">
+      <button class="run-button" onclick="runCommands()">Run</button>
+      <button class="reset-button" onclick="resetEditor()">Reset</button>
+      <button class="sample-button" onclick="loadSample()">Sample</button>
+      <button class="show-button" onclick="openDrawer()">Show</button>
+    </div>
+    <div class="control-row">
+      <button onclick="appendCommand('FD')">FD</button>
+      <button onclick="appendCommand('BK')">BK</button>
+      <button onclick="appendCommand('RT')">RT</button>
+      <button onclick="appendCommand('LT')">LT</button>
+    </div>
+    <div class="control-row">
+      <button onclick="appendCommand('PU')">PU</button>
+      <button onclick="appendCommand('PD')">PD</button>
+      <button onclick="appendCommand('CS')">CS</button>
+      <button onclick="appendCommand('HM')">HM</button>
+      <button onclick="appendCommand('10')">10</button>
+      <button onclick="appendCommand('45')">45</button>
+      <button onclick="appendCommand('90')">90</button>
+    </div>
+  </div>
+
+  <div id="drawer">
+    <button id="closeDrawer" onclick="closeDrawer()">✖</button>
+    <svg id="turtleSVG">
+      <g id="viewport" transform="translate(0,0) scale(1)">
+        <polyline id="lines" points="" fill="none" stroke="black" stroke-width="2" />
+        <polygon id="turtle" points="0,-10 -5,5 5,5" fill="green" />
+      </g>
+    </svg>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+  <script>
+    let editor;
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+    require(['vs/editor/editor.main'], function () {
+      editor = monaco.editor.create(document.getElementById('editor'), {
+        value: `CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`,
+        language: 'plaintext',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        minimap: { enabled: false }
+      });
+    });
+
+    const drawer = document.getElementById('drawer');
+    const svg = document.getElementById('turtleSVG');
+    const viewport = document.getElementById('viewport');
+    const linesEl = document.getElementById('lines');
+    const turtleEl = document.getElementById('turtle');
+
+    let turtle = { x: 0, y: 0, angle: 0, penDown: true };
+    let points = [];
+
+    let zoom = 1;
+    let pan = { x: 0, y: 0 };
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+
+    function openDrawer() { drawer.classList.add('open'); setSVGSize(); initTurtle(); }
+    function closeDrawer() { drawer.classList.remove('open'); }
+    function setSVGSize() { svg.setAttribute('width', drawer.clientWidth - 20); svg.setAttribute('height', drawer.clientHeight - 60); }
+    function initTurtle() { turtle.x = svg.clientWidth / 2; turtle.y = svg.clientHeight / 2; turtle.angle = 0; turtle.penDown = true; points = []; drawTurtle(); }
+    function drawTurtle() {
+      let transformedPoints = points.map(p => [p[0], p[1]]);
+      linesEl.setAttribute('points', transformedPoints.map(p => p.join(',')).join(' '));
+      turtleEl.setAttribute('transform', `translate(${turtle.x},${turtle.y}) rotate(${-turtle.angle})`);
+      viewport.setAttribute('transform', `translate(${pan.x},${pan.y}) scale(${zoom})`);
+    }
+    function moveTurtle(distance) {
+      let rad = turtle.angle * Math.PI / 180;
+      let newX = turtle.x + distance * Math.cos(rad);
+      let newY = turtle.y - distance * Math.sin(rad);
+      if (turtle.penDown) points.push([newX, newY]);
+      turtle.x = newX; turtle.y = newY; drawTurtle();
+    }
+
+    function tokenizeInput(input) { return input.replace(/\[/g, ' [ ').replace(/\]/g, ' ] ').split(/\s+/).filter(t => t.trim() !== ''); }
+    function executeTokens(tokens) {
+      let i = 0;
+      function exec() {
+        while (i < tokens.length) {
+          let cmd = tokens[i++].toUpperCase();
+          if (cmd === 'FD') { moveTurtle(parseFloat(tokens[i++])); }
+          else if (cmd === 'BK') { moveTurtle(-parseFloat(tokens[i++])); }
+          else if (cmd === 'RT') { turtle.angle += parseFloat(tokens[i++]); }
+          else if (cmd === 'LT') { turtle.angle -= parseFloat(tokens[i++]); }
+          else if (cmd === 'PU') { turtle.penDown = false; }
+          else if (cmd === 'PD') { turtle.penDown = true; }
+          else if (cmd === 'CS') { initTurtle(); }
+          else if (cmd === 'HM') { turtle.x = svg.clientWidth / 2; turtle.y = svg.clientHeight / 2; turtle.angle = 0; drawTurtle(); }
+          else if (cmd === 'REPEAT') {
+            let count = parseInt(tokens[i++]);
+            if (tokens[i] !== '[') throw new Error("Expected '[' after REPEAT");
+            i++; let blockStart = i, depth = 1;
+            while (i < tokens.length && depth > 0) { if (tokens[i] === '[') depth++; else if (tokens[i] === ']') depth--; i++; }
+            if (depth !== 0) throw new Error("Unmatched '[' in REPEAT");
+            let block = tokens.slice(blockStart, i - 1);
+            for (let j = 0; j < count; j++) { let saveI = i; let savedTokens = tokens; tokens = block; i = 0; exec(); tokens = savedTokens; i = saveI; }
+          } else if (cmd === ']') { return; }
+          else { throw new Error("Unknown command: " + cmd); }
+        }
+      }
+      exec();
+    }
+
+    function runCommands() {
+      const input = editor.getValue();
+      if (!input.trim()) return;
+      openDrawer();
+      initTurtle();
+      const tokens = tokenizeInput(input);
+      executeTokens(tokens);
+    }
+
+    // Buttons
+    function resetEditor() { editor.setValue(''); initTurtle(); }
+    function loadSample() { editor.setValue(`CS\nREPEAT 5 [\n  FD 100\n  RT 144\n]`); }
+    function appendCommand(cmd) { editor.setValue(editor.getValue() + cmd + ' '); editor.focus(); }
+
+    // SVG zoom/pan
+    svg.addEventListener('wheel', e => {
+      e.preventDefault();
+      zoom *= e.deltaY < 0 ? 1.1 : 0.9;
+      drawTurtle();
+    });
+    let pointers = {};
+    svg.addEventListener('pointerdown', e => { isDragging = true; dragStart = { x: e.clientX - pan.x, y: e.clientY - pan.y }; svg.setPointerCapture(e.pointerId); });
+    svg.addEventListener('pointermove', e => { if (!isDragging) return; pan.x = e.clientX - dragStart.x; pan.y = e.clientY - dragStart.y; drawTurtle(); });
+    svg.addEventListener('pointerup', e => { isDragging = false; svg.releasePointerCapture(e.pointerId); });
+    svg.addEventListener('pointerleave', e => { isDragging = false; });
+    window.addEventListener('resize', setSVGSize);
+  </script>
 </body>
+
 </html>
