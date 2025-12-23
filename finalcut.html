@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video Editor Chat</title>
     <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+</head>
+<body>
     <script type="module">
         import React from 'https://esm.sh/react@18';
         import ReactDOM from 'https://esm.sh/react-dom@18';
@@ -118,71 +120,137 @@
         ];
 
         const toolFunctions = {
-            resize_video: async (args, setVideoFileData, addMessage) => {
-                await loadFFmpeg();
-                ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
-                await ffmpeg.run('-i', 'input.mp4', '-vf', `scale=${args.width}:${args.height}`, '-c:a', 'copy', 'output.mp4');
-                const data = ffmpeg.FS('readFile', 'output.mp4');
-                const newVideoData = new Uint8Array(data);
-                setVideoFileData(newVideoData);
-                const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-                addMessage('Processed video (resized):', false, videoUrl);
-                return 'Video resized successfully.';
+            resize_video: async (args, videoFileData, setVideoFileData, addMessage) => {
+                try {
+                    await loadFFmpeg();
+                    ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
+                    await ffmpeg.run('-i', 'input.mp4', '-vf', `scale=${args.width}:${args.height}`, '-c:a', 'copy', 'output.mp4');
+                    const data = ffmpeg.FS('readFile', 'output.mp4');
+                    const newVideoData = new Uint8Array(data);
+                    setVideoFileData(newVideoData);
+                    const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+                    addMessage('Processed video (resized):', false, videoUrl);
+                    return 'Video resized successfully.';
+                } catch (error) {
+                    addMessage('Error resizing video: ' + error.message, false);
+                    return 'Failed to resize video: ' + error.message;
+                }
             },
             crop_video: async (args, videoFileData, setVideoFileData, addMessage) => {
-                await loadFFmpeg();
-                ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
-                await ffmpeg.run('-i', 'input.mp4', '-vf', `crop=${args.width}:${args.height}:${args.x}:${args.y}`, '-c:a', 'copy', 'output.mp4');
-                const data = ffmpeg.FS('readFile', 'output.mp4');
-                const newVideoData = new Uint8Array(data);
-                setVideoFileData(newVideoData);
-                const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-                addMessage('Processed video (cropped):', false, videoUrl);
-                return 'Video cropped successfully.';
+                try {
+                    await loadFFmpeg();
+                    ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
+                    await ffmpeg.run('-i', 'input.mp4', '-vf', `crop=${args.width}:${args.height}:${args.x}:${args.y}`, '-c:a', 'copy', 'output.mp4');
+                    const data = ffmpeg.FS('readFile', 'output.mp4');
+                    const newVideoData = new Uint8Array(data);
+                    setVideoFileData(newVideoData);
+                    const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+                    addMessage('Processed video (cropped):', false, videoUrl);
+                    return 'Video cropped successfully.';
+                } catch (error) {
+                    addMessage('Error cropping video: ' + error.message, false);
+                    return 'Failed to crop video: ' + error.message;
+                }
             },
             rotate_video: async (args, videoFileData, setVideoFileData, addMessage) => {
-                await loadFFmpeg();
-                ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
-                await ffmpeg.run('-i', 'input.mp4', '-vf', `rotate=${args.angle}*PI/180`, '-c:a', 'copy', 'output.mp4');
-                const data = ffmpeg.FS('readFile', 'output.mp4');
-                const newVideoData = new Uint8Array(data);
-                setVideoFileData(newVideoData);
-                const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-                addMessage('Processed video (rotated):', false, videoUrl);
-                return 'Video rotated successfully.';
+                try {
+                    await loadFFmpeg();
+                    ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
+                    await ffmpeg.run('-i', 'input.mp4', '-vf', `rotate=${args.angle}*PI/180`, '-c:a', 'copy', 'output.mp4');
+                    const data = ffmpeg.FS('readFile', 'output.mp4');
+                    const newVideoData = new Uint8Array(data);
+                    setVideoFileData(newVideoData);
+                    const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+                    addMessage('Processed video (rotated):', false, videoUrl);
+                    return 'Video rotated successfully.';
+                } catch (error) {
+                    addMessage('Error rotating video: ' + error.message, false);
+                    return 'Failed to rotate video: ' + error.message;
+                }
             },
             add_text: async (args, videoFileData, setVideoFileData, addMessage) => {
-                await loadFFmpeg();
-                ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
-                await ffmpeg.run('-i', 'input.mp4', '-vf', `drawtext=text='${args.text}':x=${args.x || 10}:y=${args.y || 10}:fontsize=${args.fontsize || 24}:fontcolor=${args.color || 'white'}`, '-c:a', 'copy', 'output.mp4');
-                const data = ffmpeg.FS('readFile', 'output.mp4');
-                const newVideoData = new Uint8Array(data);
-                setVideoFileData(newVideoData);
-                const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-                addMessage('Processed video (text added):', false, videoUrl);
-                return 'Text added to video successfully.';
+                try {
+                    await loadFFmpeg();
+                    // Escape special characters in text to prevent injection
+                    const escapedText = args.text.replace(/[\\:'"]/g, '\\$&').replace(/\n/g, '\\n');
+                    ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
+                    await ffmpeg.run('-i', 'input.mp4', '-vf', `drawtext=text='${escapedText}':x=${args.x || 10}:y=${args.y || 10}:fontsize=${args.fontsize || 24}:fontcolor=${args.color || 'white'}`, '-c:a', 'copy', 'output.mp4');
+                    const data = ffmpeg.FS('readFile', 'output.mp4');
+                    const newVideoData = new Uint8Array(data);
+                    setVideoFileData(newVideoData);
+                    const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+                    addMessage('Processed video (text added):', false, videoUrl);
+                    return 'Text added to video successfully.';
+                } catch (error) {
+                    addMessage('Error adding text to video: ' + error.message, false);
+                    return 'Failed to add text to video: ' + error.message;
+                }
             },
             trim_video: async (args, videoFileData, setVideoFileData, addMessage) => {
-                await loadFFmpeg();
-                ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
-                await ffmpeg.run('-i', 'input.mp4', '-ss', args.start, '-to', args.end, '-c', 'copy', 'output.mp4');
-                const data = ffmpeg.FS('readFile', 'output.mp4');
-                const newVideoData = new Uint8Array(data);
-                setVideoFileData(newVideoData);
-                const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-                addMessage('Processed video (trimmed):', false, videoUrl);
-                return 'Video trimmed successfully.';
+                try {
+                    await loadFFmpeg();
+                    ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
+                    await ffmpeg.run('-i', 'input.mp4', '-ss', args.start, '-to', args.end, '-c', 'copy', 'output.mp4');
+                    const data = ffmpeg.FS('readFile', 'output.mp4');
+                    const newVideoData = new Uint8Array(data);
+                    setVideoFileData(newVideoData);
+                    const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+                    addMessage('Processed video (trimmed):', false, videoUrl);
+                    return 'Video trimmed successfully.';
+                } catch (error) {
+                    addMessage('Error trimming video: ' + error.message, false);
+                    return 'Failed to trim video: ' + error.message;
+                }
             },
             adjust_speed: async (args, videoFileData, setVideoFileData, addMessage) => {
-                await loadFFmpeg();
-                ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
-                await ffmpeg.run('-i', 'input.mp4', '-filter:v', `setpts=PTS/${args.speed}`, '-filter:a', `atempo=${args.speed}`, 'output.mp4');
-                const data = ffmpeg.FS('readFile', 'output.mp4');
-                const newVideoData = new Uint8Array(data);
-                setVideoFileData(newVideoData);
-                const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
-                addMessage('Processed video (speed adjusted):', false, videoUrl);
-                return 'Video speed adjusted successfully.';
+                try {
+                    await loadFFmpeg();
+                    ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
+                    
+                    // atempo filter only supports values between 0.5 and 2.0
+                    // For values outside this range, we need to chain multiple atempo filters
+                    let audioFilter = '';
+                    let speed = args.speed;
+                    
+                    if (speed >= 0.5 && speed <= 2.0) {
+                        audioFilter = `atempo=${speed}`;
+                    } else if (speed < 0.5) {
+                        // Chain atempo filters for slow speeds
+                        let remainingSpeed = speed;
+                        const filters = [];
+                        while (remainingSpeed < 0.5) {
+                            filters.push('atempo=0.5');
+                            remainingSpeed *= 2;
+                        }
+                        if (remainingSpeed !== 1.0) {
+                            filters.push(`atempo=${remainingSpeed}`);
+                        }
+                        audioFilter = filters.join(',');
+                    } else {
+                        // Chain atempo filters for fast speeds
+                        let remainingSpeed = speed;
+                        const filters = [];
+                        while (remainingSpeed > 2.0) {
+                            filters.push('atempo=2.0');
+                            remainingSpeed /= 2;
+                        }
+                        if (remainingSpeed !== 1.0) {
+                            filters.push(`atempo=${remainingSpeed}`);
+                        }
+                        audioFilter = filters.join(',');
+                    }
+                    
+                    await ffmpeg.run('-i', 'input.mp4', '-filter:v', `setpts=PTS/${args.speed}`, '-filter:a', audioFilter, 'output.mp4');
+                    const data = ffmpeg.FS('readFile', 'output.mp4');
+                    const newVideoData = new Uint8Array(data);
+                    setVideoFileData(newVideoData);
+                    const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
+                    addMessage('Processed video (speed adjusted):', false, videoUrl);
+                    return 'Video speed adjusted successfully.';
+                } catch (error) {
+                    addMessage('Error adjusting video speed: ' + error.message, false);
+                    return 'Failed to adjust video speed: ' + error.message;
+                }
             }
         };
 
@@ -229,7 +297,17 @@
                             tool_choice: 'auto'
                         })
                     });
+                    
+                    if (!response.ok) {
+                        throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+                    }
+                    
                     const data = await response.json();
+                    
+                    if (!data.choices || !data.choices[0]) {
+                        throw new Error('Invalid response format from API');
+                    }
+                    
                     const msg = data.choices[0].message;
 
                     if (msg.content) {
@@ -260,15 +338,20 @@
             const handleUpload = async (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
-                addMessage('Uploading video...', true);
-                const data = await fetchFile(file);
-                setVideoFileData(data);
-                const url = URL.createObjectURL(file);
-                setOriginalVideoUrl(url);
-                addMessage('Original video uploaded:', false, url);
-                const newMessages = [...messages, { role: 'user', content: 'Video uploaded and ready for editing.' }];
-                setMessages(newMessages);
-                await callAPI(newMessages);
+                
+                try {
+                    addMessage('Uploading video...', true);
+                    const data = await fetchFile(file);
+                    setVideoFileData(data);
+                    const url = URL.createObjectURL(file);
+                    setOriginalVideoUrl(url);
+                    addMessage('Original video uploaded:', false, url);
+                    const newMessages = [...messages, { role: 'user', content: 'Video uploaded and ready for editing.' }];
+                    setMessages(newMessages);
+                    await callAPI(newMessages);
+                } catch (error) {
+                    addMessage('Error uploading video: ' + error.message, false);
+                }
             };
 
             const handleSend = async () => {
