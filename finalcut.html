@@ -122,6 +122,14 @@
         const toolFunctions = {
             resize_video: async (args, videoFileData, setVideoFileData, addMessage) => {
                 try {
+                    // Validate inputs
+                    if (!args.width || !args.height) {
+                        throw new Error('Width and height are required');
+                    }
+                    if (args.width <= 0 || args.height <= 0) {
+                        throw new Error('Width and height must be positive numbers');
+                    }
+                    
                     await loadFFmpeg();
                     ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
                     await ffmpeg.run('-i', 'input.mp4', '-vf', `scale=${args.width}:${args.height}`, '-c:a', 'copy', 'output.mp4');
@@ -138,6 +146,14 @@
             },
             crop_video: async (args, videoFileData, setVideoFileData, addMessage) => {
                 try {
+                    // Validate inputs
+                    if (args.x === undefined || args.y === undefined || !args.width || !args.height) {
+                        throw new Error('x, y, width, and height are required for cropping');
+                    }
+                    if (args.x < 0 || args.y < 0 || args.width <= 0 || args.height <= 0) {
+                        throw new Error('Crop dimensions must be valid positive numbers');
+                    }
+                    
                     await loadFFmpeg();
                     ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
                     await ffmpeg.run('-i', 'input.mp4', '-vf', `crop=${args.width}:${args.height}:${args.x}:${args.y}`, '-c:a', 'copy', 'output.mp4');
@@ -188,6 +204,11 @@
             },
             trim_video: async (args, videoFileData, setVideoFileData, addMessage) => {
                 try {
+                    // Validate inputs
+                    if (!args.start || !args.end) {
+                        throw new Error('Start and end times are required for trimming');
+                    }
+                    
                     await loadFFmpeg();
                     ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
                     await ffmpeg.run('-i', 'input.mp4', '-ss', args.start, '-to', args.end, '-c', 'copy', 'output.mp4');
@@ -204,6 +225,11 @@
             },
             adjust_speed: async (args, videoFileData, setVideoFileData, addMessage) => {
                 try {
+                    // Validate inputs
+                    if (!args.speed || args.speed <= 0) {
+                        throw new Error('Speed must be a positive number');
+                    }
+                    
                     await loadFFmpeg();
                     ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
                     
