@@ -146,8 +146,8 @@
             },
             crop_video: async (args, videoFileData, setVideoFileData, addMessage) => {
                 try {
-                    // Validate inputs
-                    if (args.x === undefined || args.y === undefined || !args.width || !args.height) {
+                    // Validate inputs - use strict equality to allow 0 values
+                    if (args.x == null || args.y == null || args.width == null || args.height == null) {
                         throw new Error('x, y, width, and height are required for cropping');
                     }
                     if (args.x < 0 || args.y < 0 || args.width <= 0 || args.height <= 0) {
@@ -188,7 +188,14 @@
                 try {
                     await loadFFmpeg();
                     // Escape special characters in text to prevent injection
-                    const escapedText = args.text.replace(/[\\:'"]/g, '\\$&').replace(/\n/g, '\\n');
+                    // Replace single quotes with escaped version and handle other special chars
+                    const escapedText = args.text
+                        .replace(/\\/g, '\\\\')
+                        .replace(/'/g, "\\'")
+                        .replace(/:/g, '\\:')
+                        .replace(/\n/g, '\\n')
+                        .replace(/\r/g, '')
+                        .replace(/\t/g, '\\t');
                     ffmpeg.FS('writeFile', 'input.mp4', videoFileData);
                     await ffmpeg.run('-i', 'input.mp4', '-vf', `drawtext=text='${escapedText}':x=${args.x || 10}:y=${args.y || 10}:fontsize=${args.fontsize || 24}:fontcolor=${args.color || 'white'}`, '-c:a', 'copy', 'output.mp4');
                     const data = ffmpeg.FS('readFile', 'output.mp4');
@@ -204,8 +211,8 @@
             },
             trim_video: async (args, videoFileData, setVideoFileData, addMessage) => {
                 try {
-                    // Validate inputs
-                    if (!args.start || !args.end) {
+                    // Validate inputs - use strict equality to allow 0 as a valid start time
+                    if (args.start == null || args.end == null) {
                         throw new Error('Start and end times are required for trimming');
                     }
                     
