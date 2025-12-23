@@ -4,7 +4,7 @@ export const toolFunctions = {
   resize_video: async (args, videoFileData, setVideoFileData, addMessage) => {
     try {
       // Validate inputs
-      if (args.width == null || args.height == null) {
+      if (args.width === null || args.width === undefined || args.height === null || args.height === undefined) {
         throw new Error('Width and height are required');
       }
       if (args.width <= 0 || args.height <= 0) {
@@ -28,7 +28,7 @@ export const toolFunctions = {
   crop_video: async (args, videoFileData, setVideoFileData, addMessage) => {
     try {
       // Validate inputs - use strict equality to allow 0 values
-      if (args.x == null || args.y == null || args.width == null || args.height == null) {
+      if (args.x === null || args.x === undefined || args.y === null || args.y === undefined || args.width === null || args.width === undefined || args.height === null || args.height === undefined) {
         throw new Error('x, y, width, and height are required for cropping');
       }
       if (args.x < 0 || args.y < 0 || args.width <= 0 || args.height <= 0) {
@@ -52,7 +52,7 @@ export const toolFunctions = {
   rotate_video: async (args, videoFileData, setVideoFileData, addMessage) => {
     try {
       // Validate inputs
-      if (args.angle == null) {
+      if (args.angle === null || args.angle === undefined) {
         throw new Error('Angle is required for rotation');
       }
       
@@ -72,9 +72,9 @@ export const toolFunctions = {
   },
   add_text: async (args, videoFileData, setVideoFileData, addMessage) => {
     try {
-      // Validate inputs
-      if (!args.text) {
-        throw new Error('Text is required');
+      // Validate inputs - explicitly reject empty strings along with null/undefined
+      if (typeof args.text !== 'string' || args.text === '') {
+        throw new Error('Text is required and cannot be empty');
       }
       
       await loadFFmpeg();
@@ -103,7 +103,7 @@ export const toolFunctions = {
   trim_video: async (args, videoFileData, setVideoFileData, addMessage) => {
     try {
       // Validate inputs - use strict equality to allow 0 as a valid start time
-      if (args.start == null || args.end == null) {
+      if (args.start === null || args.start === undefined || args.end === null || args.end === undefined) {
         throw new Error('Start and end times are required for trimming');
       }
       
@@ -124,7 +124,7 @@ export const toolFunctions = {
   adjust_speed: async (args, videoFileData, setVideoFileData, addMessage) => {
     try {
       // Validate inputs
-      if (args.speed == null || args.speed <= 0) {
+      if (args.speed === null || args.speed === undefined || args.speed <= 0) {
         throw new Error('Speed must be a positive number');
       }
       
