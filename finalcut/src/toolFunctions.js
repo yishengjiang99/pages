@@ -51,6 +51,11 @@ export const toolFunctions = {
   },
   rotate_video: async (args, videoFileData, setVideoFileData, addMessage) => {
     try {
+      // Validate inputs
+      if (args.angle == null) {
+        throw new Error('Angle is required for rotation');
+      }
+      
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `rotate=${args.angle}*PI/180`, '-c:a', 'copy', 'output.mp4']);
@@ -67,6 +72,11 @@ export const toolFunctions = {
   },
   add_text: async (args, videoFileData, setVideoFileData, addMessage) => {
     try {
+      // Validate inputs
+      if (!args.text) {
+        throw new Error('Text is required');
+      }
+      
       await loadFFmpeg();
       // Escape special characters in text to prevent injection
       // Replace single quotes with escaped version and handle other special chars
