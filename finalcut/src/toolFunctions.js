@@ -4,7 +4,7 @@ export const toolFunctions = {
   resize_video: async (args, videoFileData, setVideoFileData, addMessage) => {
     try {
       // Validate inputs
-      if (!args.width || !args.height) {
+      if (args.width == null || args.height == null) {
         throw new Error('Width and height are required');
       }
       if (args.width <= 0 || args.height <= 0) {
@@ -114,7 +114,7 @@ export const toolFunctions = {
   adjust_speed: async (args, videoFileData, setVideoFileData, addMessage) => {
     try {
       // Validate inputs
-      if (!args.speed || args.speed <= 0) {
+      if (args.speed == null || args.speed <= 0) {
         throw new Error('Speed must be a positive number');
       }
       
