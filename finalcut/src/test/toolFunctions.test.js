@@ -304,7 +304,7 @@ describe('toolFunctions', () => {
       );
     });
 
-    it('should accept negative volume values within valid range', async () => {
+    it('should reject negative volume values', async () => {
       const mockAudioData = new Uint8Array([1, 2, 3, 4, 5]);
       const result = await toolFunctions.add_audio_track(
         { audioFile: mockAudioData, volume: -0.5 },
@@ -313,6 +313,23 @@ describe('toolFunctions', () => {
         mockAddMessage
       );
       expect(result).toContain('Failed to add audio track');
+      expect(mockAddMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Volume must be between 0.0 and 2.0'),
+        false
+      );
+    });
+
+    it('should allow volume=0.0 (mute)', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const mockAudioData = new Uint8Array([1, 2, 3, 4, 5]);
+      const result = await toolFunctions.add_audio_track(
+        { audioFile: mockAudioData, mode: 'replace', volume: 0.0 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Audio track replaced successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
     });
 
     it('should replace audio track with default parameters', async () => {

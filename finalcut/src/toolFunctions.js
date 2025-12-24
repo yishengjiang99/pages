@@ -192,14 +192,14 @@ export const toolFunctions = {
       }
       
       // Validate volume
-      if (volume < 0 || volume > 2.0) {
+      if (volume < 0.0 || volume > 2.0) {
         throw new Error('Volume must be between 0.0 and 2.0');
       }
       
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       
-      // Assume audioFile is a Uint8Array
+      // Handle both base64 strings and Uint8Array audio data
       let audioData;
       if (typeof args.audioFile === 'string') {
         // If it's a base64 string, decode it
