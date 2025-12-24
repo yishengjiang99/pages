@@ -175,5 +175,82 @@ export const toolFunctions = {
       addMessage('Error adjusting video speed: ' + error.message, false);
       return 'Failed to adjust video speed: ' + error.message;
     }
+  },
+  add_audio_track: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      // Validate inputs
+      if (!args.audioFile || args.audioFile === '') {
+        throw new Error('Audio file is required');
+      }
+      
+      const mode = args.mode || 'replace';
+      const volume = args.volume !== undefined ? args.volume : 1.0;
+      
+      // Validate mode
+      if (mode !== 'replace' && mode !== 'mix') {
+        throw new Error('Mode must be either "replace" or "mix"');
+      }
+      
+      // Validate volume
+      if (volume < 0 || volume > 2.0) {
+        throw new Error('Volume must be between 0.0 and 2.0');
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      
+      // Assume audioFile is a Uint8Array
+      let audioData;
+      if (typeof args.audioFile === 'string') {
+        // If it's a base64 string, decode it
+        const base64Data = args.audioFile.split(',')[1] || args.audioFile;
+        const binaryString = atob(base64Data);
+        audioData = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          audioData[i] = binaryString.charCodeAt(i);
+        }
+      } else if (args.audioFile instanceof Uint8Array) {
+        audioData = args.audioFile;
+      } else {
+        throw new Error('Audio file must be a base64 string or Uint8Array');
+      }
+      
+      await ffmpeg.writeFile('audio.mp3', audioData);
+      
+      // Build FFmpeg command based on mode
+      if (mode === 'replace') {
+        // Replace audio: use video from first input, audio from second input
+        await ffmpeg.exec([
+          '-i', 'input.mp4',
+          '-i', 'audio.mp3',
+          '-map', '0:v',
+          '-map', '1:a',
+          '-filter:a', `volume=${volume}`,
+          '-c:v', 'copy',
+          '-shortest',
+          'output.mp4'
+        ]);
+      } else {
+        // Mix audio: combine both audio tracks
+        await ffmpeg.exec([
+          '-i', 'input.mp4',
+          '-i', 'audio.mp3',
+          '-filter_complex', `[0:a]volume=1.0[a0];[1:a]volume=${volume}[a1];[a0][a1]amix=inputs=2:duration=shortest`,
+          '-map', '0:v',
+          '-c:v', 'copy',
+          'output.mp4'
+        ]);
+      }
+      
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage(`Processed video (audio track ${mode === 'replace' ? 'replaced' : 'mixed'}):`, false, videoUrl);
+      return `Audio track ${mode === 'replace' ? 'replaced' : 'mixed'} successfully.`;
+    } catch (error) {
+      addMessage('Error adding audio track: ' + error.message, false);
+      return 'Failed to add audio track: ' + error.message;
+    }
   }
 };

@@ -248,4 +248,144 @@ describe('toolFunctions', () => {
       expect(ffmpeg.exec).toHaveBeenCalled();
     });
   });
+
+  describe('add_audio_track', () => {
+    it('should validate audioFile parameter is provided', async () => {
+      const result = await toolFunctions.add_audio_track(
+        {},
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to add audio track');
+      expect(mockAddMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Error adding audio track'),
+        false
+      );
+    });
+
+    it('should reject empty audioFile string', async () => {
+      const result = await toolFunctions.add_audio_track(
+        { audioFile: '' },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to add audio track');
+    });
+
+    it('should validate mode parameter', async () => {
+      const mockAudioData = new Uint8Array([1, 2, 3, 4, 5]);
+      const result = await toolFunctions.add_audio_track(
+        { audioFile: mockAudioData, mode: 'invalid' },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to add audio track');
+      expect(mockAddMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Mode must be either "replace" or "mix"'),
+        false
+      );
+    });
+
+    it('should validate volume parameter range', async () => {
+      const mockAudioData = new Uint8Array([1, 2, 3, 4, 5]);
+      const result = await toolFunctions.add_audio_track(
+        { audioFile: mockAudioData, volume: 3.0 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to add audio track');
+      expect(mockAddMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Volume must be between 0.0 and 2.0'),
+        false
+      );
+    });
+
+    it('should accept negative volume values within valid range', async () => {
+      const mockAudioData = new Uint8Array([1, 2, 3, 4, 5]);
+      const result = await toolFunctions.add_audio_track(
+        { audioFile: mockAudioData, volume: -0.5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to add audio track');
+    });
+
+    it('should replace audio track with default parameters', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const mockAudioData = new Uint8Array([1, 2, 3, 4, 5]);
+      const result = await toolFunctions.add_audio_track(
+        { audioFile: mockAudioData },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Audio track replaced successfully.');
+      expect(ffmpeg.writeFile).toHaveBeenCalledWith('input.mp4', mockVideoFileData);
+      expect(ffmpeg.writeFile).toHaveBeenCalledWith('audio.mp3', mockAudioData);
+      expect(ffmpeg.exec).toHaveBeenCalled();
+    });
+
+    it('should replace audio track with custom volume', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const mockAudioData = new Uint8Array([1, 2, 3, 4, 5]);
+      const result = await toolFunctions.add_audio_track(
+        { audioFile: mockAudioData, mode: 'replace', volume: 0.5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Audio track replaced successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall).toContain('-filter:a');
+      expect(execCall).toContain('volume=0.5');
+    });
+
+    it('should mix audio tracks', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const mockAudioData = new Uint8Array([1, 2, 3, 4, 5]);
+      const result = await toolFunctions.add_audio_track(
+        { audioFile: mockAudioData, mode: 'mix', volume: 0.8 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Audio track mixed successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall).toContain('-filter_complex');
+    });
+
+    it('should handle base64 encoded audio data', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      // Create a simple base64 encoded string
+      const base64Audio = 'data:audio/mp3;base64,SGVsbG8gV29ybGQ=';
+      const result = await toolFunctions.add_audio_track(
+        { audioFile: base64Audio, mode: 'replace' },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Audio track replaced successfully.');
+      expect(ffmpeg.writeFile).toHaveBeenCalledWith('audio.mp3', expect.any(Uint8Array));
+    });
+
+    it('should handle Uint8Array audio data', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const mockAudioData = new Uint8Array([72, 101, 108, 108, 111]);
+      const result = await toolFunctions.add_audio_track(
+        { audioFile: mockAudioData, mode: 'replace' },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Audio track replaced successfully.');
+      expect(ffmpeg.writeFile).toHaveBeenCalledWith('audio.mp3', mockAudioData);
+    });
+  });
 });

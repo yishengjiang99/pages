@@ -91,6 +91,31 @@ export const tools = [
         required: ['speed']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_audio_track',
+      description: 'Add or replace the audio track in a video with a new audio file. This can be used to add background music, voiceovers, or replace the existing audio entirely.',
+      parameters: {
+        type: 'object',
+        properties: {
+          audioFile: { type: 'string', description: 'The audio file data (base64 encoded or file reference) to add to the video.' },
+          mode: { 
+            type: 'string', 
+            description: 'The audio mixing mode: "replace" to replace existing audio, or "mix" to mix with existing audio.',
+            enum: ['replace', 'mix'],
+            default: 'replace'
+          },
+          volume: { 
+            type: 'number', 
+            description: 'Volume level for the new audio track (0.0 to 2.0, where 1.0 is original volume). Default is 1.0.',
+            default: 1.0
+          }
+        },
+        required: ['audioFile']
+      }
+    }
   }
 ];
 

@@ -13,6 +13,7 @@ A React-based video editing application with AI chat capabilities using xAI's Gr
   - Add text overlays
   - Trim video
   - Adjust playback speed
+  - Add or replace audio tracks
 - Powered by FFmpeg WebAssembly
 - Integration with xAI's Grok API for intelligent editing assistance
 
