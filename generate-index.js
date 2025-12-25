@@ -69,6 +69,23 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, async () => {
   console.log(`Server running at http://localhost:${PORT}`);
 
+  // Create symlink for finalcut.html -> finalcut/dist/index.html
+  const finalcutSymlink = path.join(CWD, 'finalcut.html');
+  const finalcutTarget = path.join(CWD, 'finalcut', 'dist', 'index.html');
+  
+  // Remove existing symlink if it exists
+  if (fs.existsSync(finalcutSymlink)) {
+    fs.unlinkSync(finalcutSymlink);
+  }
+  
+  // Create the symlink if the target exists
+  if (fs.existsSync(finalcutTarget)) {
+    fs.symlinkSync(finalcutTarget, finalcutSymlink);
+    console.log(`Created symlink: finalcut.html -> finalcut/dist/index.html`);
+  } else {
+    console.log(`Warning: finalcut/dist/index.html does not exist, symlink not created`);
+  }
+
   // Find HTML files, exclude index.html in root
   let htmlFiles = findHtmlFiles(CWD).filter(file => path.basename(file).toLowerCase() !== 'index.html');
 
