@@ -6,3 +6,4 @@ dist
 .env.*.local
 finalcut/dist
 finalcut/node_modules
+finalcut.html
