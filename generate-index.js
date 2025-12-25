@@ -93,17 +93,20 @@ server.listen(PORT, async () => {
   }
   
   // Create the symlink if the target exists
-  if (fs.existsSync(finalcutTarget)) {
-    try {
+  try {
+    const targetStats = fs.lstatSync(finalcutTarget);
+    if (targetStats.isFile()) {
       // Use relative path for better portability
       const relativeTarget = path.relative(path.dirname(finalcutSymlink), finalcutTarget);
       fs.symlinkSync(relativeTarget, finalcutSymlink);
       console.log(`Created symlink: finalcut.html -> ${relativeTarget}`);
-    } catch (err) {
+    }
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      console.log(`Warning: finalcut/dist/index.html does not exist, symlink not created`);
+    } else {
       console.error(`Error creating symlink: ${err.message}`);
     }
-  } else {
-    console.log(`Warning: finalcut/dist/index.html does not exist, symlink not created`);
   }
 
   // Find HTML files, exclude index.html in root
