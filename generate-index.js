@@ -26,11 +26,16 @@ function findHtmlFiles(dir) {
   let results = [];
   fs.readdirSync(dir).forEach(file => {
     const fullPath = path.join(dir, file);
-    const stat = fs.statSync(fullPath);
-    if (stat.isDirectory()) {
-      results = results.concat(findHtmlFiles(fullPath));
-    } else if (path.extname(file).toLowerCase() === '.html') {
-      results.push(fullPath);
+    try {
+      const stat = fs.statSync(fullPath);
+      if (stat.isDirectory()) {
+        results = results.concat(findHtmlFiles(fullPath));
+      } else if (path.extname(file).toLowerCase() === '.html') {
+        results.push(fullPath);
+      }
+    } catch (err) {
+      // Skip broken symlinks or files that can't be accessed
+      console.warn(`Warning: Could not access ${fullPath}: ${err.message}`);
     }
   });
   return results;
@@ -90,8 +95,10 @@ server.listen(PORT, async () => {
   // Create the symlink if the target exists
   if (fs.existsSync(finalcutTarget)) {
     try {
-      fs.symlinkSync(finalcutTarget, finalcutSymlink);
-      console.log(`Created symlink: finalcut.html -> finalcut/dist/index.html`);
+      // Use relative path for better portability
+      const relativeTarget = path.relative(path.dirname(finalcutSymlink), finalcutTarget);
+      fs.symlinkSync(relativeTarget, finalcutSymlink);
+      console.log(`Created symlink: finalcut.html -> ${relativeTarget}`);
     } catch (err) {
       console.error(`Error creating symlink: ${err.message}`);
     }
