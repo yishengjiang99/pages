@@ -82,10 +82,11 @@ server.listen(PORT, async () => {
   try {
     if (fs.existsSync(finalcutSymlink)) {
       const stats = fs.lstatSync(finalcutSymlink);
-      if (stats.isSymbolicLink() || stats.isFile()) {
+      // Remove if it's a symlink, file, or any non-directory
+      if (!stats.isDirectory()) {
         fs.unlinkSync(finalcutSymlink);
       } else {
-        console.log(`Warning: finalcut.html exists but is not a symlink or file`);
+        console.log(`Warning: finalcut.html exists and is a directory`);
       }
     }
   } catch (err) {
@@ -94,7 +95,8 @@ server.listen(PORT, async () => {
   
   // Create the symlink if the target exists
   try {
-    const targetStats = fs.lstatSync(finalcutTarget);
+    // Use statSync to follow symlinks and check the actual target
+    const targetStats = fs.statSync(finalcutTarget);
     if (targetStats.isFile()) {
       // Use relative path for better portability
       const relativeTarget = path.relative(path.dirname(finalcutSymlink), finalcutTarget);
