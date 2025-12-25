@@ -74,14 +74,27 @@ server.listen(PORT, async () => {
   const finalcutTarget = path.join(CWD, 'finalcut', 'dist', 'index.html');
   
   // Remove existing symlink if it exists
-  if (fs.existsSync(finalcutSymlink)) {
-    fs.unlinkSync(finalcutSymlink);
+  try {
+    if (fs.existsSync(finalcutSymlink)) {
+      const stats = fs.lstatSync(finalcutSymlink);
+      if (stats.isSymbolicLink() || stats.isFile()) {
+        fs.unlinkSync(finalcutSymlink);
+      } else {
+        console.log(`Warning: finalcut.html exists but is not a symlink or file`);
+      }
+    }
+  } catch (err) {
+    console.error(`Error removing existing finalcut.html: ${err.message}`);
   }
   
   // Create the symlink if the target exists
   if (fs.existsSync(finalcutTarget)) {
-    fs.symlinkSync(finalcutTarget, finalcutSymlink);
-    console.log(`Created symlink: finalcut.html -> finalcut/dist/index.html`);
+    try {
+      fs.symlinkSync(finalcutTarget, finalcutSymlink);
+      console.log(`Created symlink: finalcut.html -> finalcut/dist/index.html`);
+    } catch (err) {
+      console.error(`Error creating symlink: ${err.message}`);
+    }
   } else {
     console.log(`Warning: finalcut/dist/index.html does not exist, symlink not created`);
   }
