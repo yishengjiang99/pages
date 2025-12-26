@@ -54,7 +54,7 @@ describe('FinalCut Token Management', () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
     // Find token input field
-    const tokenInput = await page.$('input[placeholder*="token" i], input[type="text"], input[type="password"]');
+    const tokenInput = await page.$('input[placeholder*="token"], input[placeholder*="Token"], input[type="text"], input[type="password"]');
     
     if (tokenInput) {
       await tokenInput.type('test-token-12345');
@@ -68,16 +68,20 @@ describe('FinalCut Token Management', () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
     // Find and fill token input
-    const tokenInput = await page.$('input[placeholder*="token" i], input[type="text"], input[type="password"]');
+    const tokenInput = await page.$('input[placeholder*="token"], input[placeholder*="Token"], input[type="text"], input[type="password"]');
     
     if (tokenInput) {
       await tokenInput.type('test-token-saved');
       
-      // Find and click Save button
-      const saveButton = await page.$('button:has-text("Save"), button:has-text("Set"), input[type="submit"]');
-      
-      if (saveButton) {
-        await saveButton.click();
+      // Find and click Save button - iterate through buttons to find the right one
+      const buttons = await page.$$('button, input[type="submit"]');
+      for (const button of buttons) {
+        const text = await page.evaluate(el => el.textContent || el.value, button);
+        if (text && (text.includes('Save') || text.includes('Set'))) {
+          await button.click();
+          break;
+        }
+      }
         
         // Wait a moment for localStorage to be set
         await page.waitForTimeout(500);
@@ -88,7 +92,6 @@ describe('FinalCut Token Management', () => {
         });
         
         expect(savedToken).toBe('test-token-saved');
-      }
     }
   }, TIMEOUT);
 
@@ -131,7 +134,7 @@ describe('FinalCut Token Management', () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
     // Find and fill token input
-    const tokenInput = await page.$('input[placeholder*="token" i]');
+    const tokenInput = await page.$('input[placeholder*="token"], input[placeholder*="Token"]');
     
     if (tokenInput) {
       await tokenInput.type('test-token-hide');
@@ -150,7 +153,7 @@ describe('FinalCut Token Management', () => {
       await page.waitForTimeout(1000);
       
       // Check if token input is hidden or removed
-      const tokenInputAfter = await page.$('input[placeholder*="Enter" i][placeholder*="token" i]');
+      const tokenInputAfter = await page.$('input[placeholder*="Enter"][placeholder*="token"], input[placeholder*="Enter"][placeholder*="Token"]');
       const isVisible = tokenInputAfter ? await page.evaluate(el => {
         const style = window.getComputedStyle(el);
         return style.display !== 'none' && style.visibility !== 'hidden';

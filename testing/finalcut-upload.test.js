@@ -112,8 +112,14 @@ describe('FinalCut File Upload and Video', () => {
   test('should render chat interface for video editing', async () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
-    // Check for chat-related elements
-    const chatInput = await page.$('textarea, input[type="text"]:not([placeholder*="token" i])');
+    // Check for chat-related elements - use JavaScript to filter by placeholder
+    const chatInput = await page.evaluate(() => {
+      const inputs = Array.from(document.querySelectorAll('textarea, input[type="text"]'));
+      return inputs.some(input => {
+        const placeholder = input.placeholder || '';
+        return !placeholder.toLowerCase().includes('token');
+      });
+    });
     expect(chatInput).toBeTruthy();
   }, TIMEOUT);
 
@@ -141,12 +147,16 @@ describe('FinalCut File Upload and Video', () => {
     // Wait for page to load
     await page.waitForTimeout(1000);
     
-    // Find chat input (textarea or text input, but not token input)
-    const chatInputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token" i])');
+    // Find chat input (textarea or text input, but not token input) using JavaScript
+    const chatInput = await page.evaluateHandle(() => {
+      const inputs = Array.from(document.querySelectorAll('textarea, input[type="text"]'));
+      return inputs.find(input => {
+        const placeholder = input.placeholder || '';
+        return !placeholder.toLowerCase().includes('token');
+      });
+    });
     
-    if (chatInputs.length > 0) {
-      const chatInput = chatInputs[0];
-      
+    if (chatInput) {
       await chatInput.type('Trim video to 10 seconds');
       
       const inputValue = await page.evaluate(el => el.value, chatInput);

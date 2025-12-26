@@ -70,9 +70,9 @@ describe('FinalCut Basic Functionality', () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
     // Wait for token prompt to appear
-    await page.waitForSelector('input[placeholder*="token" i], input[placeholder*="Token" i]', { timeout: 5000 });
+    await page.waitForSelector('input[placeholder*="token"], input[placeholder*="Token"]', { timeout: 5000 });
     
-    const tokenInput = await page.$('input[placeholder*="token" i], input[placeholder*="Token" i]');
+    const tokenInput = await page.$('input[placeholder*="token"], input[placeholder*="Token"]');
     expect(tokenInput).toBeTruthy();
   }, TIMEOUT);
 
@@ -86,7 +86,7 @@ describe('FinalCut Basic Functionality', () => {
   test('should have a chat input field', async () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
-    const chatInput = await page.$('textarea, input[placeholder*="edit" i], input[placeholder*="describe" i]');
+    const chatInput = await page.$('textarea, input[placeholder*="edit"], input[placeholder*="Edit"], input[placeholder*="describe"], input[placeholder*="Describe"]');
     expect(chatInput).toBeTruthy();
   }, TIMEOUT);
 

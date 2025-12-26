@@ -73,7 +73,7 @@ describe('FinalCut Edge Cases and Error Handling', () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
     // Find and try to save empty token
-    const tokenInput = await page.$('input[placeholder*="token" i]');
+    const tokenInput = await page.$('input[placeholder*="token"]');
     
     if (tokenInput) {
       // Leave input empty and try to save
@@ -118,7 +118,7 @@ describe('FinalCut Edge Cases and Error Handling', () => {
   test('should handle very long text input', async () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
-    const chatInputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token" i])');
+    const chatInputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token"])');
     
     if (chatInputs.length > 0) {
       const longText = 'A'.repeat(10000);
@@ -133,7 +133,7 @@ describe('FinalCut Edge Cases and Error Handling', () => {
   test('should handle special characters in input', async () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
-    const chatInputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token" i])');
+    const chatInputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token"])');
     
     if (chatInputs.length > 0) {
       const specialText = '<script>alert("xss")</script> & " \' \\';
@@ -227,7 +227,7 @@ describe('FinalCut Edge Cases and Error Handling', () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
     // Type something
-    const chatInputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token" i])');
+    const chatInputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token"])');
     
     if (chatInputs.length > 0) {
       await chatInputs[0].type('Test message before resize');

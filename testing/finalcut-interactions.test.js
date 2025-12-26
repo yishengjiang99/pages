@@ -106,7 +106,7 @@ describe('FinalCut User Interactions', () => {
     await page.waitForTimeout(1000);
     
     // Find text input fields
-    const inputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token" i])');
+    const inputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token"])');
     
     if (inputs.length > 0) {
       const input = inputs[0];
@@ -126,7 +126,7 @@ describe('FinalCut User Interactions', () => {
     await page.waitForTimeout(1000);
     
     // Find chat input
-    const chatInputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token" i])');
+    const chatInputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token"])');
     
     if (chatInputs.length > 0) {
       const chatInput = chatInputs[0];
@@ -149,7 +149,7 @@ describe('FinalCut User Interactions', () => {
     
     // This test would need actual form submission which requires API
     // For now, we just verify the structure exists
-    const chatInputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token" i])');
+    const chatInputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token"])');
     const sendButtons = await page.$$('button');
     
     expect(chatInputs.length).toBeGreaterThan(0);
@@ -201,7 +201,7 @@ describe('FinalCut User Interactions', () => {
     // Interact with the page
     await page.waitForTimeout(1000);
     
-    const inputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token" i])');
+    const inputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token"])');
     if (inputs.length > 0) {
       await inputs[0].type('Example video edit command');
     }
