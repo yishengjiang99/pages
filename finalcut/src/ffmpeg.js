@@ -6,6 +6,8 @@ let loaded = false;
 
 export async function loadFFmpeg() {
   if (!loaded) {
+    // Using single-threaded core (@ffmpeg/core-st) for Safari/mobile compatibility
+    // This version doesn't require SharedArrayBuffer or special CORS headers
     const baseURL = 'https://unpkg.com/@ffmpeg/core-st@0.12.6/dist/esm';
     await ffmpeg.load({
       coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),

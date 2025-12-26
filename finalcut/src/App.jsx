@@ -133,7 +133,7 @@ export default function App() {
           {messages.slice(1).map((msg, index) => (
             <div key={index} style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', marginLeft: msg.role === 'user' ? 'auto' : 0, marginRight: msg.role === 'user' ? 0 : 'auto', backgroundColor: msg.role === 'user' ? '#007bff' : '#e9ecef', color: msg.role === 'user' ? 'white' : 'black', wordWrap: 'break-word' }}>
               <p style={{ margin: 0 }}>{msg.content}</p>
-              {msg.videoUrl && <video src={msg.videoUrl} controls playsInline webkit-playsinline="true" style={{ width: '100%', maxWidth: '300px', marginTop: '8px', borderRadius: '4px' }} />}
+              {msg.videoUrl && <video src={msg.videoUrl} controls playsInline style={{ width: '100%', maxWidth: '300px', marginTop: '8px', borderRadius: '4px' }} />}
             </div>
           ))}
         </div>
@@ -145,7 +145,7 @@ export default function App() {
         {originalVideoUrl && (
           <div style={{ position: 'absolute', bottom: '180px', left: '10px', backgroundColor: 'rgba(255,255,255,0.9)', padding: '10px', borderRadius: '4px', maxWidth: 'calc(100vw - 20px)', boxSizing: 'border-box' }}>
             <p style={{ margin: '0 0 8px 0', fontSize: '12px' }}>Original Video Preview:</p>
-            <video src={originalVideoUrl} controls playsInline webkit-playsinline="true" style={{ width: '100%', maxWidth: '200px' }} />
+            <video src={originalVideoUrl} controls playsInline style={{ width: '100%', maxWidth: '200px' }} />
           </div>
         )}
       </main>
