@@ -35,6 +35,17 @@ The test suite covers:
    - Focus and blur events
    - Viewport responsiveness at different screen sizes
 
+5. **Edge Cases and Error Handling** (`finalcut-edge-cases.test.js`)
+   - localStorage unavailability handling
+   - Empty token input handling
+   - Rapid button clicks
+   - Long text input handling
+   - Special characters in input
+   - Page refresh handling
+   - Navigation back/forward
+   - Network offline simulation
+   - State persistence during viewport resize
+
 ## Prerequisites
 
 - Node.js 18 or higher
