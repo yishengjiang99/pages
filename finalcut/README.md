@@ -61,6 +61,27 @@ Run tests with Vitest.
 3. Describe the edits you want in natural language
 4. The AI will apply the appropriate filters and transformations
 
+## Mobile/Safari Compatibility
+
+This app uses FFmpeg WebAssembly in **single-threaded mode** (`@ffmpeg/core-st`) for maximum compatibility with mobile browsers, especially Safari. This version:
+
+- ✅ Works on Safari iOS/iPadOS
+- ✅ Works on Safari macOS
+- ✅ Doesn't require SharedArrayBuffer
+- ✅ Doesn't require special CORS headers
+- ⚠️ Slightly slower than multi-threaded version on desktop
+
+### Deployment Notes
+
+While the app uses single-threaded FFmpeg to avoid CORS header requirements, for optimal performance on desktop browsers, you can optionally configure your server to send these headers:
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+**Note**: GitHub Pages doesn't support custom headers, but the single-threaded version works without them.
+
 ## Technology Stack
 
 - **React 18** - UI framework
