@@ -112,15 +112,17 @@ describe('FinalCut File Upload and Video', () => {
   test('should render chat interface for video editing', async () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
-    // Check for chat-related elements - use JavaScript to filter by placeholder
-    const chatInput = await page.evaluate(() => {
+    // Check for chat-related elements - use evaluateHandle to get the actual element
+    const chatInput = await page.evaluateHandle(() => {
       const inputs = Array.from(document.querySelectorAll('textarea, input[type="text"]'));
-      return inputs.some(input => {
+      return inputs.find(input => {
         const placeholder = input.placeholder || '';
         return !placeholder.toLowerCase().includes('token');
       });
     });
-    expect(chatInput).toBeTruthy();
+    
+    const element = chatInput.asElement();
+    expect(element).toBeTruthy();
   }, TIMEOUT);
 
   test('should have send button for chat messages', async () => {

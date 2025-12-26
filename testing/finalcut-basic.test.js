@@ -70,7 +70,7 @@ describe('FinalCut Basic Functionality', () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
     // Wait for token prompt to appear
-    await page.waitForSelector('input[placeholder*="token"], input[placeholder*="Token"]', { timeout: 5000 });
+    await page.waitForSelector('input[placeholder*="token"], input[placeholder*="Token"]', { timeout: TIMEOUT / 6 });
     
     const tokenInput = await page.$('input[placeholder*="token"], input[placeholder*="Token"]');
     expect(tokenInput).toBeTruthy();

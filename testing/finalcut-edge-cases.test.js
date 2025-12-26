@@ -118,12 +118,13 @@ describe('FinalCut Edge Cases and Error Handling', () => {
   test('should handle very long text input', async () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
+    const MAX_INPUT_LENGTH = 1000;
     const chatInputs = await page.$$('textarea, input[type="text"]:not([placeholder*="token"])');
     
     if (chatInputs.length > 0) {
       const longText = 'A'.repeat(10000);
       
-      await chatInputs[0].type(longText.substring(0, 1000)); // Type first 1000 chars
+      await chatInputs[0].type(longText.substring(0, MAX_INPUT_LENGTH)); // Type first MAX_INPUT_LENGTH chars
       
       const value = await page.evaluate(el => el.value, chatInputs[0]);
       expect(value.length).toBeGreaterThan(0);
