@@ -25,7 +25,7 @@ describe('App Component', () => {
   it('renders the app component', () => {
     render(<App />);
     expect(screen.getByText('No token')).toBeInTheDocument();
-    expect(screen.getByText('Set xAI Token')).toBeInTheDocument();
+    expect(screen.getByText('Set Token')).toBeInTheDocument();
   });
 
   it('shows token prompt when no token is set', () => {
