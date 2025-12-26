@@ -28,7 +28,7 @@ fi
 if [ ! -d "$SCRIPT_DIR/node_modules" ]; then
   echo "📦 Installing test dependencies..."
   cd "$SCRIPT_DIR"
-  PUPPETEER_SKIP_DOWNLOAD=true npm install
+  npm install
   echo "✅ Dependencies installed"
   echo ""
 fi
