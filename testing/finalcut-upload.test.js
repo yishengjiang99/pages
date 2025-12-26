@@ -112,17 +112,16 @@ describe('FinalCut File Upload and Video', () => {
   test('should render chat interface for video editing', async () => {
     await page.goto(APP_URL, { waitUntil: 'networkidle2', timeout: TIMEOUT });
     
-    // Check for chat-related elements - use evaluateHandle to get the actual element
-    const chatInput = await page.evaluateHandle(() => {
+    // Check for chat-related elements
+    const hasChatInput = await page.evaluate(() => {
       const inputs = Array.from(document.querySelectorAll('textarea, input[type="text"]'));
-      return inputs.find(input => {
+      return inputs.some(input => {
         const placeholder = input.placeholder || '';
         return !placeholder.toLowerCase().includes('token');
       });
     });
     
-    const element = chatInput.asElement();
-    expect(element).toBeTruthy();
+    expect(hasChatInput).toBeTruthy();
   }, TIMEOUT);
 
   test('should have send button for chat messages', async () => {
@@ -149,20 +148,20 @@ describe('FinalCut File Upload and Video', () => {
     // Wait for page to load
     await page.waitForTimeout(1000);
     
-    // Find chat input (textarea or text input, but not token input) using JavaScript
-    const chatInput = await page.evaluateHandle(() => {
-      const inputs = Array.from(document.querySelectorAll('textarea, input[type="text"]'));
-      return inputs.find(input => {
-        const placeholder = input.placeholder || '';
-        return !placeholder.toLowerCase().includes('token');
-      });
-    });
+    // Find chat input by checking all text inputs/textareas
+    const allInputs = await page.$$('textarea, input[type="text"]');
     
-    if (chatInput) {
-      await chatInput.type('Trim video to 10 seconds');
+    // Find one that's not a token input
+    for (const input of allInputs) {
+      const placeholder = await page.evaluate(el => el.placeholder || '', input);
       
-      const inputValue = await page.evaluate(el => el.value, chatInput);
-      expect(inputValue).toBe('Trim video to 10 seconds');
+      if (!placeholder.toLowerCase().includes('token')) {
+        await input.type('Trim video to 10 seconds');
+        
+        const inputValue = await page.evaluate(el => el.value, input);
+        expect(inputValue).toBe('Trim video to 10 seconds');
+        break;
+      }
     }
   }, TIMEOUT);
 
