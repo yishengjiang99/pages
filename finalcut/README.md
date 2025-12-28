@@ -14,6 +14,17 @@ A React-based video editing application with AI chat capabilities using xAI's Gr
   - Trim video
   - Adjust playback speed
   - Add or replace audio tracks
+- Audio filters:
+  - Adjust audio volume
+  - Audio fade in/out effects
+  - High-pass filter (remove low frequencies)
+  - Low-pass filter (remove high frequencies)
+  - Echo effect
+  - Bass adjustment
+  - Treble adjustment
+  - Parametric equalizer
+  - Audio normalization
+  - Audio delay/sync
 - Powered by FFmpeg WebAssembly
 - Integration with xAI's Grok API for intelligent editing assistance
 

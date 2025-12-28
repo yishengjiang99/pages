@@ -252,5 +252,242 @@ export const toolFunctions = {
       addMessage('Error adding audio track: ' + error.message, false);
       return 'Failed to add audio track: ' + error.message;
     }
+  },
+  adjust_audio_volume: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (args.volume === null || args.volume === undefined) {
+        throw new Error('Volume is required');
+      }
+      if (args.volume < 0 || args.volume > 10) {
+        throw new Error('Volume must be between 0 and 10');
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `volume=${args.volume}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage('Processed video (audio volume adjusted):', false, videoUrl);
+      return 'Audio volume adjusted successfully.';
+    } catch (error) {
+      addMessage('Error adjusting audio volume: ' + error.message, false);
+      return 'Failed to adjust audio volume: ' + error.message;
+    }
+  },
+  audio_fade: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (!args.type || (args.type !== 'in' && args.type !== 'out')) {
+        throw new Error('Type must be either "in" or "out"');
+      }
+      if (args.duration === null || args.duration === undefined || args.duration <= 0) {
+        throw new Error('Duration must be a positive number');
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      const fadeFilter = args.type === 'in' 
+        ? `afade=t=in:st=0:d=${args.duration}` 
+        : `afade=t=out:st=0:d=${args.duration}`;
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', fadeFilter, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage(`Processed video (audio fade ${args.type} applied):`, false, videoUrl);
+      return `Audio fade ${args.type} applied successfully.`;
+    } catch (error) {
+      addMessage('Error applying audio fade: ' + error.message, false);
+      return 'Failed to apply audio fade: ' + error.message;
+    }
+  },
+  audio_highpass: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (args.frequency === null || args.frequency === undefined || args.frequency <= 0) {
+        throw new Error('Frequency must be a positive number');
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `highpass=f=${args.frequency}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage('Processed video (highpass filter applied):', false, videoUrl);
+      return 'Highpass filter applied successfully.';
+    } catch (error) {
+      addMessage('Error applying highpass filter: ' + error.message, false);
+      return 'Failed to apply highpass filter: ' + error.message;
+    }
+  },
+  audio_lowpass: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (args.frequency === null || args.frequency === undefined || args.frequency <= 0) {
+        throw new Error('Frequency must be a positive number');
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `lowpass=f=${args.frequency}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage('Processed video (lowpass filter applied):', false, videoUrl);
+      return 'Lowpass filter applied successfully.';
+    } catch (error) {
+      addMessage('Error applying lowpass filter: ' + error.message, false);
+      return 'Failed to apply lowpass filter: ' + error.message;
+    }
+  },
+  audio_echo: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (args.delay === null || args.delay === undefined || args.delay <= 0) {
+        throw new Error('Delay must be a positive number');
+      }
+      if (args.decay === null || args.decay === undefined || args.decay < 0 || args.decay > 1) {
+        throw new Error('Decay must be between 0 and 1');
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // aecho filter: in_gain:out_gain:delays:decays
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `aecho=1.0:0.7:${args.delay}:${args.decay}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage('Processed video (echo effect applied):', false, videoUrl);
+      return 'Echo effect applied successfully.';
+    } catch (error) {
+      addMessage('Error applying echo effect: ' + error.message, false);
+      return 'Failed to apply echo effect: ' + error.message;
+    }
+  },
+  adjust_bass: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (args.gain === null || args.gain === undefined) {
+        throw new Error('Gain is required');
+      }
+      if (args.gain < -20 || args.gain > 20) {
+        throw new Error('Gain must be between -20 and 20 dB');
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // bass filter adjusts frequencies around 100 Hz
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `bass=g=${args.gain}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage('Processed video (bass adjusted):', false, videoUrl);
+      return 'Bass adjusted successfully.';
+    } catch (error) {
+      addMessage('Error adjusting bass: ' + error.message, false);
+      return 'Failed to adjust bass: ' + error.message;
+    }
+  },
+  adjust_treble: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (args.gain === null || args.gain === undefined) {
+        throw new Error('Gain is required');
+      }
+      if (args.gain < -20 || args.gain > 20) {
+        throw new Error('Gain must be between -20 and 20 dB');
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // treble filter adjusts frequencies around 3000 Hz
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `treble=g=${args.gain}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage('Processed video (treble adjusted):', false, videoUrl);
+      return 'Treble adjusted successfully.';
+    } catch (error) {
+      addMessage('Error adjusting treble: ' + error.message, false);
+      return 'Failed to adjust treble: ' + error.message;
+    }
+  },
+  audio_equalizer: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (args.frequency === null || args.frequency === undefined || args.frequency <= 0) {
+        throw new Error('Frequency must be a positive number');
+      }
+      if (args.gain === null || args.gain === undefined) {
+        throw new Error('Gain is required');
+      }
+      if (args.gain < -20 || args.gain > 20) {
+        throw new Error('Gain must be between -20 and 20 dB');
+      }
+      const width = args.width || 200;
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // equalizer filter: frequency=f:width_type=h:width=w:gain=g
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `equalizer=f=${args.frequency}:width_type=h:width=${width}:g=${args.gain}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage('Processed video (equalizer applied):', false, videoUrl);
+      return 'Equalizer applied successfully.';
+    } catch (error) {
+      addMessage('Error applying equalizer: ' + error.message, false);
+      return 'Failed to apply equalizer: ' + error.message;
+    }
+  },
+  normalize_audio: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (args.target === null || args.target === undefined) {
+        throw new Error('Target loudness is required');
+      }
+      if (args.target < -70 || args.target > -5) {
+        throw new Error('Target must be between -70 and -5 LUFS');
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // loudnorm filter normalizes audio loudness
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `loudnorm=I=${args.target}:TP=-1.5:LRA=11`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage('Processed video (audio normalized):', false, videoUrl);
+      return 'Audio normalized successfully.';
+    } catch (error) {
+      addMessage('Error normalizing audio: ' + error.message, false);
+      return 'Failed to normalize audio: ' + error.message;
+    }
+  },
+  audio_delay: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (args.delay === null || args.delay === undefined) {
+        throw new Error('Delay is required');
+      }
+      if (args.delay < 0) {
+        throw new Error('Delay must be non-negative');
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // adelay filter delays audio by milliseconds
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `adelay=${args.delay}|${args.delay}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage('Processed video (audio delayed):', false, videoUrl);
+      return 'Audio delayed successfully.';
+    } catch (error) {
+      addMessage('Error delaying audio: ' + error.message, false);
+      return 'Failed to delay audio: ' + error.message;
+    }
   }
 };
