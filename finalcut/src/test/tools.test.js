@@ -55,6 +55,69 @@ describe('Tools Module', () => {
     expect(speedTool.function.parameters.required).toContain('speed');
   });
 
+  it('has adjust_audio_volume tool', () => {
+    const volumeTool = tools.find(t => t.function.name === 'adjust_audio_volume');
+    expect(volumeTool).toBeDefined();
+    expect(volumeTool.function.parameters.required).toContain('volume');
+  });
+
+  it('has audio_fade tool', () => {
+    const fadeTool = tools.find(t => t.function.name === 'audio_fade');
+    expect(fadeTool).toBeDefined();
+    expect(fadeTool.function.parameters.required).toContain('type');
+    expect(fadeTool.function.parameters.required).toContain('duration');
+  });
+
+  it('has audio_highpass tool', () => {
+    const highpassTool = tools.find(t => t.function.name === 'audio_highpass');
+    expect(highpassTool).toBeDefined();
+    expect(highpassTool.function.parameters.required).toContain('frequency');
+  });
+
+  it('has audio_lowpass tool', () => {
+    const lowpassTool = tools.find(t => t.function.name === 'audio_lowpass');
+    expect(lowpassTool).toBeDefined();
+    expect(lowpassTool.function.parameters.required).toContain('frequency');
+  });
+
+  it('has audio_echo tool', () => {
+    const echoTool = tools.find(t => t.function.name === 'audio_echo');
+    expect(echoTool).toBeDefined();
+    expect(echoTool.function.parameters.required).toContain('delay');
+    expect(echoTool.function.parameters.required).toContain('decay');
+  });
+
+  it('has adjust_bass tool', () => {
+    const bassTool = tools.find(t => t.function.name === 'adjust_bass');
+    expect(bassTool).toBeDefined();
+    expect(bassTool.function.parameters.required).toContain('gain');
+  });
+
+  it('has adjust_treble tool', () => {
+    const trebleTool = tools.find(t => t.function.name === 'adjust_treble');
+    expect(trebleTool).toBeDefined();
+    expect(trebleTool.function.parameters.required).toContain('gain');
+  });
+
+  it('has audio_equalizer tool', () => {
+    const equalizerTool = tools.find(t => t.function.name === 'audio_equalizer');
+    expect(equalizerTool).toBeDefined();
+    expect(equalizerTool.function.parameters.required).toContain('frequency');
+    expect(equalizerTool.function.parameters.required).toContain('gain');
+  });
+
+  it('has normalize_audio tool', () => {
+    const normalizeTool = tools.find(t => t.function.name === 'normalize_audio');
+    expect(normalizeTool).toBeDefined();
+    expect(normalizeTool.function.parameters.required).toContain('target');
+  });
+
+  it('has audio_delay tool', () => {
+    const delayTool = tools.find(t => t.function.name === 'audio_delay');
+    expect(delayTool).toBeDefined();
+    expect(delayTool.function.parameters.required).toContain('delay');
+  });
+
   it('all tools have proper structure', () => {
     tools.forEach(tool => {
       expect(tool.type).toBe('function');

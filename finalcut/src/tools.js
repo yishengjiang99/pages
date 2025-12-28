@@ -116,6 +116,205 @@ export const tools = [
         required: ['audioFile']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'adjust_audio_volume',
+      description: 'Adjust the volume level of the audio track. Can be used to make audio louder or quieter.',
+      parameters: {
+        type: 'object',
+        properties: {
+          volume: { 
+            type: 'number', 
+            description: 'Volume multiplier (e.g., 0.5 for half volume, 2.0 for double volume, 1.0 for no change).',
+            default: 1.0
+          }
+        },
+        required: ['volume']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'audio_fade',
+      description: 'Apply fade in or fade out effect to the audio. Useful for smooth transitions at the beginning or end of videos.',
+      parameters: {
+        type: 'object',
+        properties: {
+          type: {
+            type: 'string',
+            description: 'Type of fade: "in" for fade in at start, "out" for fade out at end.',
+            enum: ['in', 'out']
+          },
+          duration: {
+            type: 'number',
+            description: 'Duration of the fade effect in seconds.',
+            default: 3
+          }
+        },
+        required: ['type', 'duration']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'audio_highpass',
+      description: 'Apply a high-pass filter to remove low frequency sounds (bass). Useful for reducing rumble or bass noise.',
+      parameters: {
+        type: 'object',
+        properties: {
+          frequency: {
+            type: 'number',
+            description: 'Cutoff frequency in Hz. Frequencies below this will be attenuated. Typical values: 80-300 Hz.',
+            default: 200
+          }
+        },
+        required: ['frequency']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'audio_lowpass',
+      description: 'Apply a low-pass filter to remove high frequency sounds (treble). Useful for reducing hiss or high-pitched noise.',
+      parameters: {
+        type: 'object',
+        properties: {
+          frequency: {
+            type: 'number',
+            description: 'Cutoff frequency in Hz. Frequencies above this will be attenuated. Typical values: 3000-8000 Hz.',
+            default: 3000
+          }
+        },
+        required: ['frequency']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'audio_echo',
+      description: 'Add an echo effect to the audio. Creates a repetition of the sound with decay.',
+      parameters: {
+        type: 'object',
+        properties: {
+          delay: {
+            type: 'number',
+            description: 'Delay time in milliseconds for the echo effect. Typical values: 500-2000 ms.',
+            default: 1000
+          },
+          decay: {
+            type: 'number',
+            description: 'Echo decay factor (0.0 to 1.0). Higher values create longer-lasting echoes.',
+            default: 0.5
+          }
+        },
+        required: ['delay', 'decay']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'adjust_bass',
+      description: 'Adjust the bass (low frequency) level of the audio. Boost or cut bass frequencies.',
+      parameters: {
+        type: 'object',
+        properties: {
+          gain: {
+            type: 'number',
+            description: 'Bass gain in dB. Positive values boost bass, negative values reduce bass. Range: -20 to 20 dB.',
+            default: 0
+          }
+        },
+        required: ['gain']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'adjust_treble',
+      description: 'Adjust the treble (high frequency) level of the audio. Boost or cut treble frequencies.',
+      parameters: {
+        type: 'object',
+        properties: {
+          gain: {
+            type: 'number',
+            description: 'Treble gain in dB. Positive values boost treble, negative values reduce treble. Range: -20 to 20 dB.',
+            default: 0
+          }
+        },
+        required: ['gain']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'audio_equalizer',
+      description: 'Apply a parametric equalizer to adjust specific frequency bands. Useful for fine-tuning audio.',
+      parameters: {
+        type: 'object',
+        properties: {
+          frequency: {
+            type: 'number',
+            description: 'Center frequency in Hz to adjust. Common values: 100 (bass), 1000 (midrange), 10000 (treble).',
+          },
+          width: {
+            type: 'number',
+            description: 'Bandwidth of the frequency range in Hz. Wider values affect more frequencies.',
+            default: 200
+          },
+          gain: {
+            type: 'number',
+            description: 'Gain in dB. Positive values boost, negative values cut. Range: -20 to 20 dB.',
+            default: 0
+          }
+        },
+        required: ['frequency', 'gain']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'normalize_audio',
+      description: 'Normalize audio loudness to a standard level. Useful for ensuring consistent volume across different videos.',
+      parameters: {
+        type: 'object',
+        properties: {
+          target: {
+            type: 'number',
+            description: 'Target loudness in LUFS (Loudness Units relative to Full Scale). Standard values: -23 (broadcast), -16 (streaming).',
+            default: -16
+          }
+        },
+        required: ['target']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'audio_delay',
+      description: 'Delay audio by a specified amount of time. Useful for syncing audio with video.',
+      parameters: {
+        type: 'object',
+        properties: {
+          delay: {
+            type: 'number',
+            description: 'Delay time in milliseconds. Positive values delay the audio.',
+            default: 0
+          }
+        },
+        required: ['delay']
+      }
+    }
   }
 ];
 

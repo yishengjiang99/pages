@@ -405,4 +405,326 @@ describe('toolFunctions', () => {
       expect(ffmpeg.writeFile).toHaveBeenCalledWith('audio.mp3', mockAudioData);
     });
   });
+
+  describe('adjust_audio_volume', () => {
+    it('should validate volume parameter is provided', async () => {
+      const result = await toolFunctions.adjust_audio_volume(
+        {},
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to adjust audio volume');
+    });
+
+    it('should reject negative volume', async () => {
+      const result = await toolFunctions.adjust_audio_volume(
+        { volume: -1 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to adjust audio volume');
+    });
+
+    it('should adjust volume successfully', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.adjust_audio_volume(
+        { volume: 1.5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Audio volume adjusted successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+    });
+  });
+
+  describe('audio_fade', () => {
+    it('should validate type parameter', async () => {
+      const result = await toolFunctions.audio_fade(
+        { duration: 3 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to apply audio fade');
+    });
+
+    it('should validate duration is positive', async () => {
+      const result = await toolFunctions.audio_fade(
+        { type: 'in', duration: -1 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to apply audio fade');
+    });
+
+    it('should apply fade in effect', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.audio_fade(
+        { type: 'in', duration: 3 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Audio fade in applied successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+    });
+
+    it('should apply fade out effect', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.audio_fade(
+        { type: 'out', duration: 2 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Audio fade out applied successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+    });
+  });
+
+  describe('audio_highpass', () => {
+    it('should validate frequency parameter', async () => {
+      const result = await toolFunctions.audio_highpass(
+        {},
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to apply highpass filter');
+    });
+
+    it('should apply highpass filter successfully', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.audio_highpass(
+        { frequency: 200 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Highpass filter applied successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+    });
+  });
+
+  describe('audio_lowpass', () => {
+    it('should validate frequency parameter', async () => {
+      const result = await toolFunctions.audio_lowpass(
+        {},
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to apply lowpass filter');
+    });
+
+    it('should apply lowpass filter successfully', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.audio_lowpass(
+        { frequency: 3000 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Lowpass filter applied successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+    });
+  });
+
+  describe('audio_echo', () => {
+    it('should validate delay parameter', async () => {
+      const result = await toolFunctions.audio_echo(
+        { decay: 0.5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to apply echo effect');
+    });
+
+    it('should validate decay range', async () => {
+      const result = await toolFunctions.audio_echo(
+        { delay: 1000, decay: 1.5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to apply echo effect');
+    });
+
+    it('should apply echo effect successfully', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.audio_echo(
+        { delay: 1000, decay: 0.5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Echo effect applied successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+    });
+  });
+
+  describe('adjust_bass', () => {
+    it('should validate gain parameter', async () => {
+      const result = await toolFunctions.adjust_bass(
+        {},
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to adjust bass');
+    });
+
+    it('should validate gain range', async () => {
+      const result = await toolFunctions.adjust_bass(
+        { gain: 25 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to adjust bass');
+    });
+
+    it('should adjust bass successfully', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.adjust_bass(
+        { gain: 5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Bass adjusted successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+    });
+  });
+
+  describe('adjust_treble', () => {
+    it('should validate gain parameter', async () => {
+      const result = await toolFunctions.adjust_treble(
+        {},
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to adjust treble');
+    });
+
+    it('should adjust treble successfully', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.adjust_treble(
+        { gain: -3 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Treble adjusted successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+    });
+  });
+
+  describe('audio_equalizer', () => {
+    it('should validate frequency parameter', async () => {
+      const result = await toolFunctions.audio_equalizer(
+        { gain: 5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to apply equalizer');
+    });
+
+    it('should validate gain parameter', async () => {
+      const result = await toolFunctions.audio_equalizer(
+        { frequency: 1000 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to apply equalizer');
+    });
+
+    it('should apply equalizer successfully', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.audio_equalizer(
+        { frequency: 1000, gain: 5, width: 200 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Equalizer applied successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+    });
+  });
+
+  describe('normalize_audio', () => {
+    it('should validate target parameter', async () => {
+      const result = await toolFunctions.normalize_audio(
+        {},
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to normalize audio');
+    });
+
+    it('should validate target range', async () => {
+      const result = await toolFunctions.normalize_audio(
+        { target: 5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to normalize audio');
+    });
+
+    it('should normalize audio successfully', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.normalize_audio(
+        { target: -16 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Audio normalized successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+    });
+  });
+
+  describe('audio_delay', () => {
+    it('should validate delay parameter', async () => {
+      const result = await toolFunctions.audio_delay(
+        {},
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to delay audio');
+    });
+
+    it('should reject negative delay', async () => {
+      const result = await toolFunctions.audio_delay(
+        { delay: -100 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to delay audio');
+    });
+
+    it('should delay audio successfully', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.audio_delay(
+        { delay: 500 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Audio delayed successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+    });
+  });
 });
