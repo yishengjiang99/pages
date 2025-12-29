@@ -118,6 +118,15 @@ describe('Tools Module', () => {
     expect(delayTool.function.parameters.required).toContain('delay');
   });
 
+  it('has resize_video_preset tool', () => {
+    const presetTool = tools.find(t => t.function.name === 'resize_video_preset');
+    expect(presetTool).toBeDefined();
+    expect(presetTool.function.parameters.required).toContain('preset');
+    expect(presetTool.function.parameters.properties.preset.enum).toEqual([
+      '9:16', '16:9', '1:1', '2:3', '3:2'
+    ]);
+  });
+
   it('all tools have proper structure', () => {
     tools.forEach(tool => {
       expect(tool.type).toBe('function');

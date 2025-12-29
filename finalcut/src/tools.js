@@ -315,6 +315,24 @@ export const tools = [
         required: ['delay']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'resize_video_preset',
+      description: 'Resize video to a preset aspect ratio optimized for specific social media platforms and use cases. The video will be scaled to fit the preset dimensions while maintaining aspect ratio, with padding added if needed.',
+      parameters: {
+        type: 'object',
+        properties: {
+          preset: {
+            type: 'string',
+            description: 'The aspect ratio preset to use.',
+            enum: ['9:16', '16:9', '1:1', '2:3', '3:2']
+          }
+        },
+        required: ['preset']
+      }
+    }
   }
 ];
 

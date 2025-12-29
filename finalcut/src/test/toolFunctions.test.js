@@ -727,4 +727,121 @@ describe('toolFunctions', () => {
       expect(ffmpeg.exec).toHaveBeenCalled();
     });
   });
+
+  describe('resize_video_preset', () => {
+    it('should validate preset parameter is provided', async () => {
+      const result = await toolFunctions.resize_video_preset(
+        {},
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to resize video to preset');
+      expect(mockAddMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Error resizing video to preset'),
+        false
+      );
+    });
+
+    it('should reject invalid preset', async () => {
+      const result = await toolFunctions.resize_video_preset(
+        { preset: 'invalid' },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to resize video to preset');
+      expect(mockAddMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid preset'),
+        false
+      );
+    });
+
+    it('should resize to 9:16 preset (Stories, Reels, TikToks)', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.resize_video_preset(
+        { preset: '9:16' },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Video resized to 9:16 aspect ratio successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall).toContain('-vf');
+      expect(execCall.join(' ')).toContain('scale=1080:1920');
+    });
+
+    it('should resize to 16:9 preset (YT thumbnails, Cinematic)', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.resize_video_preset(
+        { preset: '16:9' },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Video resized to 16:9 aspect ratio successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall.join(' ')).toContain('scale=1920:1080');
+    });
+
+    it('should resize to 1:1 preset (X feed posts, Profile pics)', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.resize_video_preset(
+        { preset: '1:1' },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Video resized to 1:1 aspect ratio successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall.join(' ')).toContain('scale=1080:1080');
+    });
+
+    it('should resize to 2:3 preset (Posters, Pinterest, Tall Portraits)', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.resize_video_preset(
+        { preset: '2:3' },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Video resized to 2:3 aspect ratio successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall.join(' ')).toContain('scale=1080:1620');
+    });
+
+    it('should resize to 3:2 preset (Classic photography, Landscape)', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.resize_video_preset(
+        { preset: '3:2' },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Video resized to 3:2 aspect ratio successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall.join(' ')).toContain('scale=1620:1080');
+    });
+
+    it('should use padding to maintain aspect ratio', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.resize_video_preset(
+        { preset: '16:9' },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Video resized to 16:9 aspect ratio successfully.');
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      const vfArg = execCall.find(arg => arg.includes('scale') && arg.includes('pad'));
+      expect(vfArg).toBeDefined();
+      expect(vfArg).toContain('force_original_aspect_ratio=decrease');
+      expect(vfArg).toContain('pad=1920:1080');
+    });
+  });
 });

@@ -489,5 +489,49 @@ export const toolFunctions = {
       addMessage('Error delaying audio: ' + error.message, false);
       return 'Failed to delay audio: ' + error.message;
     }
+  },
+  resize_video_preset: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      // Validate preset parameter
+      if (!args.preset) {
+        throw new Error('Preset is required');
+      }
+      
+      // Define aspect ratio presets
+      const presets = {
+        '9:16': { width: 1080, height: 1920, description: 'Stories, Reels, & TikToks' },
+        '16:9': { width: 1920, height: 1080, description: 'YT thumbnails & Cinematic widescreen' },
+        '1:1': { width: 1080, height: 1080, description: 'X feed posts & Profile pics' },
+        '2:3': { width: 1080, height: 1620, description: 'Posters, Pinterest & Tall Portraits' },
+        '3:2': { width: 1620, height: 1080, description: 'Classic photography, Landscape' }
+      };
+      
+      const preset = presets[args.preset];
+      if (!preset) {
+        throw new Error(`Invalid preset. Available presets: ${Object.keys(presets).join(', ')}`);
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      
+      // Use scale filter with aspect ratio padding to fit the preset dimensions
+      // The pad filter adds black bars if needed to maintain the aspect ratio
+      await ffmpeg.exec([
+        '-i', 'input.mp4',
+        '-vf', `scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease,pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2`,
+        '-c:a', 'copy',
+        'output.mp4'
+      ]);
+      
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage(`Processed video (resized to ${args.preset} - ${preset.description}):`, false, videoUrl);
+      return `Video resized to ${args.preset} aspect ratio successfully.`;
+    } catch (error) {
+      addMessage('Error resizing video to preset: ' + error.message, false);
+      return 'Failed to resize video to preset: ' + error.message;
+    }
   }
 };
