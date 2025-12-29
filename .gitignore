@@ -7,3 +7,5 @@ dist
 finalcut/dist
 finalcut/node_modules
 finalcut.html
+finalcut/demo.html
+finalcut/public/test-video.mp4

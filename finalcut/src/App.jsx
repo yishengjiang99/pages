@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { fetchFile } from './ffmpeg.js';
 import { tools, systemPrompt } from './tools.js';
 import { toolFunctions } from './toolFunctions.js';
+import VideoPreview from './VideoPreview.jsx';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('xaiToken') || '');
@@ -133,7 +134,11 @@ export default function App() {
           {messages.slice(1).map((msg, index) => (
             <div key={index} style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', marginLeft: msg.role === 'user' ? 'auto' : 0, marginRight: msg.role === 'user' ? 0 : 'auto', backgroundColor: msg.role === 'user' ? '#007bff' : '#e9ecef', color: msg.role === 'user' ? 'white' : 'black', wordWrap: 'break-word' }}>
               <p style={{ margin: 0 }}>{msg.content}</p>
-              {msg.videoUrl && <video src={msg.videoUrl} controls playsInline style={{ width: '100%', maxWidth: '300px', marginTop: '8px', borderRadius: '4px' }} />}
+              {msg.videoUrl && (
+                <div style={{ marginTop: '8px' }}>
+                  <VideoPreview videoUrl={msg.videoUrl} title="Edited Video" />
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -143,9 +148,8 @@ export default function App() {
           <button onClick={handleSend} disabled={!videoFileData} style={{ padding: '10px 16px', backgroundColor: videoFileData ? '#007bff' : '#ccc', color: 'white', border: 'none', borderRadius: '4px', cursor: videoFileData ? 'pointer' : 'not-allowed', fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}>Send</button>
         </div>
         {originalVideoUrl && (
-          <div style={{ position: 'absolute', bottom: '180px', left: '10px', backgroundColor: 'rgba(255,255,255,0.9)', padding: '10px', borderRadius: '4px', maxWidth: 'calc(100vw - 20px)', boxSizing: 'border-box' }}>
-            <p style={{ margin: '0 0 8px 0', fontSize: '12px' }}>Original Video Preview:</p>
-            <video src={originalVideoUrl} controls playsInline style={{ width: '100%', maxWidth: '200px' }} />
+          <div style={{ position: 'absolute', bottom: '180px', left: '10px', maxWidth: 'calc(100vw - 20px)', boxSizing: 'border-box' }}>
+            <VideoPreview videoUrl={originalVideoUrl} title="Original Video Preview" />
           </div>
         )}
       </main>
