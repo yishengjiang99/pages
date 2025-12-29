@@ -1,5 +1,14 @@
 import { ffmpeg, loadFFmpeg } from './ffmpeg.js';
 
+// Aspect ratio presets for social media platforms
+const ASPECT_RATIO_PRESETS = {
+  '9:16': { width: 1080, height: 1920, description: 'Stories, Reels, & TikToks' },
+  '16:9': { width: 1920, height: 1080, description: 'YT thumbnails & Cinematic widescreen' },
+  '1:1': { width: 1080, height: 1080, description: 'X feed posts & Profile pics' },
+  '2:3': { width: 1080, height: 1620, description: 'Posters, Pinterest & Tall Portraits' },
+  '3:2': { width: 1620, height: 1080, description: 'Classic photography, Landscape' }
+};
+
 export const toolFunctions = {
   resize_video: async (args, videoFileData, setVideoFileData, addMessage) => {
     try {
@@ -497,28 +506,23 @@ export const toolFunctions = {
         throw new Error('Preset is required');
       }
       
-      // Define aspect ratio presets
-      const presets = {
-        '9:16': { width: 1080, height: 1920, description: 'Stories, Reels, & TikToks' },
-        '16:9': { width: 1920, height: 1080, description: 'YT thumbnails & Cinematic widescreen' },
-        '1:1': { width: 1080, height: 1080, description: 'X feed posts & Profile pics' },
-        '2:3': { width: 1080, height: 1620, description: 'Posters, Pinterest & Tall Portraits' },
-        '3:2': { width: 1620, height: 1080, description: 'Classic photography, Landscape' }
-      };
-      
-      const preset = presets[args.preset];
+      const preset = ASPECT_RATIO_PRESETS[args.preset];
       if (!preset) {
-        throw new Error(`Invalid preset. Available presets: ${Object.keys(presets).join(', ')}`);
+        throw new Error(`Invalid preset. Available presets: ${Object.keys(ASPECT_RATIO_PRESETS).join(', ')}`);
       }
       
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       
-      // Use scale filter with aspect ratio padding to fit the preset dimensions
-      // The pad filter adds black bars if needed to maintain the aspect ratio
+      // Scale video to fit preset dimensions while maintaining aspect ratio,
+      // then pad with black bars if needed to reach exact dimensions
+      const scaleFilter = `scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease`;
+      const padFilter = `pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2`;
+      const videoFilter = `${scaleFilter},${padFilter}`;
+      
       await ffmpeg.exec([
         '-i', 'input.mp4',
-        '-vf', `scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease,pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2`,
+        '-vf', videoFilter,
         '-c:a', 'copy',
         'output.mp4'
       ]);
