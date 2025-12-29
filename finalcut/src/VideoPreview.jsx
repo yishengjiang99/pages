@@ -4,7 +4,7 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview' }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [fps, setFps] = useState(30); // Default to 30fps
+  const [fps, setFps] = useState(30);
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -40,9 +40,11 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview' }) {
     }
   };
 
+  const getFrameTime = () => 1 / fps;
+
   const handleFrameForward = () => {
     if (videoRef.current && duration > 0) {
-      const frameTime = 1 / fps;
+      const frameTime = getFrameTime();
       const newTime = Math.min(currentTime + frameTime, duration);
       videoRef.current.currentTime = newTime;
       setCurrentTime(newTime);
@@ -51,7 +53,7 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview' }) {
 
   const handleFrameBackward = () => {
     if (videoRef.current) {
-      const frameTime = 1 / fps;
+      const frameTime = getFrameTime();
       const newTime = Math.max(currentTime - frameTime, 0);
       videoRef.current.currentTime = newTime;
       setCurrentTime(newTime);
@@ -111,7 +113,7 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview' }) {
           type="range"
           min="0"
           max={duration || 0}
-          step={1 / fps}
+          step={getFrameTime()}
           value={currentTime}
           onChange={handleSliderChange}
           style={{
