@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Speech Color Changer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 2rem;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+    }
+    #output {
+      margin-top: 1rem;
+      min-height: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Speech Color Changer</h1>
+  <p>Say a color name (e.g., "red", "blue") to change the background.</p>
+  <button id="start">Start Recognition</button>
+  <p id="output"></p>
+
+  <script>
+    // Define supported colors
+    const colors = ["aqua", "azure", "beige", "bisque", "black", "blue", "brown", "chocolate", "coral", "crimson", "cyan", "fuchsia", "ghostwhite", "goldenrod", "gray", "green", "indigo", "ivory", "khaki", "lavender", "lime", "magenta", "maroon", "navy", "olive", "orange", "orchid", "pink", "plum", "purple", "red", "salmon", "sienna", "silver", "teal", "thistle", "tomato", "turquoise", "violet", "white", "yellow"];
+
+    // DOM elements
+    const output = document.querySelector('#output');
+    const htmlElem = document.documentElement;
+    const instructionP = output.parentElement.querySelector('p');
+    const button = document.getElementById('start');
+
+    // Handle prefixed and unprefixed SpeechRecognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      output.textContent = 'Speech recognition not supported in this browser.';
+      button.disabled = true;
+      return;
+    }
+
+    // Create speech recognition instance
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    // Event: result
+    recognition.addEventListener('result', (event) => {
+      const transcript = event.results[0][0].transcript.toLowerCase().trim();
+      output.textContent = `Recognized: ${transcript}`;
+
+      if (colors.includes(transcript)) {
+        htmlElem.style.backgroundColor = transcript;
+      } else {
+        output.textContent += ' (not a recognized color)';
+      }
+    });
+
+    // Event: speechend - stop recognition after speech
+    recognition.addEventListener('speechend', () => {
+      recognition.stop();
+      button.textContent = 'Start Recognition';
+      instructionP.textContent = 'Say a color name (e.g., "red", "blue") to change the background.';
+    });
+
+    // Event: nomatch - no recognition
+    recognition.addEventListener('nomatch', () => {
+      output.textContent = 'No match found. Try again.';
+    });
+
+    // Event: error
+    recognition.addEventListener('error', (event) => {
+      output.textContent = `Error: ${event.error}`;
+      recognition.stop();
+    });
+
+    // Button click handler
+    button.addEventListener('click', () => {
+      if (recognition.start) {
+        recognition.start();
+        button.textContent = 'Listening...';
+        instructionP.textContent = 'Listening... Speak now.';
+        output.textContent = '';
+      } else {
+        output.textContent = 'Speech recognition start not supported.';
+      }
+    });
+
+    // Optional: list colors in UI
+    colors.forEach(color => {
+      const span = document.createElement('span');
+      span.textContent = color + ' ';
+      span.style.color = color;
+      span.style.margin = '0 5px';
+      document.body.appendChild(span);
+    });
+  </script>
+</body>
+</html>
