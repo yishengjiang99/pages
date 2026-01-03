@@ -34,6 +34,7 @@ A React-based video editing application with AI chat capabilities using xAI's Gr
 
 - Node.js 18 or higher
 - npm
+- xAI API token (get one from https://console.x.ai/)
 
 ### Installation
 
@@ -41,13 +42,37 @@ A React-based video editing application with AI chat capabilities using xAI's Gr
 npm install
 ```
 
+### Configuration
+
+1. Copy the example environment file:
+```bash
+cp .env.example .env
+```
+
+2. Edit `.env` and add your xAI API token:
+```bash
+XAI_API_TOKEN=your_actual_token_here
+```
+
+**Important**: Never commit your `.env` file to version control. It's already included in `.gitignore`.
+
 ### Development Server
 
+You need to run both the proxy server and the Vite dev server:
+
+**Terminal 1 - Start the proxy server:**
+```bash
+npm run server
+```
+
+**Terminal 2 - Start the Vite dev server:**
 ```bash
 npm run dev
 ```
 
 The app will be available at `http://localhost:5173`
+
+The proxy server runs on `http://localhost:3001` and handles xAI API calls securely.
 
 ### Build
 
@@ -67,10 +92,14 @@ Run tests with Vitest.
 
 ## Usage
 
-1. Set your xAI API token when prompted
+1. Start the proxy server (see Development Server above)
 2. Upload a video file
 3. Describe the edits you want in natural language
 4. The AI will apply the appropriate filters and transformations
+
+## Security
+
+The xAI API token is now securely stored on the server side and never exposed to the client. The token is read from the `.env` file and used by the Node.js proxy server to authenticate requests to the xAI API.
 
 ## Mobile/Safari Compatibility
 
