@@ -5,9 +5,6 @@ import { toolFunctions } from './toolFunctions.js';
 import VideoPreview from './VideoPreview.jsx';
 
 export default function App() {
-  const [token, setToken] = useState(localStorage.getItem('xaiToken') || '');
-  const [showTokenPrompt, setShowTokenPrompt] = useState(!localStorage.getItem('xaiToken'));
-  const [tempToken, setTempToken] = useState('');
   const [messages, setMessages] = useState([{ role: 'system', content: systemPrompt }]);
   const [chatInput, setChatInput] = useState('');
   const [videoFileData, setVideoFileData] = useState(null);
@@ -20,25 +17,16 @@ export default function App() {
     }
   }, [messages]);
 
-  const handleSetToken = () => {
-    if (tempToken) {
-      setToken(tempToken);
-      localStorage.setItem('xaiToken', tempToken);
-      setShowTokenPrompt(false);
-    }
-  };
-
   const addMessage = (text, isUser = false, videoUrl = null) => {
     setMessages(prev => [...prev, { role: isUser ? 'user' : 'assistant', content: text, videoUrl }]);
   };
 
   const callAPI = async (currentMessages) => {
     try {
-      const response = await fetch('https://api.grok.x.ai/v1/chat/completions', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           model: 'grok-beta',
@@ -120,16 +108,6 @@ export default function App() {
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', margin: 0, padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f0f0f0' }}>
       <main style={{ width: '100%', maxWidth: '100vw', height: '100vh', backgroundColor: 'white', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', alignItems: 'center', gap: '10px', zIndex: 10, flexWrap: 'wrap' }}>
-          <span style={{ color: token ? 'green' : 'red', fontSize: '12px' }}>{token ? 'Token set' : 'No token'}</span>
-          <button onClick={() => setShowTokenPrompt(true)} style={{ padding: '6px 12px', fontSize: '14px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', WebkitTapHighlightColor: 'transparent' }}>Set Token</button>
-        </div>
-        {showTokenPrompt && (
-          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', zIndex: 20, width: '90%', maxWidth: '400px' }}>
-            <input type="text" value={tempToken} onChange={(e) => setTempToken(e.target.value)} placeholder="Enter xAI API token" style={{ width: '100%', padding: '8px', marginBottom: '10px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '16px' }} />
-            <button onClick={handleSetToken} style={{ padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', width: '100%', WebkitTapHighlightColor: 'transparent' }}>Save</button>
-          </div>
-        )}
         <div ref={chatWindowRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '16px', paddingTop: '50px', WebkitOverflowScrolling: 'touch' }}>
           {messages.slice(1).map((msg, index) => (
             <div key={index} style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', marginLeft: msg.role === 'user' ? 'auto' : 0, marginRight: msg.role === 'user' ? 0 : 'auto', backgroundColor: msg.role === 'user' ? '#007bff' : '#e9ecef', color: msg.role === 'user' ? 'white' : 'black', wordWrap: 'break-word' }}>
