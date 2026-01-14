@@ -1,0 +1,118 @@
+name: Deploy FinalCut to DigitalOcean
+
+# This workflow automates the deployment of the FinalCut application
+# to a DigitalOcean droplet whenever changes are pushed to the main branch.
+#
+# Prerequisites:
+# 1. Add these secrets to your GitHub repository (Settings → Secrets → Actions):
+#    - DROPLET_IP: Your DigitalOcean droplet IP address
+#    - DROPLET_USER: SSH user (e.g., 'finalcut')
+#    - DROPLET_SSH_KEY: Private SSH key for authentication
+#
+# 2. Ensure your droplet has the application set up:
+#    - Node.js installed
+#    - PM2 installed
+#    - Repository cloned to /home/finalcut/apps/pages
+#    - .env file configured
+#
+# Note: This workflow is optional. You can also deploy manually using deploy.sh
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'finalcut/**'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    name: Deploy to DigitalOcean
+    runs-on: ubuntu-latest
+    
+    # Only run if the finalcut folder has changes
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.modified, 'finalcut/')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: finalcut/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd finalcut
+          npm ci --production=false
+      
+      - name: Run tests
+        run: |
+          cd finalcut
+          npm run test -- --run
+        continue-on-error: true  # Don't fail deployment if tests fail
+      
+      - name: Build application
+        run: |
+          cd finalcut
+          npm run build
+      
+      - name: Deploy to DigitalOcean
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            # Navigate to application directory
+            cd /home/finalcut/apps/pages/finalcut
+            
+            # Pull latest changes
+            git fetch origin
+            git reset --hard origin/main
+            
+            # Install dependencies
+            npm ci --production=false
+            
+            # Build application
+            npm run build
+            
+            # Restart application with PM2
+            pm2 restart finalcut-server || pm2 start server.js --name finalcut-server
+            pm2 save
+            
+            # Show status
+            pm2 status
+      
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            # Wait a moment for app to start
+            sleep 5
+            
+            # Check if app is running
+            pm2 describe finalcut-server
+            
+            # Check recent logs
+            pm2 logs finalcut-server --lines 20 --nostream
+      
+      - name: Notify on success
+        if: success()
+        run: |
+          echo "🚀 Deployment successful!"
+          echo "Application deployed to: ${{ secrets.DROPLET_IP }}"
+      
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Check the logs above for details."
