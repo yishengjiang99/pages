@@ -147,6 +147,30 @@ finalcut/
 └── vite.config.js        # Vite configuration
 ```
 
+## Deployment
+
+For production deployment to DigitalOcean with DNS configuration on GoDaddy, see the comprehensive guides:
+
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete step-by-step deployment guide
+- **[QUICK-REFERENCE.md](./QUICK-REFERENCE.md)** - Quick reference for common tasks
+- **[deploy.sh](./deploy.sh)** - Automated deployment script
+- **[setup-server.sh](./setup-server.sh)** - Server setup script
+
+### Quick Deploy
+
+For initial server setup:
+```bash
+wget https://raw.githubusercontent.com/yishengjiang99/pages/main/finalcut/setup-server.sh
+chmod +x setup-server.sh
+sudo ./setup-server.sh
+```
+
+For application updates:
+```bash
+cd /home/finalcut/apps/pages/finalcut
+./deploy.sh
+```
+
 ## License
 
 This project is part of the yishengjiang99/pages repository.
