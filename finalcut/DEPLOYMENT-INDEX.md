@@ -33,7 +33,14 @@ Choose your preferred cloud platform:
 
 ### Getting Started
 
-4. **[DEPLOYMENT-CHECKLIST.md](./DEPLOYMENT-CHECKLIST.md)** ⭐ **DEPLOYMENT CHECKLIST**
+4. **[CLOUD-VENDOR-COMPARISON.md](./CLOUD-VENDOR-COMPARISON.md)** 🏆 **VENDOR COMPARISON**
+   - Detailed comparison of all three platforms
+   - Decision matrix to help choose the right platform
+   - Cost analysis and recommendations
+   - Migration paths between platforms
+   - **Read this first if unsure which platform to choose**
+
+5. **[DEPLOYMENT-CHECKLIST.md](./DEPLOYMENT-CHECKLIST.md)** ⭐ **DEPLOYMENT CHECKLIST**
    - Step-by-step checklist for your deployment
    - Track your progress through the deployment process
    - Printable format for offline reference
@@ -41,13 +48,13 @@ Choose your preferred cloud platform:
 
 ### Reference Guides
 
-5. **[QUICK-REFERENCE.md](./QUICK-REFERENCE.md)** ⚡ **QUICK COMMANDS**
+6. **[QUICK-REFERENCE.md](./QUICK-REFERENCE.md)** ⚡ **QUICK COMMANDS**
    - Quick reference for common tasks
    - Command cheatsheet
    - Useful for day-to-day operations
    - Bookmark this for regular use
 
-6. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** 🔧 **PROBLEM SOLVING**
+7. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** 🔧 **PROBLEM SOLVING**
    - Common issues and solutions
    - Diagnostic steps for problems
    - Error message explanations
