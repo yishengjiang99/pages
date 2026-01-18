@@ -80,10 +80,10 @@ jobs:
       
       - name: Run tests
         id: test
+        shell: bash
         run: |
           cd finalcut
-          npm run test -- --run 2>&1 | tee test-output.log
-          exit ${PIPESTATUS[0]}
+          npm run test -- --run
         continue-on-error: true  # Don't fail deployment if tests fail
       
       - name: Test Results Summary
@@ -123,7 +123,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
       
       - name: Build Failure Summary
-        if: failure() && steps.build.outcome == 'failure'
+        if: failure()
         run: |
           echo "## ❌ Build Failed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
