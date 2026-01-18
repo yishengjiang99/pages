@@ -4,13 +4,13 @@
 # FinalCut Deployment Script
 # 
 # This script automates the deployment process for the FinalCut application
-# on DigitalOcean or any Linux server with Node.js, PM2, and Nginx installed.
+# on DigitalOcean or any Linux server with Node.js and Nginx installed.
 #
 # Usage: ./deploy.sh
 #
 # Prerequisites:
 # - Node.js 18+ installed
-# - PM2 installed globally
+# - Systemd service configured (finalcut.service)
 # - Nginx configured
 # - Git repository cloned
 # - .env file configured
@@ -67,10 +67,9 @@ check_prerequisites() {
         exit 1
     fi
     
-    # Check if PM2 is installed
-    if ! command -v pm2 &> /dev/null; then
-        log_error "PM2 is not installed. Install with: npm install -g pm2"
-        exit 1
+    # Check if systemd service exists
+    if ! systemctl list-unit-files | grep -q "finalcut.service"; then
+        log_warn "Systemd service not found. The application may need manual service setup."
     fi
     
     # Check if .env file exists
@@ -159,29 +158,25 @@ build_application() {
 }
 
 restart_application() {
-    log_info "Restarting application with PM2..."
+    log_info "Restarting application with systemd..."
     
     cd "$APP_DIR"
     
-    # Check if app is already running
-    if pm2 describe "$APP_NAME" &> /dev/null; then
-        log_info "Application is running, restarting..."
-        pm2 restart "$APP_NAME" || {
+    # Check if systemd service exists
+    if systemctl list-unit-files | grep -q "finalcut.service"; then
+        log_info "Restarting systemd service..."
+        sudo systemctl restart finalcut.service || {
             log_error "Failed to restart application"
             exit 1
         }
+        log_info "Application restarted successfully!"
     else
-        log_info "Application not running, starting..."
-        pm2 start server.js --name "$APP_NAME" || {
-            log_error "Failed to start application"
-            exit 1
-        }
+        log_warn "Systemd service not found. You may need to set it up manually:"
+        log_warn "  sudo cp finalcut.service /etc/systemd/system/"
+        log_warn "  sudo systemctl daemon-reload"
+        log_warn "  sudo systemctl enable finalcut.service"
+        log_warn "  sudo systemctl start finalcut.service"
     fi
-    
-    # Save PM2 process list
-    pm2 save
-    
-    log_info "Application restarted successfully!"
 }
 
 reload_nginx() {
@@ -202,12 +197,16 @@ show_status() {
     log_info "Deployment status:"
     echo ""
     
-    # Show PM2 status
-    pm2 describe "$APP_NAME" || log_warn "Application not found in PM2"
-    
-    echo ""
-    log_info "Recent logs:"
-    pm2 logs "$APP_NAME" --lines 10 --nostream || true
+    # Show systemd service status
+    if systemctl list-unit-files | grep -q "finalcut.service"; then
+        sudo systemctl status finalcut.service --no-pager || log_warn "Service not running properly"
+        
+        echo ""
+        log_info "Recent logs:"
+        sudo journalctl -u finalcut -n 10 --no-pager || true
+    else
+        log_warn "Systemd service not configured. Check manual setup instructions."
+    fi
 }
 
 cleanup() {
@@ -252,8 +251,8 @@ main() {
     echo ""
     log_info "Next steps:"
     echo "  - Visit your application: https://yourdomain.com"
-    echo "  - Check logs: pm2 logs $APP_NAME"
-    echo "  - Monitor status: pm2 monit"
+    echo "  - Check logs: sudo journalctl -u finalcut -f"
+    echo "  - Monitor status: sudo systemctl status finalcut"
     echo ""
 }
 

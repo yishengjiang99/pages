@@ -157,14 +157,15 @@ systemctl start nginx
 systemctl enable nginx
 ```
 
-### Step 5: Install PM2 (Process Manager)
+### Step 5: Configure Application Service (Optional: PM2)
+
+The application will be managed using systemd. If you prefer PM2 for process management, you can install it optionally:
 
 ```bash
-# Install PM2 globally
-npm install -g pm2
+# Optional: Install PM2 globally (not recommended - use systemd instead)
+# npm install -g pm2
 
-# Configure PM2 to start on boot
-pm2 startup systemd
+# PM2 alternative: We'll use systemd service instead (see Step 7)
 ```
 
 ### Step 6: Install Git
@@ -257,20 +258,28 @@ sudo chmod -R 755 /home/finalcut/apps/pages/finalcut/dist
 
 This ensures the folder is readable by Nginx while maintaining security.
 
-#### Start the Application with PM2
+#### Set Up Systemd Service
+
+Configure the application to run as a systemd service for automatic startup and management:
 
 ```bash
-# Start the Node.js server
-pm2 start server.js --name finalcut-server
+# Copy the systemd service file
+sudo cp /home/finalcut/apps/pages/finalcut/finalcut.service /etc/systemd/system/
 
-# Save PM2 process list
-pm2 save
+# Reload systemd to recognize the new service
+sudo systemctl daemon-reload
 
-# View logs
-pm2 logs finalcut-server
+# Enable the service to start on boot
+sudo systemctl enable finalcut.service
+
+# Start the service
+sudo systemctl start finalcut.service
 
 # Check status
-pm2 status
+sudo systemctl status finalcut.service
+
+# View logs
+journalctl -u finalcut -f
 ```
 
 ### Step 8: Configure Nginx as Reverse Proxy
@@ -490,17 +499,17 @@ cd /home/finalcut/apps/pages/finalcut
 ### Monitor Application
 
 ```bash
-# View PM2 status
-pm2 status
+# View service status
+sudo systemctl status finalcut
 
 # View real-time logs
-pm2 logs finalcut-server
+journalctl -u finalcut -f
 
 # View last 100 lines of logs
-pm2 logs finalcut-server --lines 100
+journalctl -u finalcut -n 100
 
-# Monitor CPU and memory
-pm2 monit
+# View logs with timestamps
+journalctl -u finalcut --since "1 hour ago"
 ```
 
 ### Monitor Nginx
@@ -520,7 +529,7 @@ sudo tail -f /var/log/nginx/access.log
 
 ```bash
 # Restart Node.js app
-pm2 restart finalcut-server
+sudo systemctl restart finalcut
 
 # Restart Nginx
 sudo systemctl restart nginx
@@ -548,9 +557,9 @@ htop
 
 ### Application Won't Start
 
-1. **Check PM2 logs**:
+1. **Check service logs**:
    ```bash
-   pm2 logs finalcut-server --lines 50
+   journalctl -u finalcut -n 50
    ```
 
 2. **Verify environment variables**:
@@ -565,7 +574,7 @@ htop
 
 4. **Restart the application**:
    ```bash
-   pm2 restart finalcut-server
+   sudo systemctl restart finalcut
    ```
 
 ### Nginx Errors
@@ -629,7 +638,7 @@ This usually means Nginx can't connect to the Node.js server:
 
 1. **Check if Node.js server is running**:
    ```bash
-   pm2 status
+   sudo systemctl status finalcut
    ```
 
 2. **Verify the server is listening on correct port**:
@@ -644,7 +653,7 @@ This usually means Nginx can't connect to the Node.js server:
 
 4. **Review Node.js logs**:
    ```bash
-   pm2 logs finalcut-server
+   journalctl -u finalcut -n 50
    ```
 
 ### Large File Upload Issues
@@ -736,7 +745,7 @@ As your application grows:
 
 - **DigitalOcean Documentation**: https://docs.digitalocean.com/
 - **Nginx Documentation**: https://nginx.org/en/docs/
-- **PM2 Documentation**: https://pm2.keymetrics.io/docs/
+- **Systemd Documentation**: https://systemd.io/
 - **Let's Encrypt**: https://letsencrypt.org/docs/
 - **Node.js Best Practices**: https://github.com/goldbergyoni/nodebestpractices
 
