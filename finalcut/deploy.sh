@@ -4,13 +4,13 @@
 # FinalCut Deployment Script
 # 
 # This script automates the deployment process for the FinalCut application
-# on DigitalOcean or any Linux server with Node.js, PM2, and Nginx installed.
+# on DigitalOcean or any Linux server with Node.js and Nginx installed.
 #
 # Usage: ./deploy.sh
 #
 # Prerequisites:
 # - Node.js 18+ installed
-# - PM2 installed globally
+# - systemd service configured (finalcut.service)
 # - Nginx configured
 # - Git repository cloned
 # - .env file configured
@@ -67,9 +67,18 @@ check_prerequisites() {
         exit 1
     fi
     
-    # Check if PM2 is installed
-    if ! command -v pm2 &> /dev/null; then
-        log_error "PM2 is not installed. Install with: npm install -g pm2"
+    # Check if systemd service exists
+    if [ ! -f "/etc/systemd/system/finalcut.service" ]; then
+        log_error "systemd service not found at /etc/systemd/system/finalcut.service"
+        if [ -f "$APP_DIR/finalcut.service" ]; then
+            log_error "Please install the service first:"
+            log_error "  sudo cp finalcut.service /etc/systemd/system/finalcut.service"
+            log_error "  sudo systemctl daemon-reload"
+            log_error "  sudo systemctl enable finalcut"
+        else
+            log_error "Source service file not found at $APP_DIR/finalcut.service"
+            log_error "Please ensure you have the correct repository and service file exists"
+        fi
         exit 1
     fi
     
@@ -159,29 +168,29 @@ build_application() {
 }
 
 restart_application() {
-    log_info "Restarting application with PM2..."
+    log_info "Restarting application with systemd..."
     
     cd "$APP_DIR"
     
-    # Check if app is already running
-    if pm2 describe "$APP_NAME" &> /dev/null; then
-        log_info "Application is running, restarting..."
-        pm2 restart "$APP_NAME" || {
-            log_error "Failed to restart application"
-            exit 1
-        }
+    # Service existence is already validated in check_prerequisites
+    log_info "Reloading systemd daemon..."
+    sudo systemctl daemon-reload
+    
+    log_info "Restarting finalcut service..."
+    sudo systemctl restart finalcut || {
+        log_error "Failed to restart application"
+        sudo systemctl status finalcut --no-pager
+        exit 1
+    }
+    
+    # Check if service is running
+    if sudo systemctl is-active --quiet finalcut; then
+        log_info "Application restarted successfully!"
     else
-        log_info "Application not running, starting..."
-        pm2 start server.js --name "$APP_NAME" || {
-            log_error "Failed to start application"
-            exit 1
-        }
+        log_error "Application failed to start"
+        sudo systemctl status finalcut --no-pager
+        exit 1
     fi
-    
-    # Save PM2 process list
-    pm2 save
-    
-    log_info "Application restarted successfully!"
 }
 
 reload_nginx() {
@@ -202,12 +211,12 @@ show_status() {
     log_info "Deployment status:"
     echo ""
     
-    # Show PM2 status
-    pm2 describe "$APP_NAME" || log_warn "Application not found in PM2"
+    # Show systemd service status
+    sudo systemctl status finalcut --no-pager || log_warn "Application service not found"
     
     echo ""
     log_info "Recent logs:"
-    pm2 logs "$APP_NAME" --lines 10 --nostream || true
+    sudo journalctl -u finalcut -n 10 --no-pager || true
 }
 
 cleanup() {
@@ -252,8 +261,8 @@ main() {
     echo ""
     log_info "Next steps:"
     echo "  - Visit your application: https://yourdomain.com"
-    echo "  - Check logs: pm2 logs $APP_NAME"
-    echo "  - Monitor status: pm2 monit"
+    echo "  - Check logs: sudo journalctl -u finalcut -f"
+    echo "  - Monitor status: sudo systemctl status finalcut"
     echo ""
 }
 

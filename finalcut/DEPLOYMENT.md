@@ -157,17 +157,7 @@ systemctl start nginx
 systemctl enable nginx
 ```
 
-### Step 5: Install PM2 (Process Manager)
-
-```bash
-# Install PM2 globally
-npm install -g pm2
-
-# Configure PM2 to start on boot
-pm2 startup systemd
-```
-
-### Step 6: Install Git
+### Step 5: Install Git
 
 ```bash
 apt install git -y
@@ -177,7 +167,7 @@ apt install git -y
 
 ## Application Deployment
 
-### Step 7: Deploy the Application
+### Step 6: Deploy the Application
 
 #### Clone the Repository
 
@@ -257,23 +247,29 @@ sudo chmod -R 755 /home/finalcut/apps/pages/finalcut/dist
 
 This ensures the folder is readable by Nginx while maintaining security.
 
-#### Start the Application with PM2
+#### Set up the Application as a systemd Service
 
 ```bash
-# Start the Node.js server
-pm2 start server.js --name finalcut-server
+# Copy the systemd service file
+sudo cp finalcut.service /etc/systemd/system/finalcut.service
 
-# Save PM2 process list
-pm2 save
+# Reload systemd to recognize the new service
+sudo systemctl daemon-reload
 
-# View logs
-pm2 logs finalcut-server
+# Enable the service to start on boot
+sudo systemctl enable finalcut
+
+# Start the service
+sudo systemctl start finalcut
 
 # Check status
-pm2 status
+sudo systemctl status finalcut
+
+# View logs
+sudo journalctl -u finalcut -f
 ```
 
-### Step 8: Configure Nginx as Reverse Proxy
+### Step 7: Configure Nginx as Reverse Proxy
 
 ### Remove Default Nginx Page
 
@@ -371,7 +367,7 @@ sudo systemctl reload nginx
 
 ## DNS Configuration on GoDaddy
 
-### Step 9: Configure DNS Records
+### Step 8: Configure DNS Records
 
 1. **Log in to GoDaddy** at https://www.godaddy.com/
 
@@ -410,7 +406,7 @@ sudo systemctl reload nginx
 
 ## SSL Certificate Setup
 
-### Step 10: Install SSL Certificate with Let's Encrypt
+### Step 9: Install SSL Certificate with Let's Encrypt
 
 ```bash
 # Install Certbot
@@ -457,7 +453,7 @@ Visit `https://yourdomain.com` to verify SSL is working.
 
 ## Automated Deployment
 
-### Step 11: Create Deployment Script
+### Step 10: Create Deployment Script
 
 Create a deployment script for easy updates:
 
@@ -474,7 +470,7 @@ Make it executable:
 chmod +x deploy.sh
 ```
 
-### Step 12: Update the Application
+### Step 11: Update the Application
 
 When you need to deploy updates:
 
@@ -490,17 +486,17 @@ cd /home/finalcut/apps/pages/finalcut
 ### Monitor Application
 
 ```bash
-# View PM2 status
-pm2 status
+# View service status
+sudo systemctl status finalcut
 
 # View real-time logs
-pm2 logs finalcut-server
+sudo journalctl -u finalcut -f
 
 # View last 100 lines of logs
-pm2 logs finalcut-server --lines 100
+sudo journalctl -u finalcut -n 100
 
-# Monitor CPU and memory
-pm2 monit
+# Monitor system resources
+htop
 ```
 
 ### Monitor Nginx
@@ -520,7 +516,7 @@ sudo tail -f /var/log/nginx/access.log
 
 ```bash
 # Restart Node.js app
-pm2 restart finalcut-server
+sudo systemctl restart finalcut
 
 # Restart Nginx
 sudo systemctl restart nginx
@@ -548,9 +544,9 @@ htop
 
 ### Application Won't Start
 
-1. **Check PM2 logs**:
+1. **Check service logs**:
    ```bash
-   pm2 logs finalcut-server --lines 50
+   sudo journalctl -u finalcut -n 50
    ```
 
 2. **Verify environment variables**:
@@ -565,7 +561,7 @@ htop
 
 4. **Restart the application**:
    ```bash
-   pm2 restart finalcut-server
+   sudo systemctl restart finalcut
    ```
 
 ### Nginx Errors
@@ -629,7 +625,7 @@ This usually means Nginx can't connect to the Node.js server:
 
 1. **Check if Node.js server is running**:
    ```bash
-   pm2 status
+   sudo systemctl status finalcut
    ```
 
 2. **Verify the server is listening on correct port**:
@@ -644,7 +640,7 @@ This usually means Nginx can't connect to the Node.js server:
 
 4. **Review Node.js logs**:
    ```bash
-   pm2 logs finalcut-server
+   sudo journalctl -u finalcut -f
    ```
 
 ### Large File Upload Issues
@@ -736,7 +732,7 @@ As your application grows:
 
 - **DigitalOcean Documentation**: https://docs.digitalocean.com/
 - **Nginx Documentation**: https://nginx.org/en/docs/
-- **PM2 Documentation**: https://pm2.keymetrics.io/docs/
+- **systemd Documentation**: https://www.freedesktop.org/software/systemd/man/
 - **Let's Encrypt**: https://letsencrypt.org/docs/
 - **Node.js Best Practices**: https://github.com/goldbergyoni/nodebestpractices
 
