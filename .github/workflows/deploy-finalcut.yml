@@ -79,9 +79,11 @@ jobs:
           npm ci --production=false
       
       - name: Run tests
+        id: test
         run: |
           cd finalcut
-          npm run test -- --run
+          npm run test -- --run 2>&1 | tee test-output.log
+          exit ${PIPESTATUS[0]}
         continue-on-error: true  # Don't fail deployment if tests fail
       
       - name: Test Results Summary
@@ -89,12 +91,23 @@ jobs:
         run: |
           echo "## 🧪 Test Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Tests have been executed. Check the logs above for details." >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.test.outcome }}" == "success" ]; then
+            echo "✅ **Tests Passed**" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.test.outcome }}" == "failure" ]; then
+            echo "❌ **Tests Failed**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Check the logs above for test failure details." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Tests Status:** ${{ steps.test.outcome }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Note: Test failures do not prevent deployment in this workflow." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
       
       - name: Build application
+        id: build
         run: |
           cd finalcut
           npm run build
@@ -105,6 +118,23 @@ jobs:
           echo "## ✅ Build Successful" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The application has been built successfully." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+      
+      - name: Build Failure Summary
+        if: failure() && steps.build.outcome == 'failure'
+        run: |
+          echo "## ❌ Build Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The application build encountered errors. Check the logs above for details." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Common Build Issues:" >> $GITHUB_STEP_SUMMARY
+          echo "- Missing dependencies: Run \`npm install\` to ensure all packages are installed" >> $GITHUB_STEP_SUMMARY
+          echo "- Node version mismatch: Ensure Node.js 18+ is installed" >> $GITHUB_STEP_SUMMARY
+          echo "- Build script errors: Check \`package.json\` and Vite configuration" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "See [Troubleshooting Guide](https://github.com/${{ github.repository }}/blob/main/finalcut/TROUBLESHOOTING.md) for more help." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
