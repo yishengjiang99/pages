@@ -112,7 +112,7 @@ jobs:
           npm run build
       
       - name: Build Status Summary
-        if: success()
+        if: steps.build.outcome == 'success'
         run: |
           echo "## ✅ Build Successful" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -122,14 +122,14 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
       
       - name: Build Failure Summary
-        if: failure()
+        if: steps.build.outcome == 'failure'
         run: |
           echo "## ❌ Build Failed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The application build encountered errors. Check the logs above for details." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Common Build Issues:" >> $GITHUB_STEP_SUMMARY
-          echo "- Missing dependencies: Run \`npm install\` to ensure all packages are installed" >> $GITHUB_STEP_SUMMARY
+          echo "- Missing dependencies: Run \`npm ci\` to ensure all packages are installed" >> $GITHUB_STEP_SUMMARY
           echo "- Node version mismatch: Ensure Node.js 18+ is installed" >> $GITHUB_STEP_SUMMARY
           echo "- Build script errors: Check \`package.json\` and Vite configuration" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
