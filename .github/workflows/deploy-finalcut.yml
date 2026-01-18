@@ -80,7 +80,6 @@ jobs:
       
       - name: Run tests
         id: test
-        shell: bash
         run: |
           cd finalcut
           npm run test -- --run
