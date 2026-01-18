@@ -63,6 +63,7 @@ Before starting the deployment process, ensure you have:
 
 7. **Note Your Droplet IP**:
    - Once created, note the IP address (e.g., `123.456.789.012`)
+   - 64.23.239.208
 
 ---
 
@@ -95,6 +96,34 @@ usermod -aG sudo finalcut
 rsync --archive --chown=finalcut:finalcut ~/.ssh /home/finalcut
 ```
 
+### install nginx
+#### Install Nginx on Ubuntu 22.04
+
+1. **Update Package List**:
+   ```bash
+   sudo apt update
+   ```
+
+2. **Install Nginx**:
+   ```bash
+   sudo apt install nginx -y
+   ```
+
+3. **Start and Enable Nginx**:
+   ```bash
+   sudo systemctl start nginx
+   sudo systemctl enable nginx
+   ```
+
+4. **Verify Installation**:
+   - Open your browser and visit your server's IP address (e.g., `http://YOUR_DROPLET_IP`).
+   - You should see the default Nginx welcome page.
+
+5. **Check Nginx Status**:
+   ```bash
+   sudo systemctl status nginx
+   ```
+
 #### Configure Firewall
 
 ```bash
@@ -107,13 +136,14 @@ ufw enable
 ### Step 3: Install Node.js
 
 ```bash
-# Install Node.js 18.x (LTS)
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
 apt-get install -y nodejs
 
 # Verify installation
-node --version
+
+
 npm --version
+
 ```
 
 ### Step 4: Install Nginx
@@ -212,6 +242,21 @@ npm run build
 
 This creates optimized production files in the `dist/` directory.
 
+#### Set Permissions for `dist` Folder
+
+Ensure the `dist` folder has the correct permissions for Nginx to serve files:
+
+```bash
+```bash
+# Set ownership to www-data
+sudo chown -R www-data:www-data /home/finalcut/apps/pages/finalcut/dist
+
+# Set permissions
+sudo chmod -R 755 /home/finalcut/apps/pages/finalcut/dist
+```
+
+This ensures the folder is readable by Nginx while maintaining security.
+
 #### Start the Application with PM2
 
 ```bash
@@ -229,6 +274,22 @@ pm2 status
 ```
 
 ### Step 8: Configure Nginx as Reverse Proxy
+
+### Remove Default Nginx Page
+
+After installing Nginx, the default welcome page is served. To remove it:
+
+1. **Delete the Default Configuration**:
+   ```bash
+   sudo rm /etc/nginx/sites-enabled/default
+   ```
+
+2. **Reload Nginx**:
+   ```bash
+   sudo systemctl reload nginx
+   ```
+
+This ensures only your custom configuration is active.
 
 Create an Nginx configuration file:
 
