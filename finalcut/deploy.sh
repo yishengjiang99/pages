@@ -70,10 +70,15 @@ check_prerequisites() {
     # Check if systemd service exists
     if [ ! -f "/etc/systemd/system/finalcut.service" ]; then
         log_error "systemd service not found at /etc/systemd/system/finalcut.service"
-        log_error "Please install the service first:"
-        log_error "  sudo cp finalcut.service /etc/systemd/system/finalcut.service"
-        log_error "  sudo systemctl daemon-reload"
-        log_error "  sudo systemctl enable finalcut"
+        if [ -f "$APP_DIR/finalcut.service" ]; then
+            log_error "Please install the service first:"
+            log_error "  sudo cp finalcut.service /etc/systemd/system/finalcut.service"
+            log_error "  sudo systemctl daemon-reload"
+            log_error "  sudo systemctl enable finalcut"
+        else
+            log_error "Source service file not found at $APP_DIR/finalcut.service"
+            log_error "Please ensure you have the correct repository and service file exists"
+        fi
         exit 1
     fi
     
@@ -167,32 +172,23 @@ restart_application() {
     
     cd "$APP_DIR"
     
-    # Check if systemd service exists
-    if [ -f "/etc/systemd/system/finalcut.service" ]; then
-        log_info "Reloading systemd daemon..."
-        sudo systemctl daemon-reload
-        
-        log_info "Restarting finalcut service..."
-        sudo systemctl restart finalcut || {
-            log_error "Failed to restart application"
-            exit 1
-        }
-        
-        # Check if service is running
-        if sudo systemctl is-active --quiet finalcut; then
-            log_info "Application restarted successfully!"
-        else
-            log_error "Application failed to start"
-            sudo systemctl status finalcut
-            exit 1
-        fi
+    # Service existence is already validated in check_prerequisites
+    log_info "Reloading systemd daemon..."
+    sudo systemctl daemon-reload
+    
+    log_info "Restarting finalcut service..."
+    sudo systemctl restart finalcut || {
+        log_error "Failed to restart application"
+        sudo systemctl status finalcut --no-pager
+        exit 1
+    }
+    
+    # Check if service is running
+    if sudo systemctl is-active --quiet finalcut; then
+        log_info "Application restarted successfully!"
     else
-        log_error "systemd service not found at /etc/systemd/system/finalcut.service"
-        log_error "Please install the service first:"
-        log_error "  sudo cp finalcut.service /etc/systemd/system/finalcut.service"
-        log_error "  sudo systemctl daemon-reload"
-        log_error "  sudo systemctl enable finalcut"
-        log_error "  sudo systemctl start finalcut"
+        log_error "Application failed to start"
+        sudo systemctl status finalcut --no-pager
         exit 1
     fi
 }
