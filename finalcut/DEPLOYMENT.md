@@ -157,9 +157,7 @@ systemctl start nginx
 systemctl enable nginx
 ```
 
-
-
-### Step 6: Install Git
+### Step 5: Install Git
 
 ```bash
 apt install git -y
@@ -169,7 +167,7 @@ apt install git -y
 
 ## Application Deployment
 
-### Step 7: Deploy the Application
+### Step 6: Deploy the Application
 
 #### Clone the Repository
 
@@ -271,7 +269,7 @@ sudo systemctl status finalcut
 sudo journalctl -u finalcut -f
 ```
 
-### Step 8: Configure Nginx as Reverse Proxy
+### Step 7: Configure Nginx as Reverse Proxy
 
 ### Remove Default Nginx Page
 
@@ -369,7 +367,7 @@ sudo systemctl reload nginx
 
 ## DNS Configuration on GoDaddy
 
-### Step 9: Configure DNS Records
+### Step 8: Configure DNS Records
 
 1. **Log in to GoDaddy** at https://www.godaddy.com/
 
@@ -408,7 +406,7 @@ sudo systemctl reload nginx
 
 ## SSL Certificate Setup
 
-### Step 10: Install SSL Certificate with Let's Encrypt
+### Step 9: Install SSL Certificate with Let's Encrypt
 
 ```bash
 # Install Certbot
@@ -455,7 +453,7 @@ Visit `https://yourdomain.com` to verify SSL is working.
 
 ## Automated Deployment
 
-### Step 11: Create Deployment Script
+### Step 10: Create Deployment Script
 
 Create a deployment script for easy updates:
 
@@ -472,7 +470,7 @@ Make it executable:
 chmod +x deploy.sh
 ```
 
-### Step 12: Update the Application
+### Step 11: Update the Application
 
 When you need to deploy updates:
 

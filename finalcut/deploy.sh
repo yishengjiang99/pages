@@ -69,8 +69,12 @@ check_prerequisites() {
     
     # Check if systemd service exists
     if [ ! -f "/etc/systemd/system/finalcut.service" ]; then
-        log_warn "systemd service not found at /etc/systemd/system/finalcut.service"
-        log_warn "Run: sudo cp $APP_DIR/finalcut.service /etc/systemd/system/"
+        log_error "systemd service not found at /etc/systemd/system/finalcut.service"
+        log_error "Please install the service first:"
+        log_error "  sudo cp finalcut.service /etc/systemd/system/finalcut.service"
+        log_error "  sudo systemctl daemon-reload"
+        log_error "  sudo systemctl enable finalcut"
+        exit 1
     fi
     
     # Check if .env file exists
@@ -185,7 +189,7 @@ restart_application() {
     else
         log_error "systemd service not found at /etc/systemd/system/finalcut.service"
         log_error "Please install the service first:"
-        log_error "  sudo cp $APP_DIR/finalcut.service /etc/systemd/system/"
+        log_error "  sudo cp finalcut.service /etc/systemd/system/finalcut.service"
         log_error "  sudo systemctl daemon-reload"
         log_error "  sudo systemctl enable finalcut"
         log_error "  sudo systemctl start finalcut"
