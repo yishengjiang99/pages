@@ -19,3 +19,7 @@ export async function loadFFmpeg() {
 
   loaded = true;
 }
+
+export async function fetchFile(file) {
+  return new Uint8Array(await file.arrayBuffer());
+}
