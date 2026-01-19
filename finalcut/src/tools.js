@@ -333,6 +333,60 @@ export const tools = [
         required: ['preset']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'adjust_brightness',
+      description: 'Adjust the brightness level of the video. Can be used to make the video lighter or darker.',
+      parameters: {
+        type: 'object',
+        properties: {
+          brightness: {
+            type: 'number',
+            description: 'Brightness adjustment value. Range: -1.0 to 1.0. Negative values darken the video, positive values brighten it. 0 means no change.',
+            default: 0
+          }
+        },
+        required: ['brightness']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'adjust_hue',
+      description: 'Rotate the hue (color) of the video. Shifts all colors by the specified angle on the color wheel.',
+      parameters: {
+        type: 'object',
+        properties: {
+          degrees: {
+            type: 'number',
+            description: 'Hue rotation angle in degrees. Range: -360 to 360. 0 means no change, 180 inverts colors.',
+            default: 0
+          }
+        },
+        required: ['degrees']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'adjust_saturation',
+      description: 'Adjust the color saturation (intensity) of the video. Can make colors more vivid or more muted.',
+      parameters: {
+        type: 'object',
+        properties: {
+          saturation: {
+            type: 'number',
+            description: 'Saturation multiplier. Range: 0 to 3. Values < 1 desaturate (0 = grayscale), values > 1 oversaturate, 1 = no change.',
+            default: 1
+          }
+        },
+        required: ['saturation']
+      }
+    }
   }
 ];
 

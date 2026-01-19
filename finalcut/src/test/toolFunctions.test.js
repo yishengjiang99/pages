@@ -844,4 +844,249 @@ describe('toolFunctions', () => {
       expect(vfArg).toContain('pad=1920:1080');
     });
   });
+
+  describe('adjust_brightness', () => {
+    it('should validate brightness parameter is provided', async () => {
+      const result = await toolFunctions.adjust_brightness(
+        {},
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to adjust brightness');
+      expect(mockAddMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Error adjusting brightness'),
+        false
+      );
+    });
+
+    it('should reject brightness values outside valid range', async () => {
+      const result1 = await toolFunctions.adjust_brightness(
+        { brightness: -1.5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result1).toContain('Failed to adjust brightness');
+      
+      const result2 = await toolFunctions.adjust_brightness(
+        { brightness: 1.5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result2).toContain('Failed to adjust brightness');
+    });
+
+    it('should allow brightness=0 (no change)', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.adjust_brightness(
+        { brightness: 0 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Brightness adjusted successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall).toContain('-vf');
+      expect(execCall.join(' ')).toContain('eq=brightness=0');
+    });
+
+    it('should brighten video with positive values', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.adjust_brightness(
+        { brightness: 0.5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Brightness adjusted successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall.join(' ')).toContain('eq=brightness=0.5');
+    });
+
+    it('should darken video with negative values', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.adjust_brightness(
+        { brightness: -0.3 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Brightness adjusted successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall.join(' ')).toContain('eq=brightness=-0.3');
+    });
+  });
+
+  describe('adjust_hue', () => {
+    it('should validate degrees parameter is provided', async () => {
+      const result = await toolFunctions.adjust_hue(
+        {},
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to adjust hue');
+      expect(mockAddMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Error adjusting hue'),
+        false
+      );
+    });
+
+    it('should reject degrees values outside valid range', async () => {
+      const result1 = await toolFunctions.adjust_hue(
+        { degrees: -400 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result1).toContain('Failed to adjust hue');
+      
+      const result2 = await toolFunctions.adjust_hue(
+        { degrees: 400 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result2).toContain('Failed to adjust hue');
+    });
+
+    it('should allow degrees=0 (no change)', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.adjust_hue(
+        { degrees: 0 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Hue adjusted successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall).toContain('-vf');
+      expect(execCall.join(' ')).toContain('hue=h=0');
+    });
+
+    it('should rotate hue with positive values', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.adjust_hue(
+        { degrees: 180 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Hue adjusted successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall.join(' ')).toContain('hue=h=180');
+    });
+
+    it('should rotate hue with negative values', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.adjust_hue(
+        { degrees: -90 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Hue adjusted successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall.join(' ')).toContain('hue=h=-90');
+    });
+  });
+
+  describe('adjust_saturation', () => {
+    it('should validate saturation parameter is provided', async () => {
+      const result = await toolFunctions.adjust_saturation(
+        {},
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toContain('Failed to adjust saturation');
+      expect(mockAddMessage).toHaveBeenCalledWith(
+        expect.stringContaining('Error adjusting saturation'),
+        false
+      );
+    });
+
+    it('should reject saturation values outside valid range', async () => {
+      const result1 = await toolFunctions.adjust_saturation(
+        { saturation: -0.5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result1).toContain('Failed to adjust saturation');
+      
+      const result2 = await toolFunctions.adjust_saturation(
+        { saturation: 3.5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result2).toContain('Failed to adjust saturation');
+    });
+
+    it('should allow saturation=0 (grayscale)', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.adjust_saturation(
+        { saturation: 0 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Saturation adjusted successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall).toContain('-vf');
+      expect(execCall.join(' ')).toContain('eq=saturation=0');
+    });
+
+    it('should allow saturation=1 (no change)', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.adjust_saturation(
+        { saturation: 1 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Saturation adjusted successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall.join(' ')).toContain('eq=saturation=1');
+    });
+
+    it('should increase saturation with values > 1', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.adjust_saturation(
+        { saturation: 2 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Saturation adjusted successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall.join(' ')).toContain('eq=saturation=2');
+    });
+
+    it('should decrease saturation with values < 1', async () => {
+      const { ffmpeg } = await import('../ffmpeg.js');
+      const result = await toolFunctions.adjust_saturation(
+        { saturation: 0.5 },
+        mockVideoFileData,
+        mockSetVideoFileData,
+        mockAddMessage
+      );
+      expect(result).toBe('Saturation adjusted successfully.');
+      expect(ffmpeg.exec).toHaveBeenCalled();
+      const execCall = ffmpeg.exec.mock.calls[0][0];
+      expect(execCall.join(' ')).toContain('eq=saturation=0.5');
+    });
+  });
 });

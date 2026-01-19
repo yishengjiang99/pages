@@ -537,5 +537,77 @@ export const toolFunctions = {
       addMessage('Error resizing video to preset: ' + error.message, false);
       return 'Failed to resize video to preset: ' + error.message;
     }
+  },
+  adjust_brightness: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (args.brightness === null || args.brightness === undefined) {
+        throw new Error('Brightness is required');
+      }
+      if (args.brightness < -1.0 || args.brightness > 1.0) {
+        throw new Error('Brightness must be between -1.0 and 1.0');
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // eq filter's brightness parameter: -1.0 (very dark) to 1.0 (very bright), 0 is no change
+      await ffmpeg.exec(['-i', 'input.mp4', '-vf', `eq=brightness=${args.brightness}`, '-c:a', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage('Processed video (brightness adjusted):', false, videoUrl);
+      return 'Brightness adjusted successfully.';
+    } catch (error) {
+      addMessage('Error adjusting brightness: ' + error.message, false);
+      return 'Failed to adjust brightness: ' + error.message;
+    }
+  },
+  adjust_hue: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (args.degrees === null || args.degrees === undefined) {
+        throw new Error('Degrees is required');
+      }
+      if (args.degrees < -360 || args.degrees > 360) {
+        throw new Error('Degrees must be between -360 and 360');
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // hue filter's h parameter accepts degrees
+      await ffmpeg.exec(['-i', 'input.mp4', '-vf', `hue=h=${args.degrees}`, '-c:a', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage('Processed video (hue adjusted):', false, videoUrl);
+      return 'Hue adjusted successfully.';
+    } catch (error) {
+      addMessage('Error adjusting hue: ' + error.message, false);
+      return 'Failed to adjust hue: ' + error.message;
+    }
+  },
+  adjust_saturation: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (args.saturation === null || args.saturation === undefined) {
+        throw new Error('Saturation is required');
+      }
+      if (args.saturation < 0 || args.saturation > 3) {
+        throw new Error('Saturation must be between 0 and 3');
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // eq filter's saturation parameter: 0 (grayscale) to 3 (very saturated), 1 is no change
+      await ffmpeg.exec(['-i', 'input.mp4', '-vf', `eq=saturation=${args.saturation}`, '-c:a', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      addMessage('Processed video (saturation adjusted):', false, videoUrl);
+      return 'Saturation adjusted successfully.';
+    } catch (error) {
+      addMessage('Error adjusting saturation: ' + error.message, false);
+      return 'Failed to adjust saturation: ' + error.message;
+    }
   }
 };
