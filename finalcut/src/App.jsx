@@ -127,7 +127,7 @@ export default function App() {
         </div>
         {originalVideoUrl && (
           <div style={{ position: 'absolute', bottom: '180px', left: '10px', maxWidth: 'calc(100vw - 20px)', boxSizing: 'border-box' }}>
-            <VideoPreview videoUrl={originalVideoUrl} title="Original Video Preview" />
+            <VideoPreview videoUrl={originalVideoUrl} title="Original Video Preview" defaultCollapsed={true} />
           </div>
         )}
       </main>

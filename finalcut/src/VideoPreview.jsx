@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function VideoPreview({ videoUrl, title = 'Video Preview' }) {
+export default function VideoPreview({ videoUrl, title = 'Video Preview', defaultCollapsed = false }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [fps, setFps] = useState(30);
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -92,8 +93,32 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview' }) {
       maxWidth: '100%',
       boxSizing: 'border-box'
     }}>
-      <p style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: 'bold' }}>{title}</p>
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        marginBottom: isCollapsed ? '0' : '8px'
+      }}>
+        <p style={{ margin: '0', fontSize: '14px', fontWeight: 'bold' }}>{title}</p>
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          style={{
+            padding: '4px 12px',
+            fontSize: '12px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            WebkitTapHighlightColor: 'transparent'
+          }}
+        >
+          {isCollapsed ? '▼ Expand' : '▲ Collapse'}
+        </button>
+      </div>
       
+      {!isCollapsed && (
+        <>
       <video 
         ref={videoRef}
         src={videoUrl} 
@@ -213,6 +238,8 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview' }) {
           Frame ▶
         </button>
       </div>
+        </>
+      )}
     </div>
   );
 }
