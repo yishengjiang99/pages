@@ -33,29 +33,29 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'Invalid messages format' });
     }
 
+    // Update the model to grok-3
     const response = await fetch('https://api.x.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${XAI_API_TOKEN}`
       },
-      body: JSON.stringify(req.body)
+      body: JSON.stringify({
+        ...req.body,
+        model: 'grok-3' // Specify the new model here
+      })
     });
 
-    const data = await response.json();
-
     if (!response.ok) {
-      console.error('xAI API Error:', response.status, data);
-      return res.status(response.status).json(data);
+      const error = await response.json();
+      return res.status(response.status).json({ error: error.message });
     }
 
+    const data = await response.json();
     res.json(data);
   } catch (error) {
-    console.error('Proxy error:', error);
-    const errorMessage = process.env.NODE_ENV === 'production'
-      ? 'An error occurred while processing your request'
-      : error.message;
-    res.status(500).json({ error: 'Internal server error', message: errorMessage });
+    console.error('Error in /api/chat:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
