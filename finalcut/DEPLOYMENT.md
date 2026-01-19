@@ -234,9 +234,6 @@ This creates optimized production files in the `dist/` directory.
 
 #### Set Permissions for `dist` Folder
 
-Ensure the `dist` folder has the correct permissions for Nginx to serve files:
-
-```bash
 ```bash
 # Set ownership to www-data
 sudo chown -R www-data:www-data /home/finalcut/apps/pages/finalcut/dist

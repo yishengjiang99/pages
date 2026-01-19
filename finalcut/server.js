@@ -14,11 +14,11 @@ if (!XAI_API_TOKEN) {
   process.exit(1);
 }
 
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.ALLOWED_ORIGINS?.split(',') || []
-    : ['http://localhost:5173', 'http://localhost:3000']
-}));
+// app.use(cors({
+//   origin: process.env.NODE_ENV === 'production' 
+//     ? process.env.ALLOWED_ORIGINS?.split(',') || []
+//     : ['http://localhost:5173', 'http://localhost:3000']
+// }));
 app.use(express.json({ limit: '50mb' }));
 
 // Proxy endpoint for xAI API
@@ -52,7 +52,7 @@ app.post('/api/chat', async (req, res) => {
     res.json(data);
   } catch (error) {
     console.error('Proxy error:', error);
-    const errorMessage = process.env.NODE_ENV === 'production' 
+    const errorMessage = process.env.NODE_ENV === 'production'
       ? 'An error occurred while processing your request'
       : error.message;
     res.status(500).json({ error: 'Internal server error', message: errorMessage });
