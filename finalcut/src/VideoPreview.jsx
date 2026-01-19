@@ -12,6 +12,14 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
     if (videoRef.current) {
       const video = videoRef.current;
       
+      // Reset state when video URL changes
+      setIsPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
+      
+      // Force the video element to load the new source
+      video.load();
+      
       const handleLoadedMetadata = () => {
         setDuration(video.duration);
       };
