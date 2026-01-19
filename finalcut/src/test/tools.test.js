@@ -127,6 +127,27 @@ describe('Tools Module', () => {
     ]);
   });
 
+  it('has adjust_brightness tool', () => {
+    const brightnessTool = tools.find(t => t.function.name === 'adjust_brightness');
+    expect(brightnessTool).toBeDefined();
+    expect(brightnessTool.function.parameters.required).toContain('brightness');
+    expect(brightnessTool.function.description).toContain('brightness');
+  });
+
+  it('has adjust_hue tool', () => {
+    const hueTool = tools.find(t => t.function.name === 'adjust_hue');
+    expect(hueTool).toBeDefined();
+    expect(hueTool.function.parameters.required).toContain('degrees');
+    expect(hueTool.function.description).toContain('hue');
+  });
+
+  it('has adjust_saturation tool', () => {
+    const saturationTool = tools.find(t => t.function.name === 'adjust_saturation');
+    expect(saturationTool).toBeDefined();
+    expect(saturationTool.function.parameters.required).toContain('saturation');
+    expect(saturationTool.function.description).toContain('saturation');
+  });
+
   it('all tools have proper structure', () => {
     tools.forEach(tool => {
       expect(tool.type).toBe('function');
