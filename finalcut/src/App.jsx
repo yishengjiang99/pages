@@ -20,6 +20,10 @@ export default function App() {
     setMessages(prev => [...prev, { role: isUser ? 'user' : 'assistant', content: text, videoUrl, videoType }]);
   };
 
+  const getVideoTitle = (videoType) => {
+    return videoType === 'original' ? 'Original Video' : 'Processed Video';
+  };
+
   const callAPI = async (currentMessages) => {
     try {
       const response = await fetch('/api/chat', {
@@ -125,7 +129,7 @@ export default function App() {
                 <div style={{ marginTop: '8px' }}>
                   <VideoPreview 
                     videoUrl={msg.videoUrl} 
-                    title={msg.videoType === 'original' ? 'Original Video' : 'Processed Video'} 
+                    title={getVideoTitle(msg.videoType)} 
                   />
                 </div>
               )}
