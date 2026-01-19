@@ -373,6 +373,7 @@
                 if (!file) return;
                 
                 try {
+                    // Show uploading status
                     const uploadingMessage = { role: 'user', content: 'Uploading video...' };
                     setMessages(prev => [...prev, uploadingMessage]);
                     
@@ -381,12 +382,18 @@
                     const url = URL.createObjectURL(file);
                     setOriginalVideoUrl(url);
                     
+                    // Show upload complete and prepare for API call
                     const uploadedMessage = { role: 'assistant', content: 'Original video uploaded:', videoUrl: url };
                     const userMessage = { role: 'user', content: 'Video uploaded and ready for editing.' };
+                    
+                    // Build complete message history for API call
+                    // Since messages is the state before any updates in this function, we include all three new messages
+                    const messagesForAPI = [...messages, uploadingMessage, uploadedMessage, userMessage];
+                    
+                    // Update UI state with the remaining two messages (uploadingMessage was already added)
                     setMessages(prev => [...prev, uploadedMessage, userMessage]);
                     
-                    const newMessages = [...messages, uploadingMessage, uploadedMessage, userMessage];
-                    await callAPI(newMessages);
+                    await callAPI(messagesForAPI);
                 } catch (error) {
                     addMessage('Error uploading video: ' + error.message, false);
                 }
