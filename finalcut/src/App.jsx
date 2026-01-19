@@ -16,8 +16,8 @@ export default function App() {
     }
   }, [messages]);
 
-  const addMessage = (text, isUser = false, videoUrl = null) => {
-    setMessages(prev => [...prev, { role: isUser ? 'user' : 'assistant', content: text, videoUrl }]);
+  const addMessage = (text, isUser = false, videoUrl = null, videoType = 'processed') => {
+    setMessages(prev => [...prev, { role: isUser ? 'user' : 'assistant', content: text, videoUrl, videoType }]);
   };
 
   const callAPI = async (currentMessages) => {
@@ -86,7 +86,7 @@ export default function App() {
       const url = URL.createObjectURL(file);
       
       // Show upload complete and prepare for API call
-      const uploadedMessage = { role: 'assistant', content: 'Original video uploaded:', videoUrl: url };
+      const uploadedMessage = { role: 'assistant', content: 'Original video uploaded:', videoUrl: url, videoType: 'original' };
       const userMessage = { role: 'user', content: 'Video uploaded and ready for editing.' };
       
       // Build complete message history for API call
@@ -125,7 +125,7 @@ export default function App() {
                 <div style={{ marginTop: '8px' }}>
                   <VideoPreview 
                     videoUrl={msg.videoUrl} 
-                    title={msg.content && msg.content.includes('uploaded') ? 'Original Video' : 'Processed Video'} 
+                    title={msg.videoType === 'original' ? 'Original Video' : 'Processed Video'} 
                   />
                 </div>
               )}
