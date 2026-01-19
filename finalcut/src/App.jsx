@@ -8,7 +8,6 @@ export default function App() {
   const [messages, setMessages] = useState([{ role: 'system', content: systemPrompt }]);
   const [chatInput, setChatInput] = useState('');
   const [videoFileData, setVideoFileData] = useState(null);
-  const [originalVideoUrl, setOriginalVideoUrl] = useState(null);
   const chatWindowRef = useRef(null);
 
   useEffect(() => {
@@ -85,7 +84,6 @@ export default function App() {
       const data = await fetchFile(file);
       setVideoFileData(data);
       const url = URL.createObjectURL(file);
-      setOriginalVideoUrl(url);
       
       // Show upload complete and prepare for API call
       const uploadedMessage = { role: 'assistant', content: 'Original video uploaded:', videoUrl: url };
@@ -125,7 +123,10 @@ export default function App() {
               <p style={{ margin: 0 }}>{msg.content}</p>
               {msg.videoUrl && (
                 <div style={{ marginTop: '8px' }}>
-                  <VideoPreview videoUrl={msg.videoUrl} title="Edited Video" />
+                  <VideoPreview 
+                    videoUrl={msg.videoUrl} 
+                    title={msg.content && msg.content.includes('uploaded') ? 'Original Video' : 'Processed Video'} 
+                  />
                 </div>
               )}
             </div>
@@ -136,11 +137,6 @@ export default function App() {
           <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="Describe the video edit..." style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '16px' }} />
           <button onClick={handleSend} disabled={!videoFileData} style={{ padding: '10px 16px', backgroundColor: videoFileData ? '#007bff' : '#ccc', color: 'white', border: 'none', borderRadius: '4px', cursor: videoFileData ? 'pointer' : 'not-allowed', fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}>Send</button>
         </div>
-        {originalVideoUrl && (
-          <div style={{ position: 'absolute', bottom: '180px', left: '10px', maxWidth: 'calc(100vw - 20px)', boxSizing: 'border-box' }}>
-            <VideoPreview videoUrl={originalVideoUrl} title="Original Video Preview" defaultCollapsed={true} />
-          </div>
-        )}
       </main>
     </div>
   );
