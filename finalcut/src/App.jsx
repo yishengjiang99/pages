@@ -78,15 +78,27 @@ export default function App() {
     if (!file) return;
     
     try {
-      addMessage('Uploading video...', true);
+      // Show uploading status
+      const uploadingMessage = { role: 'user', content: 'Uploading video...' };
+      setMessages(prev => [...prev, uploadingMessage]);
+      
       const data = await fetchFile(file);
       setVideoFileData(data);
       const url = URL.createObjectURL(file);
       setOriginalVideoUrl(url);
-      addMessage('Original video uploaded:', false, url);
-      const newMessages = [...messages, { role: 'user', content: 'Video uploaded and ready for editing.' }];
-      setMessages(newMessages);
-      await callAPI(newMessages);
+      
+      // Show upload complete and prepare for API call
+      const uploadedMessage = { role: 'assistant', content: 'Original video uploaded:', videoUrl: url };
+      const userMessage = { role: 'user', content: 'Video uploaded and ready for editing.' };
+      
+      // Build complete message history for API call
+      // Since messages is the state before any updates in this function, we include all three new messages
+      const messagesForAPI = [...messages, uploadingMessage, uploadedMessage, userMessage];
+      
+      // Update UI state with the remaining two messages (uploadingMessage was already added)
+      setMessages(prev => [...prev, uploadedMessage, userMessage]);
+      
+      await callAPI(messagesForAPI);
     } catch (error) {
       addMessage('Error uploading video: ' + error.message, false);
     }
@@ -98,7 +110,6 @@ export default function App() {
       if (!videoFileData) alert('Please upload a video first.');
       return;
     }
-    addMessage(text, true);
     setChatInput('');
     const newMessages = [...messages, { role: 'user', content: text }];
     setMessages(newMessages);
