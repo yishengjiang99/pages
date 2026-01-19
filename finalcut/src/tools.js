@@ -344,8 +344,7 @@ export const tools = [
         properties: {
           brightness: {
             type: 'number',
-            description: 'Brightness adjustment value. Range: -1.0 to 1.0. Negative values darken the video, positive values brighten it. 0 means no change.',
-            default: 0
+            description: 'Brightness adjustment value. Range: -1.0 to 1.0. Negative values darken the video, positive values brighten it. 0 means no change.'
           }
         },
         required: ['brightness']
@@ -362,8 +361,7 @@ export const tools = [
         properties: {
           degrees: {
             type: 'number',
-            description: 'Hue rotation angle in degrees. Range: -360 to 360. 0 means no change, 180 inverts colors.',
-            default: 0
+            description: 'Hue rotation angle in degrees. Range: -360 to 360. 0 means no change, 180 inverts colors.'
           }
         },
         required: ['degrees']
@@ -380,8 +378,7 @@ export const tools = [
         properties: {
           saturation: {
             type: 'number',
-            description: 'Saturation multiplier. Range: 0 to 3. Values < 1 desaturate (0 = grayscale), values > 1 oversaturate, 1 = no change.',
-            default: 1
+            description: 'Saturation multiplier. Range: 0 to 3. Values < 1 desaturate (0 = grayscale), values > 1 oversaturate, 1 = no change.'
           }
         },
         required: ['saturation']
