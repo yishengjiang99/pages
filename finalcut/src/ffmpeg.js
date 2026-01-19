@@ -5,18 +5,17 @@ export const ffmpeg = new FFmpeg();
 let loaded = false;
 
 export async function loadFFmpeg() {
-  if (!loaded) {
-    // Using single-threaded core (@ffmpeg/core-st) for Safari/mobile compatibility
-    // This version doesn't require SharedArrayBuffer or special CORS headers
-    const baseURL = 'https://unpkg.com/@ffmpeg/core-st@0.12.6/dist/esm';
-    await ffmpeg.load({
-      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-      wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
-    });
-    loaded = true;
-  }
-}
+  if (loaded) return;
 
-export async function fetchFile(file) {
-  return new Uint8Array(await file.arrayBuffer());
+  // Official CORS-friendly CDN (recommended)
+  const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.10/dist/umd';
+
+  await ffmpeg.load({
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+    // Optional but recommended for better performance
+    workerURL: await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript'),
+  });
+
+  loaded = true;
 }
