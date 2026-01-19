@@ -24,6 +24,50 @@ describe('VideoPreview Component', () => {
     expect(screen.getByText('Video Preview')).toBeInTheDocument();
   });
 
+  it('renders collapse/expand button', () => {
+    render(<VideoPreview videoUrl="test-video.mp4" />);
+    expect(screen.getByText(/Collapse/)).toBeInTheDocument();
+  });
+
+  it('is expanded by default when defaultCollapsed is not provided', () => {
+    const { container } = render(<VideoPreview videoUrl="test-video.mp4" />);
+    const video = container.querySelector('video');
+    expect(video).toBeInTheDocument();
+    expect(screen.getByText(/Collapse/)).toBeInTheDocument();
+  });
+
+  it('is collapsed by default when defaultCollapsed is true', () => {
+    const { container } = render(<VideoPreview videoUrl="test-video.mp4" defaultCollapsed={true} />);
+    const video = container.querySelector('video');
+    expect(video).not.toBeInTheDocument();
+    expect(screen.getByText(/Expand/)).toBeInTheDocument();
+  });
+
+  it('toggles between collapsed and expanded states when button is clicked', () => {
+    const { container } = render(<VideoPreview videoUrl="test-video.mp4" />);
+    
+    // Initially expanded
+    let video = container.querySelector('video');
+    expect(video).toBeInTheDocument();
+    
+    // Click to collapse
+    const toggleButton = screen.getByText(/Collapse/);
+    fireEvent.click(toggleButton);
+    
+    // Should be collapsed now
+    video = container.querySelector('video');
+    expect(video).not.toBeInTheDocument();
+    expect(screen.getByText(/Expand/)).toBeInTheDocument();
+    
+    // Click to expand again
+    fireEvent.click(screen.getByText(/Expand/));
+    
+    // Should be expanded again
+    video = container.querySelector('video');
+    expect(video).toBeInTheDocument();
+    expect(screen.getByText(/Collapse/)).toBeInTheDocument();
+  });
+
   it('renders video element with correct source', () => {
     const { container } = render(<VideoPreview videoUrl="test-video.mp4" />);
     const video = container.querySelector('video');
