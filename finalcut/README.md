@@ -7,6 +7,7 @@ A React-based video editing application with AI chat capabilities using xAI's Gr
 - Upload and edit videos in the browser
 - AI-powered video editing through natural language chat
 - Video operations:
+  - Get video dimensions and metadata (resolution, duration, codec, frame rate)
   - Resize video
   - Crop video
   - Rotate video

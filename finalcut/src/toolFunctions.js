@@ -615,6 +615,9 @@ export const toolFunctions = {
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       
+      // Helper function to calculate file size
+      const getFileSizeMB = () => (videoFileData.length / (1024 * 1024)).toFixed(2);
+      
       // Create a promise to capture ffmpeg logs
       let logOutput = '';
       const logHandler = ({ message }) => {
@@ -625,20 +628,22 @@ export const toolFunctions = {
       ffmpeg.on('log', logHandler);
       
       try {
-        // Run ffmpeg to get video info - this will fail but produce logs with metadata
-        await ffmpeg.exec(['-i', 'input.mp4']);
+        // Use -f null to extract metadata without creating output file
+        // This is more reliable than intentionally failing the command
+        await ffmpeg.exec(['-i', 'input.mp4', '-f', 'null', '-']);
       } catch (e) {
-        // Expected to fail since we're not providing output, but logs are captured
+        // Even with -f null, might produce some errors but logs are captured
       }
       
       // Remove the temporary log listener
       ffmpeg.off('log', logHandler);
       
       // Parse the log output to extract video information
-      const streamMatch = logOutput.match(/Stream #0:0.*Video: (\w+).*?(\d+)x(\d+)/);
-      const durationMatch = logOutput.match(/Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})/);
-      const fpsMatch = logOutput.match(/(\d+(?:\.\d+)?)\s*fps/);
-      const bitrateMatch = logOutput.match(/bitrate: (\d+)\s*kb\/s/);
+      // More robust patterns to handle different FFmpeg output formats
+      const streamMatch = logOutput.match(/Stream #\d+:\d+.*Video:\s*([a-zA-Z0-9_-]+).*?(\d+)x(\d+)/);
+      const durationMatch = logOutput.match(/Duration:\s*(\d{2}):(\d{2}):(\d{2}\.\d{2})/);
+      const fpsMatch = logOutput.match(/(\d+(?:\.\d+)?)\s*(?:fps|tb\(r\))/);
+      const bitrateMatch = logOutput.match(/bitrate:\s*(\d+)\s*kb\/s/);
       
       let result = 'Video Information:\n';
       
@@ -665,7 +670,7 @@ export const toolFunctions = {
         result += `Bitrate: ${bitrateMatch[1]} kb/s\n`;
       }
       
-      const fileSizeMB = (videoFileData.length / (1024 * 1024)).toFixed(2);
+      const fileSizeMB = getFileSizeMB();
       result += `File Size: ${fileSizeMB} MB`;
       
       // If we couldn't parse dimensions, provide basic info
