@@ -384,6 +384,18 @@ export const tools = [
         required: ['saturation']
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_video_dimensions',
+      description: 'Get the dimensions (width and height) and other metadata of the video such as duration, codec, and frame rate.',
+      parameters: {
+        type: 'object',
+        properties: {},
+        required: []
+      }
+    }
   }
 ];
 

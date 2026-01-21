@@ -609,5 +609,80 @@ export const toolFunctions = {
       addMessage('Error adjusting saturation: ' + error.message, false);
       return 'Failed to adjust saturation: ' + error.message;
     }
+  },
+  get_video_dimensions: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      
+      // Create a promise to capture ffmpeg logs
+      let logOutput = '';
+      const logHandler = ({ message }) => {
+        logOutput += message + '\n';
+      };
+      
+      // Add temporary log listener
+      ffmpeg.on('log', logHandler);
+      
+      try {
+        // Run ffmpeg to get video info - this will fail but produce logs with metadata
+        await ffmpeg.exec(['-i', 'input.mp4']);
+      } catch (e) {
+        // Expected to fail since we're not providing output, but logs are captured
+      }
+      
+      // Remove the temporary log listener
+      ffmpeg.off('log', logHandler);
+      
+      // Parse the log output to extract video information
+      const streamMatch = logOutput.match(/Stream #0:0.*Video: (\w+).*?(\d+)x(\d+)/);
+      const durationMatch = logOutput.match(/Duration: (\d{2}):(\d{2}):(\d{2}\.\d{2})/);
+      const fpsMatch = logOutput.match(/(\d+(?:\.\d+)?)\s*fps/);
+      const bitrateMatch = logOutput.match(/bitrate: (\d+)\s*kb\/s/);
+      
+      let result = 'Video Information:\n';
+      
+      if (streamMatch) {
+        const codec = streamMatch[1];
+        const width = streamMatch[2];
+        const height = streamMatch[3];
+        result += `Resolution: ${width}x${height}\n`;
+        result += `Video Codec: ${codec}\n`;
+      }
+      
+      if (durationMatch) {
+        const hours = durationMatch[1];
+        const minutes = durationMatch[2];
+        const seconds = durationMatch[3];
+        result += `Duration: ${hours}:${minutes}:${seconds}\n`;
+      }
+      
+      if (fpsMatch) {
+        result += `Frame Rate: ${fpsMatch[1]} fps\n`;
+      }
+      
+      if (bitrateMatch) {
+        result += `Bitrate: ${bitrateMatch[1]} kb/s\n`;
+      }
+      
+      const fileSizeMB = (videoFileData.length / (1024 * 1024)).toFixed(2);
+      result += `File Size: ${fileSizeMB} MB`;
+      
+      // If we couldn't parse dimensions, provide basic info
+      if (!streamMatch) {
+        result = `Video file loaded successfully.\n`;
+        result += `File size: ${fileSizeMB} MB\n`;
+        result += `Video is ready for editing. Detailed metadata could not be extracted from logs.`;
+      }
+      
+      addMessage(result, false);
+      return result;
+    } catch (error) {
+      // Even if ffmpeg fails, we can still return file size info
+      const fileSizeMB = (videoFileData.length / (1024 * 1024)).toFixed(2);
+      const result = `Video file loaded (${fileSizeMB} MB). Ready for editing operations.`;
+      addMessage(result, false);
+      return result;
+    }
   }
 };

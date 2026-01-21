@@ -148,6 +148,13 @@ describe('Tools Module', () => {
     expect(saturationTool.function.description).toContain('saturation');
   });
 
+  it('has get_video_dimensions tool', () => {
+    const dimensionsTool = tools.find(t => t.function.name === 'get_video_dimensions');
+    expect(dimensionsTool).toBeDefined();
+    expect(dimensionsTool.function.description).toContain('dimensions');
+    expect(dimensionsTool.function.parameters.required).toEqual([]);
+  });
+
   it('all tools have proper structure', () => {
     tools.forEach(tool => {
       expect(tool.type).toBe('function');
