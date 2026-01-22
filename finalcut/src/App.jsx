@@ -145,7 +145,14 @@ export default function App() {
             <div key={msg.id} style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', marginLeft: msg.role === 'user' ? 'auto' : 0, marginRight: msg.role === 'user' ? 0 : 'auto', backgroundColor: msg.role === 'user' ? '#007bff' : '#e9ecef', color: msg.role === 'user' ? 'white' : 'black', wordWrap: 'break-word' }}>
               <p style={{ margin: 0 }}>{msg.content}</p>
               {msg.videoUrl && (
-                <video url={msg.videoUrl} controls style={{ marginTop: '2px', maxWidth: '100%', borderRadius: '2px' }} />
+                <div style={{ marginTop: '8px' }}>
+                  <VideoPreview
+                    key={`preview-${msg.id}`}
+                    videoUrl={msg.videoUrl}
+                    title={getVideoTitle(msg.videoType)}
+                    mimeType={msg.mimeType}
+                  />
+                </div>
               )}
             </div>
           ))}
