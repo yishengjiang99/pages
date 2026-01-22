@@ -106,8 +106,8 @@ export default function App() {
       setVideoFileData(data);
       const url = URL.createObjectURL(file);
       
-      // Show upload complete and prepare for API call
-      const uploadedMessage = { role: 'assistant', content: `Original ${isAudio ? 'audio' : 'video'} uploaded:`, videoUrl: url, videoType: 'original', mimeType: file.type, id: messageIdCounterRef.current++ };
+      // Show selected video on user (right) side
+      const uploadedMessage = { role: 'user', content: `Selected ${isAudio ? 'audio' : 'video'}:`, videoUrl: url, videoType: 'original', mimeType: file.type, id: messageIdCounterRef.current++ };
       const userMessage = { role: 'user', content: `${isAudio ? 'Audio' : 'Video'} uploaded and ready for editing.`, id: messageIdCounterRef.current++ };
       
       // Build complete message history for API call
