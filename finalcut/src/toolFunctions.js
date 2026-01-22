@@ -741,7 +741,7 @@ export const toolFunctions = {
       else if (format === 'flv') mimeType = 'video/x-flv';
       
       const videoUrl = URL.createObjectURL(new Blob([data], { type: mimeType }));
-      addMessage(`Processed video (converted to ${format.toUpperCase()}):`, false, videoUrl);
+      addMessage(`Processed video (converted to ${format.toUpperCase()}):`, false, videoUrl, 'processed', mimeType);
       return `Video converted to ${format.toUpperCase()} successfully.`;
     } catch (error) {
       addMessage('Error converting video format: ' + error.message, false);
@@ -800,7 +800,7 @@ export const toolFunctions = {
       else if (format === 'wma') mimeType = 'audio/x-ms-wma';
       
       const audioUrl = URL.createObjectURL(new Blob([data], { type: mimeType }));
-      addMessage(`Processed audio (converted to ${format.toUpperCase()}):`, false, audioUrl);
+      addMessage(`Processed audio (converted to ${format.toUpperCase()}):`, false, audioUrl, 'processed', mimeType);
       return `Audio converted to ${format.toUpperCase()} successfully.`;
     } catch (error) {
       addMessage('Error converting audio format: ' + error.message, false);
@@ -852,7 +852,7 @@ export const toolFunctions = {
       else if (format === 'm4a') mimeType = 'audio/mp4';
       
       const audioUrl = URL.createObjectURL(new Blob([data], { type: mimeType }));
-      addMessage(`Extracted audio (${format.toUpperCase()}):`, false, audioUrl);
+      addMessage(`Extracted audio (${format.toUpperCase()}):`, false, audioUrl, 'processed', mimeType);
       return `Audio extracted to ${format.toUpperCase()} successfully.`;
     } catch (error) {
       addMessage('Error extracting audio: ' + error.message, false);
