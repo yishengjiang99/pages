@@ -689,5 +689,174 @@ export const toolFunctions = {
       addMessage(result, false);
       return result;
     }
+  },
+  convert_video_format: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (!args.format) {
+        throw new Error('Target format is required');
+      }
+      
+      const format = args.format.toLowerCase();
+      const validFormats = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'ogv'];
+      
+      if (!validFormats.includes(format)) {
+        throw new Error(`Unsupported format. Supported formats: ${validFormats.join(', ')}`);
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input', videoFileData);
+      
+      // Set codec based on format or use user-specified codec
+      let codecArgs = [];
+      if (args.codec && args.codec !== 'auto') {
+        codecArgs = ['-c:v', args.codec];
+      } else {
+        // Auto-select codec based on format
+        if (format === 'webm') {
+          codecArgs = ['-c:v', 'libvpx-vp9', '-c:a', 'libopus'];
+        } else if (format === 'mp4') {
+          codecArgs = ['-c:v', 'libx264', '-c:a', 'aac'];
+        } else if (format === 'ogv') {
+          codecArgs = ['-c:v', 'libtheora', '-c:a', 'libvorbis'];
+        } else {
+          // For other formats, let FFmpeg decide the codec
+          codecArgs = [];
+        }
+      }
+      
+      const outputFile = `output.${format}`;
+      await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
+      
+      const data = await ffmpeg.readFile(outputFile);
+      const newVideoData = new Uint8Array(data);
+      setVideoFileData(newVideoData);
+      
+      // Determine MIME type for blob
+      let mimeType = 'video/mp4';
+      if (format === 'webm') mimeType = 'video/webm';
+      else if (format === 'ogv') mimeType = 'video/ogg';
+      else if (format === 'avi') mimeType = 'video/x-msvideo';
+      else if (format === 'mov') mimeType = 'video/quicktime';
+      else if (format === 'mkv') mimeType = 'video/x-matroska';
+      else if (format === 'flv') mimeType = 'video/x-flv';
+      
+      const videoUrl = URL.createObjectURL(new Blob([data], { type: mimeType }));
+      addMessage(`Processed video (converted to ${format.toUpperCase()}):`, false, videoUrl, 'processed', mimeType);
+      return `Video converted to ${format.toUpperCase()} successfully.`;
+    } catch (error) {
+      addMessage('Error converting video format: ' + error.message, false);
+      return 'Failed to convert video format: ' + error.message;
+    }
+  },
+  convert_audio_format: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      if (!args.format) {
+        throw new Error('Target format is required');
+      }
+      
+      const format = args.format.toLowerCase();
+      const validFormats = ['mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a', 'wma'];
+      
+      if (!validFormats.includes(format)) {
+        throw new Error(`Unsupported format. Supported formats: ${validFormats.join(', ')}`);
+      }
+      
+      const bitrate = args.bitrate || '192k';
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input', videoFileData);
+      
+      // Build codec arguments based on format
+      let codecArgs = ['-vn']; // -vn = no video
+      
+      if (format === 'mp3') {
+        codecArgs.push('-c:a', 'libmp3lame', '-b:a', bitrate);
+      } else if (format === 'wav') {
+        codecArgs.push('-c:a', 'pcm_s16le');
+      } else if (format === 'aac' || format === 'm4a') {
+        codecArgs.push('-c:a', 'aac', '-b:a', bitrate);
+      } else if (format === 'ogg') {
+        codecArgs.push('-c:a', 'libvorbis', '-b:a', bitrate);
+      } else if (format === 'flac') {
+        codecArgs.push('-c:a', 'flac');
+      } else if (format === 'wma') {
+        codecArgs.push('-c:a', 'wmav2', '-b:a', bitrate);
+      }
+      
+      const outputFile = `output.${format}`;
+      await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
+      
+      const data = await ffmpeg.readFile(outputFile);
+      const newAudioData = new Uint8Array(data);
+      setVideoFileData(newAudioData);
+      
+      // Determine MIME type for blob
+      let mimeType = 'audio/mpeg';
+      if (format === 'wav') mimeType = 'audio/wav';
+      else if (format === 'aac') mimeType = 'audio/aac';
+      else if (format === 'ogg') mimeType = 'audio/ogg';
+      else if (format === 'flac') mimeType = 'audio/flac';
+      else if (format === 'm4a') mimeType = 'audio/mp4';
+      else if (format === 'wma') mimeType = 'audio/x-ms-wma';
+      
+      const audioUrl = URL.createObjectURL(new Blob([data], { type: mimeType }));
+      addMessage(`Processed audio (converted to ${format.toUpperCase()}):`, false, audioUrl, 'processed', mimeType);
+      return `Audio converted to ${format.toUpperCase()} successfully.`;
+    } catch (error) {
+      addMessage('Error converting audio format: ' + error.message, false);
+      return 'Failed to convert audio format: ' + error.message;
+    }
+  },
+  extract_audio: async (args, videoFileData, setVideoFileData, addMessage) => {
+    try {
+      const format = args.format || 'mp3';
+      const bitrate = args.bitrate || '192k';
+      
+      const validFormats = ['mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a'];
+      
+      if (!validFormats.includes(format)) {
+        throw new Error(`Unsupported format. Supported formats: ${validFormats.join(', ')}`);
+      }
+      
+      await loadFFmpeg();
+      await ffmpeg.writeFile('input', videoFileData);
+      
+      // Build codec arguments based on format
+      let codecArgs = ['-vn']; // -vn = no video (extract audio only)
+      
+      if (format === 'mp3') {
+        codecArgs.push('-c:a', 'libmp3lame', '-b:a', bitrate);
+      } else if (format === 'wav') {
+        codecArgs.push('-c:a', 'pcm_s16le');
+      } else if (format === 'aac' || format === 'm4a') {
+        codecArgs.push('-c:a', 'aac', '-b:a', bitrate);
+      } else if (format === 'ogg') {
+        codecArgs.push('-c:a', 'libvorbis', '-b:a', bitrate);
+      } else if (format === 'flac') {
+        codecArgs.push('-c:a', 'flac');
+      }
+      
+      const outputFile = `output.${format}`;
+      await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
+      
+      const data = await ffmpeg.readFile(outputFile);
+      const audioData = new Uint8Array(data);
+      setVideoFileData(audioData);
+      
+      // Determine MIME type for blob
+      let mimeType = 'audio/mpeg';
+      if (format === 'wav') mimeType = 'audio/wav';
+      else if (format === 'aac') mimeType = 'audio/aac';
+      else if (format === 'ogg') mimeType = 'audio/ogg';
+      else if (format === 'flac') mimeType = 'audio/flac';
+      else if (format === 'm4a') mimeType = 'audio/mp4';
+      
+      const audioUrl = URL.createObjectURL(new Blob([data], { type: mimeType }));
+      addMessage(`Extracted audio (${format.toUpperCase()}):`, false, audioUrl, 'processed', mimeType);
+      return `Audio extracted to ${format.toUpperCase()} successfully.`;
+    } catch (error) {
+      addMessage('Error extracting audio: ' + error.message, false);
+      return 'Failed to extract audio: ' + error.message;
+    }
   }
 };
