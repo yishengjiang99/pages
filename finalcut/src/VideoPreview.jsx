@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function VideoPreview({ videoUrl, title = 'Video Preview', defaultCollapsed = false }) {
+export default function VideoPreview({ videoUrl, title = 'Video Preview', defaultCollapsed = false, mimeType = null }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -13,16 +13,20 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
     if (videoRef.current) {
       const video = videoRef.current;
       
-      // Detect if it's an audio file based on URL or file type
-      const isAudioFile = videoUrl && (
-        videoUrl.includes('.mp3') || 
-        videoUrl.includes('.wav') || 
-        videoUrl.includes('.ogg') || 
-        videoUrl.includes('.aac') ||
-        videoUrl.includes('.flac') ||
-        videoUrl.includes('.m4a') ||
-        videoUrl.includes('audio/')
-      );
+      // Detect if it's an audio file - use MIME type if provided, otherwise fall back to URL detection
+      let isAudioFile = false;
+      if (mimeType) {
+        isAudioFile = mimeType.startsWith('audio/');
+      } else if (videoUrl) {
+        // Fallback to URL detection if MIME type not provided
+        isAudioFile = videoUrl.includes('.mp3') || 
+          videoUrl.includes('.wav') || 
+          videoUrl.includes('.ogg') || 
+          videoUrl.includes('.aac') ||
+          videoUrl.includes('.flac') ||
+          videoUrl.includes('.m4a') ||
+          videoUrl.includes('audio/');
+      }
       setIsAudio(isAudioFile);
       
       // Reset state when video URL changes
@@ -49,7 +53,7 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
         video.removeEventListener('timeupdate', handleTimeUpdate);
       };
     }
-  }, [videoUrl]);
+  }, [videoUrl, mimeType]);
 
   const handlePlayPause = () => {
     if (videoRef.current) {

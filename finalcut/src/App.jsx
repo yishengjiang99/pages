@@ -9,6 +9,7 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const [videoFileData, setVideoFileData] = useState(null);
   const [fileType, setFileType] = useState('video'); // 'video' or 'audio'
+  const [fileMimeType, setFileMimeType] = useState(''); // Store MIME type for proper detection
   const chatWindowRef = useRef(null);
 
   useEffect(() => {
@@ -17,8 +18,8 @@ export default function App() {
     }
   }, [messages]);
 
-  const addMessage = (text, isUser = false, videoUrl = null, videoType = 'processed') => {
-    setMessages(prev => [...prev, { role: isUser ? 'user' : 'assistant', content: text, videoUrl, videoType }]);
+  const addMessage = (text, isUser = false, videoUrl = null, videoType = 'processed', mimeType = null) => {
+    setMessages(prev => [...prev, { role: isUser ? 'user' : 'assistant', content: text, videoUrl, videoType, mimeType }]);
   };
 
   const getVideoTitle = (videoType) => {
@@ -92,6 +93,7 @@ export default function App() {
       }
       
       setFileType(isAudio ? 'audio' : 'video');
+      setFileMimeType(file.type); // Store MIME type for later use
       
       // Show uploading status
       const uploadingMessage = { role: 'user', content: `Uploading ${isAudio ? 'audio' : 'video'}...` };
@@ -102,7 +104,7 @@ export default function App() {
       const url = URL.createObjectURL(file);
       
       // Show upload complete and prepare for API call
-      const uploadedMessage = { role: 'assistant', content: `Original ${isAudio ? 'audio' : 'video'} uploaded:`, videoUrl: url, videoType: 'original' };
+      const uploadedMessage = { role: 'assistant', content: `Original ${isAudio ? 'audio' : 'video'} uploaded:`, videoUrl: url, videoType: 'original', mimeType: file.type };
       const userMessage = { role: 'user', content: `${isAudio ? 'Audio' : 'Video'} uploaded and ready for editing.` };
       
       // Build complete message history for API call
@@ -141,7 +143,8 @@ export default function App() {
                 <div style={{ marginTop: '8px' }}>
                   <VideoPreview 
                     videoUrl={msg.videoUrl} 
-                    title={getVideoTitle(msg.videoType)} 
+                    title={getVideoTitle(msg.videoType)}
+                    mimeType={msg.mimeType}
                   />
                 </div>
               )}

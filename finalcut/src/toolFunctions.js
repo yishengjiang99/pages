@@ -704,7 +704,7 @@ export const toolFunctions = {
       }
       
       await loadFFmpeg();
-      await ffmpeg.writeFile('input.mp4', videoFileData);
+      await ffmpeg.writeFile('input', videoFileData);
       
       // Set codec based on format or use user-specified codec
       let codecArgs = [];
@@ -725,7 +725,7 @@ export const toolFunctions = {
       }
       
       const outputFile = `output.${format}`;
-      await ffmpeg.exec(['-i', 'input.mp4', ...codecArgs, outputFile]);
+      await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
       
       const data = await ffmpeg.readFile(outputFile);
       const newVideoData = new Uint8Array(data);
@@ -819,7 +819,7 @@ export const toolFunctions = {
       }
       
       await loadFFmpeg();
-      await ffmpeg.writeFile('input.mp4', videoFileData);
+      await ffmpeg.writeFile('input', videoFileData);
       
       // Build codec arguments based on format
       let codecArgs = ['-vn']; // -vn = no video (extract audio only)
@@ -837,7 +837,7 @@ export const toolFunctions = {
       }
       
       const outputFile = `output.${format}`;
-      await ffmpeg.exec(['-i', 'input.mp4', ...codecArgs, outputFile]);
+      await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
       
       const data = await ffmpeg.readFile(outputFile);
       const audioData = new Uint8Array(data);
