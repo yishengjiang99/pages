@@ -152,8 +152,8 @@ finalcut/
 
 For production deployment to DigitalOcean with DNS configuration on GoDaddy, see the comprehensive guides:
 
-- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Complete step-by-step deployment guide
-- **[QUICK-REFERENCE.md](./QUICK-REFERENCE.md)** - Quick reference for common tasks
+- **[DEPLOYMENT.md](./docs/DEPLOYMENT.md)** - Complete step-by-step deployment guide
+- **[QUICK-REFERENCE.md](./docs/QUICK-REFERENCE.md)** - Quick reference for common tasks
 - **[deploy.sh](./deploy.sh)** - Automated deployment script
 - **[setup-server.sh](./setup-server.sh)** - Server setup script
 
