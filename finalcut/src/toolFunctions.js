@@ -24,8 +24,6 @@ export const toolFunctions = {
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `scale=${args.width}:${args.height}`, '-c:a', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (resized):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video resized successfully.';
@@ -48,8 +46,6 @@ export const toolFunctions = {
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `crop=${args.width}:${args.height}:${args.x}:${args.y}`, '-c:a', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (cropped):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video cropped successfully.';
@@ -69,8 +65,6 @@ export const toolFunctions = {
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `rotate=${args.angle}*PI/180`, '-c:a', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (rotated):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video rotated successfully.';
@@ -99,8 +93,6 @@ export const toolFunctions = {
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `drawtext=text='${escapedText}':x=${args.x || 10}:y=${args.y || 10}:fontsize=${args.fontsize || 24}:fontcolor=${args.color || 'white'}`, '-c:a', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (text added):', false, videoUrl, 'processed', 'video/mp4');
       return 'Text added to video successfully.';
@@ -120,8 +112,6 @@ export const toolFunctions = {
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-ss', args.start, '-to', args.end, '-c', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (trimmed):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video trimmed successfully.';
@@ -175,8 +165,6 @@ export const toolFunctions = {
       
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:v', `setpts=PTS/${args.speed}`, '-filter:a', audioFilter, 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (speed adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video speed adjusted successfully.';
@@ -252,8 +240,6 @@ export const toolFunctions = {
       }
       
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage(`Processed video (audio track ${mode === 'replace' ? 'replaced' : 'mixed'}):`, false, videoUrl, 'processed', 'video/mp4');
       return `Audio track ${mode === 'replace' ? 'replaced' : 'mixed'} successfully.`;
@@ -275,8 +261,6 @@ export const toolFunctions = {
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `volume=${args.volume}`, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (audio volume adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Audio volume adjusted successfully.';
@@ -301,8 +285,6 @@ export const toolFunctions = {
         : `afade=t=out:st=0:d=${args.duration}`;
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', fadeFilter, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage(`Processed video (audio fade ${args.type} applied):`, false, videoUrl, 'processed', 'video/mp4');
       return `Audio fade ${args.type} applied successfully.`;
@@ -321,8 +303,6 @@ export const toolFunctions = {
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `highpass=f=${args.frequency}`, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (highpass filter applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Highpass filter applied successfully.';
@@ -341,8 +321,6 @@ export const toolFunctions = {
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `lowpass=f=${args.frequency}`, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (lowpass filter applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Lowpass filter applied successfully.';
@@ -365,8 +343,6 @@ export const toolFunctions = {
       // aecho filter: in_gain:out_gain:delays:decays
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `aecho=1.0:0.7:${args.delay}:${args.decay}`, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (echo effect applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Echo effect applied successfully.';
@@ -389,8 +365,6 @@ export const toolFunctions = {
       // bass filter adjusts frequencies around 100 Hz
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `bass=g=${args.gain}`, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (bass adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Bass adjusted successfully.';
@@ -413,8 +387,6 @@ export const toolFunctions = {
       // treble filter adjusts frequencies around 3000 Hz
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `treble=g=${args.gain}`, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (treble adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Treble adjusted successfully.';
@@ -441,8 +413,6 @@ export const toolFunctions = {
       // equalizer filter: frequency=f:width_type=h:width=w:gain=g
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `equalizer=f=${args.frequency}:width_type=h:width=${width}:g=${args.gain}`, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (equalizer applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Equalizer applied successfully.';
@@ -465,8 +435,6 @@ export const toolFunctions = {
       // loudnorm filter normalizes audio loudness
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `loudnorm=I=${args.target}:TP=-1.5:LRA=11`, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (audio normalized):', false, videoUrl, 'processed', 'video/mp4');
       return 'Audio normalized successfully.';
@@ -489,8 +457,6 @@ export const toolFunctions = {
       // adelay filter delays audio by milliseconds
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `adelay=${args.delay}|${args.delay}`, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (audio delayed):', false, videoUrl, 'processed', 'video/mp4');
       return 'Audio delayed successfully.';
@@ -528,8 +494,6 @@ export const toolFunctions = {
       ]);
       
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage(`Processed video (resized to ${args.preset} - ${preset.description}):`, false, videoUrl, 'processed', 'video/mp4');
       return `Video resized to ${args.preset} aspect ratio successfully.`;
@@ -552,8 +516,6 @@ export const toolFunctions = {
       // eq filter's brightness parameter: -1.0 (very dark) to 1.0 (very bright), 0 is no change
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `eq=brightness=${args.brightness}`, '-c:a', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (brightness adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Brightness adjusted successfully.';
@@ -576,8 +538,6 @@ export const toolFunctions = {
       // hue filter's h parameter accepts degrees
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `hue=h=${args.degrees}`, '-c:a', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (hue adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Hue adjusted successfully.';
@@ -600,8 +560,6 @@ export const toolFunctions = {
       // eq filter's saturation parameter: 0 (grayscale) to 3 (very saturated), 1 is no change
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `eq=saturation=${args.saturation}`, '-c:a', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage('Processed video (saturation adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Saturation adjusted successfully.';
@@ -728,8 +686,6 @@ export const toolFunctions = {
       await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
       
       const data = await ffmpeg.readFile(outputFile);
-      const newVideoData = new Uint8Array(data);
-      setVideoFileData(newVideoData);
       
       // Determine MIME type for blob
       let mimeType = 'video/mp4';
@@ -787,8 +743,6 @@ export const toolFunctions = {
       await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
       
       const data = await ffmpeg.readFile(outputFile);
-      const newAudioData = new Uint8Array(data);
-      setVideoFileData(newAudioData);
       
       // Determine MIME type for blob
       let mimeType = 'audio/mpeg';
@@ -840,8 +794,6 @@ export const toolFunctions = {
       await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
       
       const data = await ffmpeg.readFile(outputFile);
-      const audioData = new Uint8Array(data);
-      setVideoFileData(audioData);
       
       // Determine MIME type for blob
       let mimeType = 'audio/mpeg';
