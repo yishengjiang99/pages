@@ -5,11 +5,12 @@ import { toolFunctions } from './toolFunctions.js';
 import VideoPreview from './VideoPreview.jsx';
 
 export default function App() {
-  const [messages, setMessages] = useState([{ role: 'system', content: systemPrompt }]);
+  const [messages, setMessages] = useState([{ role: 'system', content: systemPrompt, id: 0 }]);
   const [chatInput, setChatInput] = useState('');
   const [videoFileData, setVideoFileData] = useState(null);
   const [fileType, setFileType] = useState('video'); // 'video' or 'audio'
   const [fileMimeType, setFileMimeType] = useState(''); // Store MIME type for proper detection
+  const messageIdCounterRef = useRef(1); // Counter for unique message IDs
   const chatWindowRef = useRef(null);
 
   useEffect(() => {
@@ -19,7 +20,8 @@ export default function App() {
   }, [messages]);
 
   const addMessage = (text, isUser = false, videoUrl = null, videoType = 'processed', mimeType = null) => {
-    setMessages(prev => [...prev, { role: isUser ? 'user' : 'assistant', content: text, videoUrl, videoType, mimeType }]);
+    const id = messageIdCounterRef.current++;
+    setMessages(prev => [...prev, { role: isUser ? 'user' : 'assistant', content: text, videoUrl, videoType, mimeType, id }]);
   };
 
   const getVideoTitle = (videoType) => {
@@ -55,11 +57,11 @@ export default function App() {
 
       if (msg.content) {
         addMessage(msg.content, false);
-        currentMessages.push({ role: 'assistant', content: msg.content });
+        currentMessages.push({ role: 'assistant', content: msg.content, id: messageIdCounterRef.current++ });
       }
 
       if (msg.tool_calls) {
-        currentMessages.push({ role: 'assistant', content: null, tool_calls: msg.tool_calls });
+        currentMessages.push({ role: 'assistant', content: null, tool_calls: msg.tool_calls, id: messageIdCounterRef.current++ });
         for (const call of msg.tool_calls) {
           const funcName = call.function.name;
           const args = JSON.parse(call.function.arguments);
@@ -68,7 +70,8 @@ export default function App() {
             role: 'tool',
             tool_call_id: call.id,
             name: funcName,
-            content: result
+            content: result,
+            id: messageIdCounterRef.current++
           });
         }
         await callAPI(currentMessages);
@@ -96,7 +99,7 @@ export default function App() {
       setFileMimeType(file.type); // Store MIME type for later use
       
       // Show uploading status
-      const uploadingMessage = { role: 'user', content: `Uploading ${isAudio ? 'audio' : 'video'}...` };
+      const uploadingMessage = { role: 'user', content: `Uploading ${isAudio ? 'audio' : 'video'}...`, id: messageIdCounterRef.current++ };
       setMessages(prev => [...prev, uploadingMessage]);
       
       const data = await fetchFile(file);
@@ -104,8 +107,8 @@ export default function App() {
       const url = URL.createObjectURL(file);
       
       // Show upload complete and prepare for API call
-      const uploadedMessage = { role: 'assistant', content: `Original ${isAudio ? 'audio' : 'video'} uploaded:`, videoUrl: url, videoType: 'original', mimeType: file.type };
-      const userMessage = { role: 'user', content: `${isAudio ? 'Audio' : 'Video'} uploaded and ready for editing.` };
+      const uploadedMessage = { role: 'assistant', content: `Original ${isAudio ? 'audio' : 'video'} uploaded:`, videoUrl: url, videoType: 'original', mimeType: file.type, id: messageIdCounterRef.current++ };
+      const userMessage = { role: 'user', content: `${isAudio ? 'Audio' : 'Video'} uploaded and ready for editing.`, id: messageIdCounterRef.current++ };
       
       // Build complete message history for API call
       // Since messages is the state before any updates in this function, we include all three new messages
@@ -127,7 +130,8 @@ export default function App() {
       return;
     }
     setChatInput('');
-    const newMessages = [...messages, { role: 'user', content: text }];
+    const newMessage = { role: 'user', content: text, id: messageIdCounterRef.current++ };
+    const newMessages = [...messages, newMessage];
     setMessages(newMessages);
     await callAPI(newMessages);
   };
@@ -136,12 +140,13 @@ export default function App() {
     <div style={{ fontFamily: 'Arial, sans-serif', margin: 0, padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f0f0f0' }}>
       <main style={{ width: '100%', maxWidth: '100vw', height: '100vh', backgroundColor: 'white', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
         <div ref={chatWindowRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '16px', paddingTop: '50px', WebkitOverflowScrolling: 'touch' }}>
-          {messages.slice(1).map((msg, index) => (
-            <div key={index} style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', marginLeft: msg.role === 'user' ? 'auto' : 0, marginRight: msg.role === 'user' ? 0 : 'auto', backgroundColor: msg.role === 'user' ? '#007bff' : '#e9ecef', color: msg.role === 'user' ? 'white' : 'black', wordWrap: 'break-word' }}>
+          {messages.slice(1).map((msg) => (
+            <div key={msg.id} style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', marginLeft: msg.role === 'user' ? 'auto' : 0, marginRight: msg.role === 'user' ? 0 : 'auto', backgroundColor: msg.role === 'user' ? '#007bff' : '#e9ecef', color: msg.role === 'user' ? 'white' : 'black', wordWrap: 'break-word' }}>
               <p style={{ margin: 0 }}>{msg.content}</p>
               {msg.videoUrl && (
                 <div style={{ marginTop: '8px' }}>
                   <VideoPreview 
+                    key={`preview-${msg.id}`}
                     videoUrl={msg.videoUrl} 
                     title={getVideoTitle(msg.videoType)}
                     mimeType={msg.mimeType}
