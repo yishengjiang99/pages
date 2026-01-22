@@ -6,11 +6,24 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
   const [duration, setDuration] = useState(0);
   const [fps, setFps] = useState(30);
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+  const [isAudio, setIsAudio] = useState(false);
   const videoRef = useRef(null);
 
   useEffect(() => {
     if (videoRef.current) {
       const video = videoRef.current;
+      
+      // Detect if it's an audio file based on URL or file type
+      const isAudioFile = videoUrl && (
+        videoUrl.includes('.mp3') || 
+        videoUrl.includes('.wav') || 
+        videoUrl.includes('.ogg') || 
+        videoUrl.includes('.aac') ||
+        videoUrl.includes('.flac') ||
+        videoUrl.includes('.m4a') ||
+        videoUrl.includes('audio/')
+      );
+      setIsAudio(isAudioFile);
       
       // Reset state when video URL changes
       setIsPlaying(false);
@@ -127,18 +140,31 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
       
       {!isCollapsed && (
         <>
-      <video 
-        ref={videoRef}
-        src={videoUrl} 
-        playsInline 
-        style={{ 
-          width: '100%', 
-          maxWidth: '400px', 
-          borderRadius: '4px',
-          display: 'block',
-          marginBottom: '12px'
-        }} 
-      />
+      {isAudio ? (
+        <audio 
+          ref={videoRef}
+          src={videoUrl} 
+          style={{ 
+            width: '100%', 
+            maxWidth: '400px', 
+            marginBottom: '12px'
+          }} 
+          controls
+        />
+      ) : (
+        <video 
+          ref={videoRef}
+          src={videoUrl} 
+          playsInline 
+          style={{ 
+            width: '100%', 
+            maxWidth: '400px', 
+            borderRadius: '4px',
+            display: 'block',
+            marginBottom: '12px'
+          }} 
+        />
+      )}
       
       {/* Meter/Slider control */}
       <div style={{ marginBottom: '12px' }}>
@@ -166,28 +192,30 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
         color: '#666'
       }}>
         <span>Time: {formatTime(currentTime)}</span>
-        <span>Frame: {getCurrentFrame()} / {getTotalFrames()}</span>
+        {!isAudio && <span>Frame: {getCurrentFrame()} / {getTotalFrames()}</span>}
       </div>
       
-      {/* FPS selector */}
-      <div style={{ marginBottom: '12px', fontSize: '12px' }}>
-        <label style={{ marginRight: '8px' }}>FPS:</label>
-        <select 
-          value={fps} 
-          onChange={(e) => setFps(Number(e.target.value))}
-          style={{
-            padding: '4px 8px',
-            borderRadius: '4px',
-            border: '1px solid #ddd',
-            fontSize: '12px'
-          }}
-        >
-          <option value={24}>24</option>
-          <option value={25}>25</option>
-          <option value={30}>30</option>
-          <option value={60}>60</option>
-        </select>
-      </div>
+      {/* FPS selector - only for video */}
+      {!isAudio && (
+        <div style={{ marginBottom: '12px', fontSize: '12px' }}>
+          <label style={{ marginRight: '8px' }}>FPS:</label>
+          <select 
+            value={fps} 
+            onChange={(e) => setFps(Number(e.target.value))}
+            style={{
+              padding: '4px 8px',
+              borderRadius: '4px',
+              border: '1px solid #ddd',
+              fontSize: '12px'
+            }}
+          >
+            <option value={24}>24</option>
+            <option value={25}>25</option>
+            <option value={30}>30</option>
+            <option value={60}>60</option>
+          </select>
+        </div>
+      )}
       
       {/* Control buttons */}
       <div style={{ 
@@ -196,22 +224,24 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
         flexWrap: 'wrap',
         justifyContent: 'center'
       }}>
-        <button 
-          onClick={handleFrameBackward}
-          disabled={currentTime <= 0}
-          style={{
-            padding: '8px 12px',
-            fontSize: '14px',
-            backgroundColor: currentTime <= 0 ? '#ccc' : '#28a745',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: currentTime <= 0 ? 'not-allowed' : 'pointer',
-            WebkitTapHighlightColor: 'transparent'
-          }}
-        >
-          ◀ Frame
-        </button>
+        {!isAudio && (
+          <button 
+            onClick={handleFrameBackward}
+            disabled={currentTime <= 0}
+            style={{
+              padding: '8px 12px',
+              fontSize: '14px',
+              backgroundColor: currentTime <= 0 ? '#ccc' : '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: currentTime <= 0 ? 'not-allowed' : 'pointer',
+              WebkitTapHighlightColor: 'transparent'
+            }}
+          >
+            ◀ Frame
+          </button>
+        )}
         
         <button 
           onClick={handlePlayPause}
@@ -229,22 +259,24 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
           {isPlaying ? '⏸ Pause' : '▶ Play'}
         </button>
         
-        <button 
-          onClick={handleFrameForward}
-          disabled={currentTime >= duration}
-          style={{
-            padding: '8px 12px',
-            fontSize: '14px',
-            backgroundColor: currentTime >= duration ? '#ccc' : '#28a745',
-            color: 'white',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: currentTime >= duration ? 'not-allowed' : 'pointer',
-            WebkitTapHighlightColor: 'transparent'
-          }}
-        >
-          Frame ▶
-        </button>
+        {!isAudio && (
+          <button 
+            onClick={handleFrameForward}
+            disabled={currentTime >= duration}
+            style={{
+              padding: '8px 12px',
+              fontSize: '14px',
+              backgroundColor: currentTime >= duration ? '#ccc' : '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: currentTime >= duration ? 'not-allowed' : 'pointer',
+              WebkitTapHighlightColor: 'transparent'
+            }}
+          >
+            Frame ▶
+          </button>
+        )}
       </div>
         </>
       )}

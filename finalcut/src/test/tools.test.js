@@ -155,6 +155,36 @@ describe('Tools Module', () => {
     expect(dimensionsTool.function.parameters.required).toEqual([]);
   });
 
+  it('has convert_video_format tool', () => {
+    const convertVideoTool = tools.find(t => t.function.name === 'convert_video_format');
+    expect(convertVideoTool).toBeDefined();
+    expect(convertVideoTool.function.parameters.required).toContain('format');
+    expect(convertVideoTool.function.parameters.properties.format.enum).toEqual([
+      'mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'ogv'
+    ]);
+    expect(convertVideoTool.function.description).toContain('Convert video');
+  });
+
+  it('has convert_audio_format tool', () => {
+    const convertAudioTool = tools.find(t => t.function.name === 'convert_audio_format');
+    expect(convertAudioTool).toBeDefined();
+    expect(convertAudioTool.function.parameters.required).toContain('format');
+    expect(convertAudioTool.function.parameters.properties.format.enum).toEqual([
+      'mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a', 'wma'
+    ]);
+    expect(convertAudioTool.function.description).toContain('Convert audio');
+  });
+
+  it('has extract_audio tool', () => {
+    const extractAudioTool = tools.find(t => t.function.name === 'extract_audio');
+    expect(extractAudioTool).toBeDefined();
+    expect(extractAudioTool.function.parameters.properties.format).toBeDefined();
+    expect(extractAudioTool.function.parameters.properties.format.enum).toEqual([
+      'mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a'
+    ]);
+    expect(extractAudioTool.function.description).toContain('Extract audio');
+  });
+
   it('all tools have proper structure', () => {
     tools.forEach(tool => {
       expect(tool.type).toBe('function');
@@ -166,4 +196,5 @@ describe('Tools Module', () => {
       expect(tool.function.parameters.required).toBeDefined();
     });
   });
+});
 });

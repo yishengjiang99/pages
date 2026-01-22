@@ -8,6 +8,7 @@ export default function App() {
   const [messages, setMessages] = useState([{ role: 'system', content: systemPrompt }]);
   const [chatInput, setChatInput] = useState('');
   const [videoFileData, setVideoFileData] = useState(null);
+  const [fileType, setFileType] = useState('video'); // 'video' or 'audio'
   const chatWindowRef = useRef(null);
 
   useEffect(() => {
@@ -81,8 +82,19 @@ export default function App() {
     if (!file) return;
     
     try {
+      // Determine if it's audio or video
+      const isAudio = file.type.startsWith('audio/');
+      const isVideo = file.type.startsWith('video/');
+      
+      if (!isAudio && !isVideo) {
+        addMessage('Error: Please upload a valid audio or video file.', false);
+        return;
+      }
+      
+      setFileType(isAudio ? 'audio' : 'video');
+      
       // Show uploading status
-      const uploadingMessage = { role: 'user', content: 'Uploading video...' };
+      const uploadingMessage = { role: 'user', content: `Uploading ${isAudio ? 'audio' : 'video'}...` };
       setMessages(prev => [...prev, uploadingMessage]);
       
       const data = await fetchFile(file);
@@ -90,8 +102,8 @@ export default function App() {
       const url = URL.createObjectURL(file);
       
       // Show upload complete and prepare for API call
-      const uploadedMessage = { role: 'assistant', content: 'Original video uploaded:', videoUrl: url, videoType: 'original' };
-      const userMessage = { role: 'user', content: 'Video uploaded and ready for editing.' };
+      const uploadedMessage = { role: 'assistant', content: `Original ${isAudio ? 'audio' : 'video'} uploaded:`, videoUrl: url, videoType: 'original' };
+      const userMessage = { role: 'user', content: `${isAudio ? 'Audio' : 'Video'} uploaded and ready for editing.` };
       
       // Build complete message history for API call
       // Since messages is the state before any updates in this function, we include all three new messages
@@ -102,14 +114,14 @@ export default function App() {
       
       await callAPI(messagesForAPI);
     } catch (error) {
-      addMessage('Error uploading video: ' + error.message, false);
+      addMessage('Error uploading file: ' + error.message, false);
     }
   };
 
   const handleSend = async () => {
     const text = chatInput.trim();
     if (!text || !videoFileData) {
-      if (!videoFileData) alert('Please upload a video first.');
+      if (!videoFileData) alert('Please upload a video or audio file first.');
       return;
     }
     setChatInput('');
@@ -137,7 +149,7 @@ export default function App() {
           ))}
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', padding: '12px', gap: '8px', borderTop: '1px solid #ddd', backgroundColor: 'white' }}>
-          <input type="file" onChange={handleUpload} accept="video/*,video/mp4,video/quicktime" capture="environment" style={{ width: '100%', padding: '8px', fontSize: '16px' }} />
+          <input type="file" onChange={handleUpload} accept="video/*,audio/*,video/mp4,video/quicktime,audio/mpeg,audio/wav,audio/mp3,audio/ogg,audio/aac" capture="environment" style={{ width: '100%', padding: '8px', fontSize: '16px' }} />
           <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="Describe the video edit..." style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '16px' }} />
           <button onClick={handleSend} disabled={!videoFileData} style={{ padding: '10px 16px', backgroundColor: videoFileData ? '#007bff' : '#ccc', color: 'white', border: 'none', borderRadius: '4px', cursor: videoFileData ? 'pointer' : 'not-allowed', fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}>Send</button>
         </div>

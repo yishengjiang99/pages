@@ -396,7 +396,77 @@ export const tools = [
         required: []
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'convert_video_format',
+      description: 'Convert video from one format to another. Supports common formats like mp4, webm, mov, avi, mkv, flv, etc.',
+      parameters: {
+        type: 'object',
+        properties: {
+          format: {
+            type: 'string',
+            description: 'The target format to convert to (e.g., "mp4", "webm", "mov", "avi", "mkv").',
+            enum: ['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'ogv']
+          },
+          codec: {
+            type: 'string',
+            description: 'Optional: Video codec to use. Common codecs: "libx264" (H.264), "libx265" (H.265), "libvpx-vp9" (VP9 for WebM).',
+            default: 'auto'
+          }
+        },
+        required: ['format']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'convert_audio_format',
+      description: 'Convert audio file from one format to another. Supports formats like mp3, wav, aac, ogg, flac, m4a, etc.',
+      parameters: {
+        type: 'object',
+        properties: {
+          format: {
+            type: 'string',
+            description: 'The target audio format to convert to (e.g., "mp3", "wav", "aac", "ogg", "flac", "m4a").',
+            enum: ['mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a', 'wma']
+          },
+          bitrate: {
+            type: 'string',
+            description: 'Optional: Audio bitrate (e.g., "128k", "192k", "320k"). Higher bitrate = better quality.',
+            default: '192k'
+          }
+        },
+        required: ['format']
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'extract_audio',
+      description: 'Extract audio track from a video file and save it as an audio file. Useful for getting just the audio from a video.',
+      parameters: {
+        type: 'object',
+        properties: {
+          format: {
+            type: 'string',
+            description: 'The audio format to extract to (e.g., "mp3", "wav", "aac", "ogg").',
+            enum: ['mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a'],
+            default: 'mp3'
+          },
+          bitrate: {
+            type: 'string',
+            description: 'Optional: Audio bitrate (e.g., "128k", "192k", "320k").',
+            default: '192k'
+          }
+        },
+        required: []
+      }
+    }
   }
 ];
 
-export const systemPrompt = 'You are a helpful video editing assistant. Use the provided tools to apply filters and edits to the uploaded video. Respond with descriptions of actions and call tools when appropriate to perform the edits.';
+export const systemPrompt = 'You are a helpful video and audio editing assistant. Use the provided tools to apply filters and edits to the uploaded video or audio. Respond with descriptions of actions and call tools when appropriate to perform the edits.';
