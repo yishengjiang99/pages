@@ -2,6 +2,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import App from '../App.jsx';
 
+// Mock ffmpeg module
+vi.mock('../ffmpeg.js', () => ({
+  ffmpeg: {
+    on: vi.fn(),
+    load: vi.fn(),
+    exec: vi.fn(),
+    writeFile: vi.fn(),
+    readFile: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+    loaded: false,
+  },
+  loadFFmpeg: vi.fn().mockResolvedValue(undefined),
+  fetchFile: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
+}));
+
 // Mock fetch
 global.fetch = vi.fn();
 
