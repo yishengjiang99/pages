@@ -27,7 +27,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (resized):', false, videoUrl);
+      addMessage('Processed video (resized):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video resized successfully.';
     } catch (error) {
       addMessage('Error resizing video: ' + error.message, false);
@@ -51,7 +51,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (cropped):', false, videoUrl);
+      addMessage('Processed video (cropped):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video cropped successfully.';
     } catch (error) {
       addMessage('Error cropping video: ' + error.message, false);
@@ -72,7 +72,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (rotated):', false, videoUrl);
+      addMessage('Processed video (rotated):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video rotated successfully.';
     } catch (error) {
       addMessage('Error rotating video: ' + error.message, false);
@@ -102,7 +102,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (text added):', false, videoUrl);
+      addMessage('Processed video (text added):', false, videoUrl, 'processed', 'video/mp4');
       return 'Text added to video successfully.';
     } catch (error) {
       addMessage('Error adding text to video: ' + error.message, false);
@@ -123,7 +123,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (trimmed):', false, videoUrl);
+      addMessage('Processed video (trimmed):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video trimmed successfully.';
     } catch (error) {
       addMessage('Error trimming video: ' + error.message, false);
@@ -178,7 +178,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (speed adjusted):', false, videoUrl);
+      addMessage('Processed video (speed adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video speed adjusted successfully.';
     } catch (error) {
       addMessage('Error adjusting video speed: ' + error.message, false);
@@ -255,7 +255,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage(`Processed video (audio track ${mode === 'replace' ? 'replaced' : 'mixed'}):`, false, videoUrl);
+      addMessage(`Processed video (audio track ${mode === 'replace' ? 'replaced' : 'mixed'}):`, false, videoUrl, 'processed', 'video/mp4');
       return `Audio track ${mode === 'replace' ? 'replaced' : 'mixed'} successfully.`;
     } catch (error) {
       addMessage('Error adding audio track: ' + error.message, false);
@@ -278,7 +278,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (audio volume adjusted):', false, videoUrl);
+      addMessage('Processed video (audio volume adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Audio volume adjusted successfully.';
     } catch (error) {
       addMessage('Error adjusting audio volume: ' + error.message, false);
@@ -304,7 +304,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage(`Processed video (audio fade ${args.type} applied):`, false, videoUrl);
+      addMessage(`Processed video (audio fade ${args.type} applied):`, false, videoUrl, 'processed', 'video/mp4');
       return `Audio fade ${args.type} applied successfully.`;
     } catch (error) {
       addMessage('Error applying audio fade: ' + error.message, false);
@@ -324,7 +324,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (highpass filter applied):', false, videoUrl);
+      addMessage('Processed video (highpass filter applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Highpass filter applied successfully.';
     } catch (error) {
       addMessage('Error applying highpass filter: ' + error.message, false);
@@ -344,7 +344,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (lowpass filter applied):', false, videoUrl);
+      addMessage('Processed video (lowpass filter applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Lowpass filter applied successfully.';
     } catch (error) {
       addMessage('Error applying lowpass filter: ' + error.message, false);
@@ -368,7 +368,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (echo effect applied):', false, videoUrl);
+      addMessage('Processed video (echo effect applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Echo effect applied successfully.';
     } catch (error) {
       addMessage('Error applying echo effect: ' + error.message, false);
@@ -392,7 +392,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (bass adjusted):', false, videoUrl);
+      addMessage('Processed video (bass adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Bass adjusted successfully.';
     } catch (error) {
       addMessage('Error adjusting bass: ' + error.message, false);
@@ -416,7 +416,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (treble adjusted):', false, videoUrl);
+      addMessage('Processed video (treble adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Treble adjusted successfully.';
     } catch (error) {
       addMessage('Error adjusting treble: ' + error.message, false);
@@ -444,7 +444,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (equalizer applied):', false, videoUrl);
+      addMessage('Processed video (equalizer applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Equalizer applied successfully.';
     } catch (error) {
       addMessage('Error applying equalizer: ' + error.message, false);
@@ -468,7 +468,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (audio normalized):', false, videoUrl);
+      addMessage('Processed video (audio normalized):', false, videoUrl, 'processed', 'video/mp4');
       return 'Audio normalized successfully.';
     } catch (error) {
       addMessage('Error normalizing audio: ' + error.message, false);
@@ -492,7 +492,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (audio delayed):', false, videoUrl);
+      addMessage('Processed video (audio delayed):', false, videoUrl, 'processed', 'video/mp4');
       return 'Audio delayed successfully.';
     } catch (error) {
       addMessage('Error delaying audio: ' + error.message, false);
@@ -531,7 +531,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage(`Processed video (resized to ${args.preset} - ${preset.description}):`, false, videoUrl);
+      addMessage(`Processed video (resized to ${args.preset} - ${preset.description}):`, false, videoUrl, 'processed', 'video/mp4');
       return `Video resized to ${args.preset} aspect ratio successfully.`;
     } catch (error) {
       addMessage('Error resizing video to preset: ' + error.message, false);
@@ -555,7 +555,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (brightness adjusted):', false, videoUrl);
+      addMessage('Processed video (brightness adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Brightness adjusted successfully.';
     } catch (error) {
       addMessage('Error adjusting brightness: ' + error.message, false);
@@ -579,7 +579,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (hue adjusted):', false, videoUrl);
+      addMessage('Processed video (hue adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Hue adjusted successfully.';
     } catch (error) {
       addMessage('Error adjusting hue: ' + error.message, false);
@@ -603,7 +603,7 @@ export const toolFunctions = {
       const newVideoData = new Uint8Array(data);
       setVideoFileData(newVideoData);
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
-      addMessage('Processed video (saturation adjusted):', false, videoUrl);
+      addMessage('Processed video (saturation adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Saturation adjusted successfully.';
     } catch (error) {
       addMessage('Error adjusting saturation: ' + error.message, false);
