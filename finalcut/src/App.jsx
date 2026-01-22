@@ -57,11 +57,11 @@ export default function App() {
 
       if (msg.content) {
         addMessage(msg.content, false);
-        currentMessages.push({ role: 'assistant', content: msg.content });
+        currentMessages.push({ role: 'assistant', content: msg.content, id: messageIdCounterRef.current++ });
       }
 
       if (msg.tool_calls) {
-        currentMessages.push({ role: 'assistant', content: null, tool_calls: msg.tool_calls });
+        currentMessages.push({ role: 'assistant', content: null, tool_calls: msg.tool_calls, id: messageIdCounterRef.current++ });
         for (const call of msg.tool_calls) {
           const funcName = call.function.name;
           const args = JSON.parse(call.function.arguments);
@@ -70,7 +70,8 @@ export default function App() {
             role: 'tool',
             tool_call_id: call.id,
             name: funcName,
-            content: result
+            content: result,
+            id: messageIdCounterRef.current++
           });
         }
         await callAPI(currentMessages);
@@ -129,7 +130,8 @@ export default function App() {
       return;
     }
     setChatInput('');
-    const newMessages = [...messages, { role: 'user', content: text }];
+    const newMessage = { role: 'user', content: text, id: messageIdCounterRef.current++ };
+    const newMessages = [...messages, newMessage];
     setMessages(newMessages);
     await callAPI(newMessages);
   };
