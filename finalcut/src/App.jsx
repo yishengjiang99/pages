@@ -42,17 +42,17 @@ export default function App() {
           tool_choice: 'auto'
         })
       });
-      
+
       if (!response.ok) {
         throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (!data.choices || !data.choices[0]) {
         throw new Error('Invalid response format from API');
       }
-      
+
       const msg = data.choices[0].message;
 
       if (msg.content) {
@@ -73,6 +73,7 @@ export default function App() {
             content: result,
             id: messageIdCounterRef.current++
           });
+          addMessage({ role: 'tool', name: funcName, videoUrl: result });
         }
         await callAPI(currentMessages);
       }
@@ -84,39 +85,39 @@ export default function App() {
   const handleUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
+
     try {
       // Determine if it's audio or video
       const isAudio = file.type.startsWith('audio/');
       const isVideo = file.type.startsWith('video/');
-      
+
       if (!isAudio && !isVideo) {
         addMessage('Error: Please upload a valid audio or video file.', false);
         return;
       }
-      
+
       setFileType(isAudio ? 'audio' : 'video');
       setFileMimeType(file.type); // Store MIME type for later use
-      
+
       // Show uploading status
       const uploadingMessage = { role: 'user', content: `Uploading ${isAudio ? 'audio' : 'video'}...`, id: messageIdCounterRef.current++ };
       setMessages(prev => [...prev, uploadingMessage]);
-      
+
       const data = await fetchFile(file);
       setVideoFileData(data);
       const url = URL.createObjectURL(file);
-      
+
       // Show selected video on user (right) side
       const uploadedMessage = { role: 'user', content: `Selected ${isAudio ? 'audio' : 'video'}:`, videoUrl: url, videoType: 'original', mimeType: file.type, id: messageIdCounterRef.current++ };
       const userMessage = { role: 'user', content: `${isAudio ? 'Audio' : 'Video'} uploaded and ready for editing.`, id: messageIdCounterRef.current++ };
-      
+
       // Build complete message history for API call
       // Since messages is the state before any updates in this function, we include all three new messages
       const messagesForAPI = [...messages, uploadingMessage, uploadedMessage, userMessage];
-      
+
       // Update UI state with the remaining two messages (uploadingMessage was already added)
       setMessages(prev => [...prev, uploadedMessage, userMessage]);
-      
+
       await callAPI(messagesForAPI);
     } catch (error) {
       addMessage('Error uploading file: ' + error.message, false);
@@ -144,14 +145,7 @@ export default function App() {
             <div key={msg.id} style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', marginLeft: msg.role === 'user' ? 'auto' : 0, marginRight: msg.role === 'user' ? 0 : 'auto', backgroundColor: msg.role === 'user' ? '#007bff' : '#e9ecef', color: msg.role === 'user' ? 'white' : 'black', wordWrap: 'break-word' }}>
               <p style={{ margin: 0 }}>{msg.content}</p>
               {msg.videoUrl && (
-                <div style={{ marginTop: '8px' }}>
-                  <VideoPreview 
-                    key={`preview-${msg.id}`}
-                    videoUrl={msg.videoUrl} 
-                    title={getVideoTitle(msg.videoType)}
-                    mimeType={msg.mimeType}
-                  />
-                </div>
+                <video url={msg.videoUrl} controls style={{ marginTop: '2px', maxWidth: '100%', borderRadius: '2px' }} />
               )}
             </div>
           ))}
