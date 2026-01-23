@@ -1,5 +1,5 @@
 // ffmpeg-loader.js
-// Complete module for loading @ffmpeg/ffmpeg with multi-thread core from jsDelivr
+// Complete module for loading @ffmpeg/ffmpeg with reliable single-thread core
 // Usage: import { ffmpeg, loadFFmpeg, fetchFile } from './ffmpeg-loader.js';
 
 import { FFmpeg } from '@ffmpeg/ffmpeg';
@@ -18,55 +18,79 @@ ffmpeg.on('progress', ({ progress, time }) => {
 
 let isLoaded = false;
 
+/**
+ * Load FFmpeg with single-threaded core for maximum compatibility
+ * Uses fallback CDNs for improved reliability
+ */
 export async function loadFFmpeg({
   log = true,                    // enable verbose logging
-  multiThread = false,            // set false to force single-thread fallback
-  coreVersion = '0.12.9',        // latest multi-thread as of Jan 2026 (@ffmpeg/core-mt)
+  coreVersion = '0.12.6',        // single-thread version (@ffmpeg/core)
 } = {}) {
   if (isLoaded) return;
 
   if (log) {
-    console.log('[ffmpeg] Starting load... Using multi-thread:', multiThread);
+    console.log('[ffmpeg] Starting load with single-threaded core for maximum compatibility...');
   }
 
-  // Use jsDelivr – reliable CORS + fast global CDN
-  // For multi-thread: @ffmpeg/core-mt (note the -mt suffix)
-  const baseURL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@${coreVersion}/dist/umd`;
-
-  try {
-    await ffmpeg.load({
-      coreURL: await toBlobURL(
-        `${baseURL}/ffmpeg-core.js`,
-        'text/javascript'
-      ),
-      wasmURL: await toBlobURL(
-        `${baseURL}/ffmpeg-core.wasm`,
-        'application/wasm'
-      ),
-      workerURL: await toBlobURL(
-        `${baseURL}/ffmpeg-core.worker.js`,
-        'text/javascript'
-      ),
-    });
-
-    isLoaded = true;
-    if (log) {
-      console.log('[ffmpeg] Loaded successfully (multi-thread enabled)');
+  // Define CDN sources with fallbacks for reliability
+  const cdnProviders = [
+    {
+      name: 'jsDelivr',
+      baseURL: `https://cdn.jsdelivr.net/npm/@ffmpeg/core@${coreVersion}/dist/umd`
+    },
+    {
+      name: 'unpkg',
+      baseURL: `https://unpkg.com/@ffmpeg/core@${coreVersion}/dist/umd`
     }
-  } catch (err) {
-    console.error('[ffmpeg] Load failed:', err);
+  ];
 
-    if (multiThread && err.message?.includes('SharedArrayBuffer')) {
-      console.warn(
-        '[ffmpeg] Multi-thread fallback: SharedArrayBuffer unavailable. ' +
-        'Ensure page headers: Cross-Origin-Opener-Policy: same-origin and ' +
-        'Cross-Origin-Embedder-Policy: require-corp'
+  let lastError = null;
+
+  // Try each CDN provider
+  for (const provider of cdnProviders) {
+    try {
+      if (log) {
+        console.log(`[ffmpeg] Attempting to load from ${provider.name}...`);
+      }
+
+      const coreURL = await toBlobURL(
+        `${provider.baseURL}/ffmpeg-core.js`,
+        'text/javascript'
       );
-      // Optional: retry with single-thread core here if desired
-    }
+      const wasmURL = await toBlobURL(
+        `${provider.baseURL}/ffmpeg-core.wasm`,
+        'application/wasm'
+      );
 
-    throw err;
+      await ffmpeg.load({
+        coreURL,
+        wasmURL,
+      });
+
+      isLoaded = true;
+      if (log) {
+        console.log(`[ffmpeg] Successfully loaded from ${provider.name} (single-threaded mode)`);
+      }
+      return;
+
+    } catch (err) {
+      lastError = err;
+      console.warn(`[ffmpeg] Failed to load from ${provider.name}:`, err.message);
+      
+      // Continue to next CDN provider
+      if (provider !== cdnProviders[cdnProviders.length - 1]) {
+        console.log('[ffmpeg] Trying alternative CDN...');
+      }
+    }
   }
+
+  // All CDN providers failed
+  console.error('[ffmpeg] All CDN providers failed. Last error:', lastError);
+  throw new Error(
+    `Failed to load FFmpeg from all CDN providers. ` +
+    `Please check your internet connection and try again. ` +
+    `Last error: ${lastError?.message || 'Unknown error'}`
+  );
 }
 
 /**
