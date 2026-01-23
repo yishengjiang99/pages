@@ -48,8 +48,15 @@ export async function loadFFmpeg({
       console.log(`[ffmpeg] Loading from cdn.jsdelivr.net (${corePackage}@${coreVersion})...`);
     }
 
-    // Terminate any existing instance before loading
-    ffmpeg.terminate();
+    // Terminate any existing instance before loading (safely handle errors)
+    try {
+      ffmpeg.terminate();
+    } catch (err) {
+      // Ignore errors if FFmpeg was never loaded or already terminated
+      if (log) {
+        console.log('[ffmpeg] No previous instance to terminate');
+      }
+    }
 
     // Load core JavaScript
     const coreURL = await toBlobURL(
@@ -67,20 +74,25 @@ export async function loadFFmpeg({
       progressCallback
     );
 
-    // Load worker for multi-threaded version
-    const workerURL = multiThread ? await toBlobURL(
-      `${baseURL}/ffmpeg-core.worker.js`,
-      'text/javascript',
-      true,
-      progressCallback
-    ) : '';
-
-    // Load FFmpeg with the downloaded assets
-    await ffmpeg.load({
+    // Load configuration based on mode
+    const loadConfig = {
       coreURL,
       wasmURL,
-      ...(multiThread && { workerURL }),
-    });
+    };
+
+    // Load worker for multi-threaded version
+    if (multiThread) {
+      const workerURL = await toBlobURL(
+        `${baseURL}/ffmpeg-core.worker.js`,
+        'text/javascript',
+        true,
+        progressCallback
+      );
+      loadConfig.workerURL = workerURL;
+    }
+
+    // Load FFmpeg with the downloaded assets
+    await ffmpeg.load(loadConfig);
 
     isLoaded = true;
     if (log) {
