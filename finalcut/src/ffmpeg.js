@@ -5,13 +5,8 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile as utilFetchFile, toBlobURL as utilToBlobURL } from '@ffmpeg/util';
 
-export let ffmpeg = new FFmpeg();
+export const ffmpeg = new FFmpeg();
 export const toBlobURL = utilToBlobURL;
-
-// Allow setting the ffmpeg instance from outside
-export const setFFmpegInstance = (instance) => {
-  ffmpeg = instance;
-};
 
 // Optional: listen to logs/progress (very useful for debugging)
 ffmpeg.on('log', ({ message }) => {

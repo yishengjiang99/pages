@@ -5,6 +5,10 @@ import { tools, systemPrompt } from './tools.js';
 import { toolFunctions } from './toolFunctions.js';
 import VideoPreview from './VideoPreview.jsx';
 
+// FFmpeg core configuration
+const FFMPEG_CORE_VERSION = '0.12.10';
+const FFMPEG_CORE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@${FFMPEG_CORE_VERSION}/dist/esm`;
+
 export default function App() {
   const [loaded, setLoaded] = useState(false);
   const ffmpegRef = useRef(new FFmpeg());
@@ -25,7 +29,7 @@ export default function App() {
   }, [messages]);
 
   const load = async () => {
-    const baseURL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@0.12.10/dist/esm";
+    const baseURL = FFMPEG_CORE_BASE_URL;
     const ffmpeg = ffmpegRef.current;
     ffmpeg.on("log", ({ message }) => {
       if (messageRef.current) messageRef.current.innerHTML = message;
