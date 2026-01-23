@@ -1,11 +1,12 @@
 # FinalCut - Video Editor Chat
 
-A React-based video editing application with AI chat capabilities using xAI's Grok API and FFmpeg WebAssembly.
+A React-based video editing application with AI chat capabilities using xAI's Grok API and server-side FFmpeg processing.
 
 ## Features
 
 - Upload and edit videos in the browser
 - AI-powered video editing through natural language chat
+- **Server-side video processing** using native FFmpeg for better performance
 - Video operations:
   - Get video dimensions and metadata (resolution, duration, codec, frame rate)
   - Resize video
@@ -15,6 +16,8 @@ A React-based video editing application with AI chat capabilities using xAI's Gr
   - Trim video
   - Adjust playback speed
   - Add or replace audio tracks
+  - Convert video formats
+  - Extract audio from video
 - Audio filters:
   - Adjust audio volume
   - Audio fade in/out effects
@@ -26,7 +29,12 @@ A React-based video editing application with AI chat capabilities using xAI's Gr
   - Parametric equalizer
   - Audio normalization
   - Audio delay/sync
-- Powered by FFmpeg WebAssembly
+  - Convert audio formats
+- Color grading:
+  - Adjust brightness
+  - Adjust hue
+  - Adjust saturation
+- Powered by native FFmpeg on the server
 - Integration with xAI's Grok API for intelligent editing assistance
 
 ## Development
@@ -35,9 +43,26 @@ A React-based video editing application with AI chat capabilities using xAI's Gr
 
 - Node.js 18 or higher
 - npm
+- **FFmpeg installed on the server** (required for video processing)
 - xAI API token (get one from https://console.x.ai/)
 
 ### Installation
+
+1. **Install FFmpeg** (if not already installed):
+
+```bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install -y ffmpeg
+
+# macOS
+brew install ffmpeg
+
+# Verify installation
+ffmpeg -version
+```
+
+2. **Install Node.js dependencies:**
 
 ```bash
 npm install
@@ -100,42 +125,37 @@ Run tests with Vitest.
 
 ## Security
 
-The xAI API token is now securely stored on the server side and never exposed to the client. The token is read from the `.env` file and used by the Node.js proxy server to authenticate requests to the xAI API.
+The xAI API token is securely stored on the server side and never exposed to the client. The token is read from the `.env` file and used by the Node.js proxy server to authenticate requests to the xAI API.
 
-## Mobile/Safari Compatibility
+Video files are processed server-side using native FFmpeg, which provides better performance and security compared to client-side processing.
 
-This app uses FFmpeg WebAssembly and supports both **single-threaded** and **multi-threaded** modes:
+## Architecture
 
-### Single-threaded Mode (Default)
-- ✅ Works on Safari iOS/iPadOS
-- ✅ Works on Safari macOS
-- ✅ Doesn't require SharedArrayBuffer
-- ✅ Doesn't require special CORS headers
-- ⚠️ Slightly slower than multi-threaded version on desktop
+### Server-Side Video Processing
 
-### Multi-threaded Mode (Optional)
-- ✅ Faster processing on desktop browsers
-- ⚠️ Requires SharedArrayBuffer support
-- ⚠️ Requires special CORS headers (see below)
+The application uses a **server-side architecture** for video processing:
 
-The app defaults to single-threaded mode for maximum compatibility. You can enable multi-threaded mode by passing `multiThread: true` to the `loadFFmpeg()` function.
+1. **Client Upload**: User uploads a video file through the web interface
+2. **Server Processing**: Video is sent to the Node.js server and processed using native FFmpeg via `fluent-ffmpeg`
+3. **Temporary Storage**: Videos are temporarily stored in the `temp/` directory during processing
+4. **Result Delivery**: Processed video is sent back to the client and displayed
+5. **Cleanup**: Temporary files are automatically cleaned up after processing
 
-### Deployment Notes
+### Benefits of Server-Side Processing
 
-While the app uses single-threaded FFmpeg to avoid CORS header requirements, for optimal performance on desktop browsers, you can optionally configure your server to send these headers:
-
-```
-Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: require-corp
-```
-
-**Note**: GitHub Pages doesn't support custom headers, but the single-threaded version works without them.
+- ✅ **Better Performance**: Native FFmpeg is faster than WebAssembly
+- ✅ **No Browser Limitations**: No memory constraints or CORS issues
+- ✅ **Broader Compatibility**: Works on all devices and browsers
+- ✅ **More Features**: Full access to FFmpeg's capabilities
+- ✅ **Better Security**: Video processing happens server-side
 
 ## Technology Stack
 
 - **React 18** - UI framework
 - **Vite** - Build tool and dev server
-- **FFmpeg WebAssembly** - Video processing
+- **Express** - Node.js web server
+- **FFmpeg** - Native video processing (via fluent-ffmpeg)
+- **Multer** - File upload handling
 - **xAI Grok API** - AI-powered editing assistance
 - **Vitest** - Testing framework
 - **React Testing Library** - Component testing
@@ -147,10 +167,12 @@ finalcut/
 ├── src/
 │   ├── App.jsx           # Main React component
 │   ├── main.jsx          # Application entry point
-│   ├── ffmpeg.js         # FFmpeg initialization and utilities
 │   ├── tools.js          # Tool definitions for AI
-│   ├── toolFunctions.js  # Video editing function implementations
+│   ├── toolFunctions.js  # Video editing function implementations (client-side)
 │   └── test/             # Test files
+├── server.js             # Express server with API endpoints
+├── videoProcessor.js     # Server-side video processing with FFmpeg
+├── temp/                 # Temporary video storage (auto-created)
 ├── index.html            # HTML entry point
 ├── package.json          # Dependencies and scripts
 └── vite.config.js        # Vite configuration
