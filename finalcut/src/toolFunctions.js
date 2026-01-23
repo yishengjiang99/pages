@@ -423,5 +423,17 @@ export const toolFunctions = {
       addMessage('Error resizing to aspect ratio: ' + error.message, false);
       return 'Failed to resize to aspect ratio: ' + error.message;
     }
-  }
+  },
+  
+  // Aliases for backward compatibility with tests
+  adjust_audio_volume: async (...args) => toolFunctions.adjust_volume(...args),
+  audio_highpass: async (...args) => toolFunctions.highpass_filter(...args),
+  audio_lowpass: async (...args) => toolFunctions.lowpass_filter(...args),
+  audio_echo: async (...args) => toolFunctions.echo_effect(...args),
+  adjust_bass: async (...args) => toolFunctions.bass_adjustment(...args),
+  adjust_treble: async (...args) => toolFunctions.treble_adjustment(...args),
+  audio_equalizer: async (...args) => toolFunctions.equalizer(...args),
+  audio_delay: async (...args) => toolFunctions.delay_audio(...args),
+  resize_video_preset: async (...args) => toolFunctions.resize_to_aspect_ratio(...args),
+  get_video_dimensions: async (...args) => toolFunctions.get_video_info(...args),
 };
