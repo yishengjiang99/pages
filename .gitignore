@@ -9,3 +9,5 @@ finalcut/node_modules
 finalcut.html
 finalcut/demo.html
 finalcut/public/test-video.mp4
+finalcut/temp
+*.bak
