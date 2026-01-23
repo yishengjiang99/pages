@@ -104,13 +104,21 @@ The xAI API token is now securely stored on the server side and never exposed to
 
 ## Mobile/Safari Compatibility
 
-This app uses FFmpeg WebAssembly in **single-threaded mode** (`@ffmpeg/core-st`) for maximum compatibility with mobile browsers, especially Safari. This version:
+This app uses FFmpeg WebAssembly and supports both **single-threaded** and **multi-threaded** modes:
 
+### Single-threaded Mode (Default)
 - ✅ Works on Safari iOS/iPadOS
 - ✅ Works on Safari macOS
 - ✅ Doesn't require SharedArrayBuffer
 - ✅ Doesn't require special CORS headers
 - ⚠️ Slightly slower than multi-threaded version on desktop
+
+### Multi-threaded Mode (Optional)
+- ✅ Faster processing on desktop browsers
+- ⚠️ Requires SharedArrayBuffer support
+- ⚠️ Requires special CORS headers (see below)
+
+The app defaults to single-threaded mode for maximum compatibility. You can enable multi-threaded mode by passing `multiThread: true` to the `loadFFmpeg()` function.
 
 ### Deployment Notes
 
