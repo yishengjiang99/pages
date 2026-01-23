@@ -9,13 +9,22 @@ vi.mock('@ffmpeg/ffmpeg', () => ({
     exec: vi.fn(),
     writeFile: vi.fn(),
     readFile: vi.fn(),
+    on: vi.fn(),
+    terminate: vi.fn(),
     loaded: false,
   })),
 }));
 
 // Mock @ffmpeg/util
 vi.mock('@ffmpeg/util', () => ({
-  toBlobURL: vi.fn((url) => Promise.resolve(url)),
+  toBlobURL: vi.fn((url, mimeType, useCache, progressCallback) => {
+    // Simulate progress callback if provided
+    if (progressCallback) {
+      progressCallback({ url, received: 1000 });
+    }
+    return Promise.resolve(url);
+  }),
+  fetchFile: vi.fn(),
 }));
 
 afterEach(() => {
