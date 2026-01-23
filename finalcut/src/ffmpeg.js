@@ -20,7 +20,7 @@ let isLoaded = false;
 
 export async function loadFFmpeg({
   log = true,                    // enable verbose logging
-  multiThread = true,            // set false to force single-thread fallback
+  multiThread = false,            // set false to force single-thread fallback
   coreVersion = '0.12.9',        // latest multi-thread as of Jan 2026 (@ffmpeg/core-mt)
 } = {}) {
   if (isLoaded) return;

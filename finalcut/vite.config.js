@@ -4,6 +4,13 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  build: {
+    sourcemap: true,           // already default in dev, but explicit is fine
+  },
+  esbuild: {
+    // Sometimes helps sourcemap stability (tradeoff: slightly slower transforms)
+    sourcemap: 'inline',
+  },
   base: '/', // Ensure assets are served from the root `/`
   server: {
     headers: {
@@ -16,9 +23,6 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
-  },
-  optimizeDeps: {
-    exclude: ['@ffmpeg/ffmpeg', '@ffmpeg/util'],
   },
   test: {
     globals: true,

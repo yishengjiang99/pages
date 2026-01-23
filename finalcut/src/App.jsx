@@ -73,7 +73,6 @@ export default function App() {
             content: result,
             id: messageIdCounterRef.current++
           });
-          addMessage({ role: 'tool', name: funcName, videoUrl: result });
         }
         await callAPI(currentMessages);
       }
@@ -146,6 +145,7 @@ export default function App() {
               <p style={{ margin: 0 }}>{msg.content}</p>
               {msg.videoUrl && (
                 <div style={{ marginTop: '8px' }}>
+                  {msg.videoUrl}
                   <VideoPreview
                     key={`preview-${msg.id}`}
                     videoUrl={msg.videoUrl}

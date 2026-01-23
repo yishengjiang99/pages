@@ -19,7 +19,7 @@ export const toolFunctions = {
       if (args.width <= 0 || args.height <= 0) {
         throw new Error('Width and height must be positive numbers');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `scale=${args.width}:${args.height}`, '-c:a', 'copy', 'output.mp4']);
@@ -41,7 +41,7 @@ export const toolFunctions = {
       if (args.x < 0 || args.y < 0 || args.width <= 0 || args.height <= 0) {
         throw new Error('Crop dimensions must be valid positive numbers');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `crop=${args.width}:${args.height}:${args.x}:${args.y}`, '-c:a', 'copy', 'output.mp4']);
@@ -60,7 +60,7 @@ export const toolFunctions = {
       if (args.angle === null || args.angle === undefined) {
         throw new Error('Angle is required for rotation');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `rotate=${args.angle}*PI/180`, '-c:a', 'copy', 'output.mp4']);
@@ -79,7 +79,7 @@ export const toolFunctions = {
       if (typeof args.text !== 'string' || args.text === '') {
         throw new Error('Text is required and cannot be empty');
       }
-      
+      debugger;
       await loadFFmpeg();
       // Escape special characters in text to prevent injection
       // Replace single quotes with escaped version and handle other special chars
@@ -93,7 +93,9 @@ export const toolFunctions = {
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `drawtext=text='${escapedText}':x=${args.x || 10}:y=${args.y || 10}:fontsize=${args.fontsize || 24}:fontcolor=${args.color || 'white'}`, '-c:a', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
+
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
+      console.log(videoUrl)
       addMessage('Processed video (text added):', false, videoUrl, 'processed', 'video/mp4');
       return 'Text added to video successfully.';
     } catch (error) {
@@ -107,7 +109,7 @@ export const toolFunctions = {
       if (args.start === null || args.start === undefined || args.end === null || args.end === undefined) {
         throw new Error('Start and end times are required for trimming');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-ss', args.start, '-to', args.end, '-c', 'copy', 'output.mp4']);
@@ -126,15 +128,15 @@ export const toolFunctions = {
       if (args.speed === null || args.speed === undefined || args.speed <= 0) {
         throw new Error('Speed must be a positive number');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
-      
+
       // atempo filter only supports values between 0.5 and 2.0
       // For values outside this range, we need to chain multiple atempo filters
       let audioFilter = '';
       let speed = args.speed;
-      
+
       if (speed >= 0.5 && speed <= 2.0) {
         audioFilter = `atempo=${speed}`;
       } else if (speed < 0.5) {
@@ -162,7 +164,7 @@ export const toolFunctions = {
         }
         audioFilter = filters.join(',');
       }
-      
+
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:v', `setpts=PTS/${args.speed}`, '-filter:a', audioFilter, 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
@@ -179,23 +181,23 @@ export const toolFunctions = {
       if (!args.audioFile || args.audioFile === '') {
         throw new Error('Audio file is required');
       }
-      
+
       const mode = args.mode || 'replace';
       const volume = args.volume !== undefined ? args.volume : 1.0;
-      
+
       // Validate mode
       if (mode !== 'replace' && mode !== 'mix') {
         throw new Error('Mode must be either "replace" or "mix"');
       }
-      
+
       // Validate volume
       if (volume < 0.0 || volume > 2.0) {
         throw new Error('Volume must be between 0.0 and 2.0');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
-      
+
       // Handle both base64 strings and Uint8Array audio data
       let audioData;
       if (typeof args.audioFile === 'string') {
@@ -211,9 +213,9 @@ export const toolFunctions = {
       } else {
         throw new Error('Audio file must be a base64 string or Uint8Array');
       }
-      
+
       await ffmpeg.writeFile('audio.mp3', audioData);
-      
+
       // Build FFmpeg command based on mode
       if (mode === 'replace') {
         // Replace audio: use video from first input, audio from second input
@@ -238,7 +240,7 @@ export const toolFunctions = {
           'output.mp4'
         ]);
       }
-      
+
       const data = await ffmpeg.readFile('output.mp4');
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage(`Processed video (audio track ${mode === 'replace' ? 'replaced' : 'mixed'}):`, false, videoUrl, 'processed', 'video/mp4');
@@ -256,7 +258,7 @@ export const toolFunctions = {
       if (args.volume < 0 || args.volume > 10) {
         throw new Error('Volume must be between 0 and 10');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `volume=${args.volume}`, '-c:v', 'copy', 'output.mp4']);
@@ -277,11 +279,11 @@ export const toolFunctions = {
       if (args.duration === null || args.duration === undefined || args.duration <= 0) {
         throw new Error('Duration must be a positive number');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
-      const fadeFilter = args.type === 'in' 
-        ? `afade=t=in:st=0:d=${args.duration}` 
+      const fadeFilter = args.type === 'in'
+        ? `afade=t=in:st=0:d=${args.duration}`
         : `afade=t=out:st=0:d=${args.duration}`;
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', fadeFilter, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
@@ -298,7 +300,7 @@ export const toolFunctions = {
       if (args.frequency === null || args.frequency === undefined || args.frequency <= 0) {
         throw new Error('Frequency must be a positive number');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `highpass=f=${args.frequency}`, '-c:v', 'copy', 'output.mp4']);
@@ -316,7 +318,7 @@ export const toolFunctions = {
       if (args.frequency === null || args.frequency === undefined || args.frequency <= 0) {
         throw new Error('Frequency must be a positive number');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `lowpass=f=${args.frequency}`, '-c:v', 'copy', 'output.mp4']);
@@ -337,7 +339,7 @@ export const toolFunctions = {
       if (args.decay === null || args.decay === undefined || args.decay < 0 || args.decay > 1) {
         throw new Error('Decay must be between 0 and 1');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // aecho filter: in_gain:out_gain:delays:decays
@@ -359,7 +361,7 @@ export const toolFunctions = {
       if (args.gain < -20 || args.gain > 20) {
         throw new Error('Gain must be between -20 and 20 dB');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // bass filter adjusts frequencies around 100 Hz
@@ -381,7 +383,7 @@ export const toolFunctions = {
       if (args.gain < -20 || args.gain > 20) {
         throw new Error('Gain must be between -20 and 20 dB');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // treble filter adjusts frequencies around 3000 Hz
@@ -407,7 +409,7 @@ export const toolFunctions = {
         throw new Error('Gain must be between -20 and 20 dB');
       }
       const width = args.width || 200;
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // equalizer filter: frequency=f:width_type=h:width=w:gain=g
@@ -429,7 +431,7 @@ export const toolFunctions = {
       if (args.target < -70 || args.target > -5) {
         throw new Error('Target must be between -70 and -5 LUFS');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // loudnorm filter normalizes audio loudness
@@ -451,7 +453,7 @@ export const toolFunctions = {
       if (args.delay < 0) {
         throw new Error('Delay must be non-negative');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // adelay filter delays audio by milliseconds
@@ -471,28 +473,28 @@ export const toolFunctions = {
       if (!args.preset) {
         throw new Error('Preset is required');
       }
-      
+
       const preset = ASPECT_RATIO_PRESETS[args.preset];
       if (!preset) {
         throw new Error(`Invalid preset. Available presets: ${Object.keys(ASPECT_RATIO_PRESETS).join(', ')}`);
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
-      
+
       // Scale video to fit preset dimensions while maintaining aspect ratio,
       // then pad with black bars if needed to reach exact dimensions
       const scaleFilter = `scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease`;
       const padFilter = `pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2`;
       const videoFilter = `${scaleFilter},${padFilter}`;
-      
+
       await ffmpeg.exec([
         '-i', 'input.mp4',
         '-vf', videoFilter,
         '-c:a', 'copy',
         'output.mp4'
       ]);
-      
+
       const data = await ffmpeg.readFile('output.mp4');
       const videoUrl = URL.createObjectURL(new Blob([data], { type: 'video/mp4' }));
       addMessage(`Processed video (resized to ${args.preset} - ${preset.description}):`, false, videoUrl, 'processed', 'video/mp4');
@@ -510,7 +512,7 @@ export const toolFunctions = {
       if (args.brightness < -1.0 || args.brightness > 1.0) {
         throw new Error('Brightness must be between -1.0 and 1.0');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // eq filter's brightness parameter: -1.0 (very dark) to 1.0 (very bright), 0 is no change
@@ -532,7 +534,7 @@ export const toolFunctions = {
       if (args.degrees < -360 || args.degrees > 360) {
         throw new Error('Degrees must be between -360 and 360');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // hue filter's h parameter accepts degrees
@@ -554,7 +556,7 @@ export const toolFunctions = {
       if (args.saturation < 0 || args.saturation > 3) {
         throw new Error('Saturation must be between 0 and 3');
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // eq filter's saturation parameter: 0 (grayscale) to 3 (very saturated), 1 is no change
@@ -572,19 +574,19 @@ export const toolFunctions = {
     try {
       await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
-      
+
       // Helper function to calculate file size
       const getFileSizeMB = () => (videoFileData.length / (1024 * 1024)).toFixed(2);
-      
+
       // Create a promise to capture ffmpeg logs
       let logOutput = '';
       const logHandler = ({ message }) => {
         logOutput += message + '\n';
       };
-      
+
       // Add temporary log listener
       ffmpeg.on('log', logHandler);
-      
+
       try {
         // Use -f null to extract metadata without creating output file
         // This is more reliable than intentionally failing the command
@@ -592,19 +594,19 @@ export const toolFunctions = {
       } catch (e) {
         // Even with -f null, might produce some errors but logs are captured
       }
-      
+
       // Remove the temporary log listener
       ffmpeg.off('log', logHandler);
-      
+
       // Parse the log output to extract video information
       // More robust patterns to handle different FFmpeg output formats
       const streamMatch = logOutput.match(/Stream #\d+:\d+.*Video:\s*([a-zA-Z0-9_-]+).*?(\d+)x(\d+)/);
       const durationMatch = logOutput.match(/Duration:\s*(\d{2}):(\d{2}):(\d{2}\.\d{2})/);
       const fpsMatch = logOutput.match(/(\d+(?:\.\d+)?)\s*(?:fps|tb\(r\))/);
       const bitrateMatch = logOutput.match(/bitrate:\s*(\d+)\s*kb\/s/);
-      
+
       let result = 'Video Information:\n';
-      
+
       if (streamMatch) {
         const codec = streamMatch[1];
         const width = streamMatch[2];
@@ -612,32 +614,32 @@ export const toolFunctions = {
         result += `Resolution: ${width}x${height}\n`;
         result += `Video Codec: ${codec}\n`;
       }
-      
+
       if (durationMatch) {
         const hours = durationMatch[1];
         const minutes = durationMatch[2];
         const seconds = durationMatch[3];
         result += `Duration: ${hours}:${minutes}:${seconds}\n`;
       }
-      
+
       if (fpsMatch) {
         result += `Frame Rate: ${fpsMatch[1]} fps\n`;
       }
-      
+
       if (bitrateMatch) {
         result += `Bitrate: ${bitrateMatch[1]} kb/s\n`;
       }
-      
+
       const fileSizeMB = getFileSizeMB();
       result += `File Size: ${fileSizeMB} MB`;
-      
+
       // If we couldn't parse dimensions, provide basic info
       if (!streamMatch) {
         result = `Video file loaded successfully.\n`;
         result += `File size: ${fileSizeMB} MB\n`;
         result += `Video is ready for editing. Detailed metadata could not be extracted from logs.`;
       }
-      
+
       addMessage(result, false);
       return result;
     } catch (error) {
@@ -653,17 +655,17 @@ export const toolFunctions = {
       if (!args.format) {
         throw new Error('Target format is required');
       }
-      
+
       const format = args.format.toLowerCase();
       const validFormats = ['mp4', 'webm', 'mov', 'avi', 'mkv', 'flv', 'ogv'];
-      
+
       if (!validFormats.includes(format)) {
         throw new Error(`Unsupported format. Supported formats: ${validFormats.join(', ')}`);
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input', videoFileData);
-      
+
       // Set codec based on format or use user-specified codec
       let codecArgs = [];
       if (args.codec && args.codec !== 'auto') {
@@ -681,12 +683,12 @@ export const toolFunctions = {
           codecArgs = [];
         }
       }
-      
+
       const outputFile = `output.${format}`;
       await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
-      
+
       const data = await ffmpeg.readFile(outputFile);
-      
+
       // Determine MIME type for blob
       let mimeType = 'video/mp4';
       if (format === 'webm') mimeType = 'video/webm';
@@ -695,7 +697,7 @@ export const toolFunctions = {
       else if (format === 'mov') mimeType = 'video/quicktime';
       else if (format === 'mkv') mimeType = 'video/x-matroska';
       else if (format === 'flv') mimeType = 'video/x-flv';
-      
+
       const videoUrl = URL.createObjectURL(new Blob([data], { type: mimeType }));
       addMessage(`Processed video (converted to ${format.toUpperCase()}):`, false, videoUrl, 'processed', mimeType);
       return `Video converted to ${format.toUpperCase()} successfully.`;
@@ -709,22 +711,22 @@ export const toolFunctions = {
       if (!args.format) {
         throw new Error('Target format is required');
       }
-      
+
       const format = args.format.toLowerCase();
       const validFormats = ['mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a', 'wma'];
-      
+
       if (!validFormats.includes(format)) {
         throw new Error(`Unsupported format. Supported formats: ${validFormats.join(', ')}`);
       }
-      
+
       const bitrate = args.bitrate || '192k';
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input', videoFileData);
-      
+
       // Build codec arguments based on format
       let codecArgs = ['-vn']; // -vn = no video
-      
+
       if (format === 'mp3') {
         codecArgs.push('-c:a', 'libmp3lame', '-b:a', bitrate);
       } else if (format === 'wav') {
@@ -738,12 +740,12 @@ export const toolFunctions = {
       } else if (format === 'wma') {
         codecArgs.push('-c:a', 'wmav2', '-b:a', bitrate);
       }
-      
+
       const outputFile = `output.${format}`;
       await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
-      
+
       const data = await ffmpeg.readFile(outputFile);
-      
+
       // Determine MIME type for blob
       let mimeType = 'audio/mpeg';
       if (format === 'wav') mimeType = 'audio/wav';
@@ -752,7 +754,7 @@ export const toolFunctions = {
       else if (format === 'flac') mimeType = 'audio/flac';
       else if (format === 'm4a') mimeType = 'audio/mp4';
       else if (format === 'wma') mimeType = 'audio/x-ms-wma';
-      
+
       const audioUrl = URL.createObjectURL(new Blob([data], { type: mimeType }));
       addMessage(`Processed audio (converted to ${format.toUpperCase()}):`, false, audioUrl, 'processed', mimeType);
       return `Audio converted to ${format.toUpperCase()} successfully.`;
@@ -765,19 +767,19 @@ export const toolFunctions = {
     try {
       const format = args.format || 'mp3';
       const bitrate = args.bitrate || '192k';
-      
+
       const validFormats = ['mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a'];
-      
+
       if (!validFormats.includes(format)) {
         throw new Error(`Unsupported format. Supported formats: ${validFormats.join(', ')}`);
       }
-      
+
       await loadFFmpeg();
       await ffmpeg.writeFile('input', videoFileData);
-      
+
       // Build codec arguments based on format
       let codecArgs = ['-vn']; // -vn = no video (extract audio only)
-      
+
       if (format === 'mp3') {
         codecArgs.push('-c:a', 'libmp3lame', '-b:a', bitrate);
       } else if (format === 'wav') {
@@ -789,12 +791,12 @@ export const toolFunctions = {
       } else if (format === 'flac') {
         codecArgs.push('-c:a', 'flac');
       }
-      
+
       const outputFile = `output.${format}`;
       await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
-      
+
       const data = await ffmpeg.readFile(outputFile);
-      
+
       // Determine MIME type for blob
       let mimeType = 'audio/mpeg';
       if (format === 'wav') mimeType = 'audio/wav';
@@ -802,7 +804,7 @@ export const toolFunctions = {
       else if (format === 'ogg') mimeType = 'audio/ogg';
       else if (format === 'flac') mimeType = 'audio/flac';
       else if (format === 'm4a') mimeType = 'audio/mp4';
-      
+
       const audioUrl = URL.createObjectURL(new Blob([data], { type: mimeType }));
       addMessage(`Extracted audio (${format.toUpperCase()}):`, false, audioUrl, 'processed', mimeType);
       return `Audio extracted to ${format.toUpperCase()} successfully.`;
