@@ -76,7 +76,6 @@ export const toolFunctions = {
       if (typeof args.text !== 'string' || args.text === '') {
         throw new Error('Text is required and cannot be empty');
       }
-      debugger;
       // Escape special characters in text to prevent injection
       // Replace single quotes with escaped version and handle other special chars
       const escapedText = args.text
