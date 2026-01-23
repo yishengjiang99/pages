@@ -128,6 +128,15 @@ export const videoProcessors = {
     });
   },
 
+  add_audio_track: async (inputPath, args) => {
+    const outputPath = generateTempFilename('mp4');
+    
+    // Note: This function expects an audio file path to be provided
+    // In a real implementation, you might need to handle audio file upload separately
+    // For now, we'll throw an error if not properly implemented
+    throw new Error('add_audio_track requires audio file upload implementation on server side');
+  },
+
   adjust_audio_volume: async (inputPath, args) => {
     const outputPath = generateTempFilename('mp4');
     
@@ -334,10 +343,20 @@ export const videoProcessors = {
         
         // Parse frame rate safely (e.g., "30/1" -> 30, "24000/1001" -> 23.976)
         let frameRate = 0;
-        if (videoStream.r_frame_rate) {
-          const [numerator, denominator] = videoStream.r_frame_rate.split('/').map(Number);
-          if (numerator && denominator) {
-            frameRate = numerator / denominator;
+        if (videoStream.r_frame_rate && typeof videoStream.r_frame_rate === 'string') {
+          const parts = videoStream.r_frame_rate.split('/');
+          if (parts.length === 2) {
+            const numerator = parseFloat(parts[0]);
+            const denominator = parseFloat(parts[1]);
+            if (!isNaN(numerator) && !isNaN(denominator) && denominator !== 0) {
+              frameRate = numerator / denominator;
+            }
+          } else if (parts.length === 1) {
+            // Handle simple numeric frame rate
+            const rate = parseFloat(parts[0]);
+            if (!isNaN(rate)) {
+              frameRate = rate;
+            }
           }
         }
         
