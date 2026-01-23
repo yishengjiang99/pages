@@ -1,10 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { fetchFile } from './ffmpeg.js';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from './ffmpeg.js';
 import { tools, systemPrompt } from './tools.js';
 import { toolFunctions } from './toolFunctions.js';
 import VideoPreview from './VideoPreview.jsx';
 
+// FFmpeg core configuration
+const FFMPEG_CORE_VERSION = '0.12.10';
+const FFMPEG_CORE_BASE_URL = `https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@${FFMPEG_CORE_VERSION}/dist/esm`;
+
 export default function App() {
+  const [loaded, setLoaded] = useState(false);
+  const ffmpegRef = useRef(new FFmpeg());
+  const videoRef = useRef(null);
+  const messageRef = useRef(null);
   const [messages, setMessages] = useState([{ role: 'system', content: systemPrompt, id: 0 }]);
   const [chatInput, setChatInput] = useState('');
   const [videoFileData, setVideoFileData] = useState(null);
@@ -18,6 +27,28 @@ export default function App() {
       chatWindowRef.current.scrollTop = chatWindowRef.current.scrollHeight;
     }
   }, [messages]);
+
+  const load = async () => {
+    const baseURL = FFMPEG_CORE_BASE_URL;
+    const ffmpeg = ffmpegRef.current;
+    ffmpeg.on("log", ({ message }) => {
+      if (messageRef.current) messageRef.current.innerHTML = message;
+    });
+    // toBlobURL is used to bypass CORS issue, urls with the same
+    // domain can be used directly.
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
+      wasmURL: await toBlobURL(
+        `${baseURL}/ffmpeg-core.wasm`,
+        "application/wasm"
+      ),
+      workerURL: await toBlobURL(
+        `${baseURL}/ffmpeg-core.worker.js`,
+        "text/javascript"
+      ),
+    });
+    setLoaded(true);
+  };
 
   const addMessage = (text, isUser = false, videoUrl = null, videoType = 'processed', mimeType = null) => {
     const id = messageIdCounterRef.current++;
@@ -62,10 +93,16 @@ export default function App() {
 
       if (msg.tool_calls) {
         currentMessages.push({ role: 'assistant', content: null, tool_calls: msg.tool_calls, id: messageIdCounterRef.current++ });
+        
+        // Ensure ffmpeg is loaded before processing tool calls
+        if (!loaded) {
+          await load();
+        }
+        
         for (const call of msg.tool_calls) {
           const funcName = call.function.name;
           const args = JSON.parse(call.function.arguments);
-          const result = await toolFunctions[funcName](args, videoFileData, setVideoFileData, addMessage);
+          const result = await toolFunctions[funcName](args, videoFileData, setVideoFileData, addMessage, ffmpegRef.current);
           currentMessages.push({
             role: 'tool',
             tool_call_id: call.id,
