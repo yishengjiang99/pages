@@ -6,6 +6,7 @@ import ffmpeg from 'fluent-ffmpeg';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
@@ -22,6 +23,19 @@ if (!XAI_API_TOKEN) {
   process.exit(1);
 }
 
+// Rate limiting for API endpoints
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.'
+});
+
+const videoProcessLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Limit video processing to 20 requests per 15 minutes
+  message: 'Too many video processing requests, please try again later.'
+});
+
 // Configure multer for file uploads (store in memory)
 const storage = multer.memoryStorage();
 const upload = multer({ 
@@ -37,7 +51,7 @@ const upload = multer({
 app.use(express.json({ limit: '50mb' }));
 
 // Proxy endpoint for xAI API
-app.post('/api/chat', async (req, res) => {
+app.post('/api/chat', apiLimiter, async (req, res) => {
   try {
     // Basic request validation
     if (!req.body || typeof req.body !== 'object') {
@@ -75,7 +89,7 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // Video processing endpoint
-app.post('/api/process-video', upload.single('video'), async (req, res) => {
+app.post('/api/process-video', videoProcessLimiter, upload.single('video'), async (req, res) => {
   let inputPath = null;
   let outputPath = null;
   
