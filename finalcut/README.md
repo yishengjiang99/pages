@@ -1,20 +1,19 @@
 # FinalCut - Video Editor Chat
 
-A React-based video editing application with AI chat capabilities using xAI's Grok API and FFmpeg WebAssembly.
+A React-based video editing application with AI chat capabilities using xAI's Grok API and server-side FFmpeg processing.
 
 ## Features
 
 - Upload and edit videos in the browser
 - AI-powered video editing through natural language chat
+- **Server-side FFmpeg processing** for reliable video operations
 - Video operations:
-  - Get video dimensions and metadata (resolution, duration, codec, frame rate)
   - Resize video
   - Crop video
   - Rotate video
   - Add text overlays
   - Trim video
   - Adjust playback speed
-  - Add or replace audio tracks
 - Audio filters:
   - Adjust audio volume
   - Audio fade in/out effects
@@ -26,7 +25,11 @@ A React-based video editing application with AI chat capabilities using xAI's Gr
   - Parametric equalizer
   - Audio normalization
   - Audio delay/sync
-- Powered by FFmpeg WebAssembly
+- Video filters:
+  - Adjust brightness
+  - Adjust hue
+  - Adjust saturation
+- Powered by native FFmpeg on the server for fast, reliable processing
 - Integration with xAI's Grok API for intelligent editing assistance
 
 ## Development
@@ -35,7 +38,24 @@ A React-based video editing application with AI chat capabilities using xAI's Gr
 
 - Node.js 18 or higher
 - npm
+- **FFmpeg installed on the system** (for server-side processing)
 - xAI API token (get one from https://console.x.ai/)
+
+### FFmpeg Installation
+
+#### Ubuntu/Debian:
+```bash
+sudo apt-get update
+sudo apt-get install ffmpeg
+```
+
+#### macOS:
+```bash
+brew install ffmpeg
+```
+
+#### Windows:
+Download from [ffmpeg.org](https://ffmpeg.org/download.html) and add to PATH.
 
 ### Installation
 
@@ -93,49 +113,42 @@ Run tests with Vitest.
 
 ## Usage
 
-1. Start the proxy server (see Development Server above)
+1. Start the server (which serves both the API proxy and handles video processing)
 2. Upload a video file
 3. Describe the edits you want in natural language
-4. The AI will apply the appropriate filters and transformations
+4. The AI will apply the appropriate filters and transformations using server-side FFmpeg
+
+## Architecture
+
+FinalCut now uses **server-side FFmpeg processing** for improved reliability and performance:
+
+- **Client (React)**: Handles UI, chat interface, and file uploads
+- **Server (Node.js + Express)**: 
+  - Proxies requests to xAI API (keeping API token secure)
+  - Processes videos using native FFmpeg via fluent-ffmpeg library
+  - Returns processed videos to the client
+
+### Benefits of Server-Side Processing
+
+- ✅ **More Reliable**: Uses native FFmpeg instead of WebAssembly
+- ✅ **Better Performance**: Native code is faster than WASM
+- ✅ **No Browser Limitations**: No memory constraints or CORS issues
+- ✅ **Works Everywhere**: Compatible with all browsers without special headers
+- ✅ **Easier Debugging**: Server-side logs make troubleshooting simpler
 
 ## Security
 
-The xAI API token is now securely stored on the server side and never exposed to the client. The token is read from the `.env` file and used by the Node.js proxy server to authenticate requests to the xAI API.
+The xAI API token is securely stored on the server side and never exposed to the client. The token is read from the `.env` file and used by the Node.js server to authenticate requests to the xAI API.
 
-## Mobile/Safari Compatibility
-
-This app uses FFmpeg WebAssembly and supports both **single-threaded** and **multi-threaded** modes:
-
-### Single-threaded Mode (Default)
-- ✅ Works on Safari iOS/iPadOS
-- ✅ Works on Safari macOS
-- ✅ Doesn't require SharedArrayBuffer
-- ✅ Doesn't require special CORS headers
-- ⚠️ Slightly slower than multi-threaded version on desktop
-
-### Multi-threaded Mode (Optional)
-- ✅ Faster processing on desktop browsers
-- ⚠️ Requires SharedArrayBuffer support
-- ⚠️ Requires special CORS headers (see below)
-
-The app defaults to single-threaded mode for maximum compatibility. You can enable multi-threaded mode by passing `multiThread: true` to the `loadFFmpeg()` function.
-
-### Deployment Notes
-
-While the app uses single-threaded FFmpeg to avoid CORS header requirements, for optimal performance on desktop browsers, you can optionally configure your server to send these headers:
-
-```
-Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: require-corp
-```
-
-**Note**: GitHub Pages doesn't support custom headers, but the single-threaded version works without them.
+Video files are processed on the server and immediately cleaned up after processing, ensuring no data persists on the server.
 
 ## Technology Stack
 
 - **React 18** - UI framework
 - **Vite** - Build tool and dev server
-- **FFmpeg WebAssembly** - Video processing
+- **Node.js + Express** - Server and API
+- **FFmpeg (native)** - Server-side video processing via fluent-ffmpeg
+- **Multer** - File upload handling
 - **xAI Grok API** - AI-powered editing assistance
 - **Vitest** - Testing framework
 - **React Testing Library** - Component testing

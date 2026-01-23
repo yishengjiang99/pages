@@ -363,44 +363,15 @@ export const toolFunctions = {
     }
   },
   
-  // Note: Some complex operations are not yet fully implemented
-  // add_audio_track - needs multipart upload handling on server
-  // convert_to_format - needs format-aware server handling
+  // Note: Some complex operations like add_audio_track, get_video_info, convert_to_format, 
+  // resize_to_aspect_ratio are not yet fully migrated. They need more complex server-side handling.
+  // For now, keeping stubs that return an error message
   
   get_video_info: async (args, videoFileData, setVideoFileData, addMessage) => {
     try {
-      const formData = new FormData();
-      const videoBlob = new Blob([videoFileData], { type: 'video/mp4' });
-      formData.append('video', videoBlob, 'input.mp4');
-      formData.append('operation', 'get_video_info');
-      formData.append('args', JSON.stringify({}));
-      
-      const response = await fetch('/api/process-video', {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Server processing failed');
-      }
-      
-      // Get metadata as JSON
-      const metadata = await response.json();
-      
-      // Format the metadata for display
-      const videoInfo = metadata.format || {};
-      const videoStream = metadata.streams?.find(s => s.codec_type === 'video') || {};
-      
-      const info = `Video Information:
-- Duration: ${videoInfo.duration ? Math.round(videoInfo.duration) + 's' : 'Unknown'}
-- Size: ${videoInfo.size ? (videoInfo.size / 1024 / 1024).toFixed(2) + ' MB' : 'Unknown'}
-- Resolution: ${videoStream.width || '?'} x ${videoStream.height || '?'}
-- Codec: ${videoStream.codec_name || 'Unknown'}
-- Frame Rate: ${videoStream.r_frame_rate || 'Unknown'}`;
-      
-      addMessage(info, false);
-      return info;
+      // This would need special handling on server
+      addMessage('Getting video info is not yet implemented on server-side', false);
+      return 'Feature not yet available with server-side processing';
     } catch (error) {
       addMessage('Error getting video info: ' + error.message, false);
       return 'Failed to get video info: ' + error.message;
@@ -452,27 +423,5 @@ export const toolFunctions = {
       addMessage('Error resizing to aspect ratio: ' + error.message, false);
       return 'Failed to resize to aspect ratio: ' + error.message;
     }
-  },
-  
-  // Aliases for backward compatibility with tests
-  adjust_audio_volume: async (args, videoFileData, setVideoFileData, addMessage) => 
-    toolFunctions.adjust_volume(args, videoFileData, setVideoFileData, addMessage),
-  audio_highpass: async (args, videoFileData, setVideoFileData, addMessage) => 
-    toolFunctions.highpass_filter(args, videoFileData, setVideoFileData, addMessage),
-  audio_lowpass: async (args, videoFileData, setVideoFileData, addMessage) => 
-    toolFunctions.lowpass_filter(args, videoFileData, setVideoFileData, addMessage),
-  audio_echo: async (args, videoFileData, setVideoFileData, addMessage) => 
-    toolFunctions.echo_effect(args, videoFileData, setVideoFileData, addMessage),
-  adjust_bass: async (args, videoFileData, setVideoFileData, addMessage) => 
-    toolFunctions.bass_adjustment(args, videoFileData, setVideoFileData, addMessage),
-  adjust_treble: async (args, videoFileData, setVideoFileData, addMessage) => 
-    toolFunctions.treble_adjustment(args, videoFileData, setVideoFileData, addMessage),
-  audio_equalizer: async (args, videoFileData, setVideoFileData, addMessage) => 
-    toolFunctions.equalizer(args, videoFileData, setVideoFileData, addMessage),
-  audio_delay: async (args, videoFileData, setVideoFileData, addMessage) => 
-    toolFunctions.delay_audio(args, videoFileData, setVideoFileData, addMessage),
-  resize_video_preset: async (args, videoFileData, setVideoFileData, addMessage) => 
-    toolFunctions.resize_to_aspect_ratio(args, videoFileData, setVideoFileData, addMessage),
-  get_video_dimensions: async (args, videoFileData, setVideoFileData, addMessage) => 
-    toolFunctions.get_video_info(args, videoFileData, setVideoFileData, addMessage),
+  }
 };
