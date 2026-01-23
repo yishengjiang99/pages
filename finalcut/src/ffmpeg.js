@@ -1,11 +1,17 @@
 // ffmpeg-loader.js
 // Complete module for loading @ffmpeg/ffmpeg with reliable core loading
-// Usage: import { ffmpeg, loadFFmpeg, fetchFile } from './ffmpeg-loader.js';
+// Usage: import { ffmpeg, loadFFmpeg, fetchFile, toBlobURL } from './ffmpeg-loader.js';
 
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile as utilFetchFile, toBlobURL } from '@ffmpeg/util';
+import { fetchFile as utilFetchFile, toBlobURL as utilToBlobURL } from '@ffmpeg/util';
 
-export const ffmpeg = new FFmpeg();
+export let ffmpeg = new FFmpeg();
+export const toBlobURL = utilToBlobURL;
+
+// Allow setting the ffmpeg instance from outside
+export const setFFmpegInstance = (instance) => {
+  ffmpeg = instance;
+};
 
 // Optional: listen to logs/progress (very useful for debugging)
 ffmpeg.on('log', ({ message }) => {

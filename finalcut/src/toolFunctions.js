@@ -1,4 +1,4 @@
-import { ffmpeg, loadFFmpeg } from './ffmpeg.js';
+import { ffmpeg as defaultFFmpeg, loadFFmpeg } from './ffmpeg.js';
 
 // Aspect ratio presets for social media platforms
 const ASPECT_RATIO_PRESETS = {
@@ -10,7 +10,7 @@ const ASPECT_RATIO_PRESETS = {
 };
 
 export const toolFunctions = {
-  resize_video: async (args, videoFileData, setVideoFileData, addMessage) => {
+  resize_video: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       // Validate inputs
       if (args.width === null || args.width === undefined || args.height === null || args.height === undefined) {
@@ -20,7 +20,6 @@ export const toolFunctions = {
         throw new Error('Width and height must be positive numbers');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `scale=${args.width}:${args.height}`, '-c:a', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
@@ -32,7 +31,7 @@ export const toolFunctions = {
       return 'Failed to resize video: ' + error.message;
     }
   },
-  crop_video: async (args, videoFileData, setVideoFileData, addMessage) => {
+  crop_video: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       // Validate inputs - use strict equality to allow 0 values
       if (args.x === null || args.x === undefined || args.y === null || args.y === undefined || args.width === null || args.width === undefined || args.height === null || args.height === undefined) {
@@ -42,7 +41,6 @@ export const toolFunctions = {
         throw new Error('Crop dimensions must be valid positive numbers');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `crop=${args.width}:${args.height}:${args.x}:${args.y}`, '-c:a', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
@@ -54,14 +52,13 @@ export const toolFunctions = {
       return 'Failed to crop video: ' + error.message;
     }
   },
-  rotate_video: async (args, videoFileData, setVideoFileData, addMessage) => {
+  rotate_video: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       // Validate inputs
       if (args.angle === null || args.angle === undefined) {
         throw new Error('Angle is required for rotation');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `rotate=${args.angle}*PI/180`, '-c:a', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
@@ -73,14 +70,13 @@ export const toolFunctions = {
       return 'Failed to rotate video: ' + error.message;
     }
   },
-  add_text: async (args, videoFileData, setVideoFileData, addMessage) => {
+  add_text: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       // Validate inputs - explicitly reject empty strings along with null/undefined
       if (typeof args.text !== 'string' || args.text === '') {
         throw new Error('Text is required and cannot be empty');
       }
       debugger;
-      await loadFFmpeg();
       // Escape special characters in text to prevent injection
       // Replace single quotes with escaped version and handle other special chars
       const escapedText = args.text
@@ -103,14 +99,13 @@ export const toolFunctions = {
       return 'Failed to add text to video: ' + error.message;
     }
   },
-  trim_video: async (args, videoFileData, setVideoFileData, addMessage) => {
+  trim_video: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       // Validate inputs - use strict equality to allow 0 as a valid start time
       if (args.start === null || args.start === undefined || args.end === null || args.end === undefined) {
         throw new Error('Start and end times are required for trimming');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-ss', args.start, '-to', args.end, '-c', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
@@ -122,14 +117,12 @@ export const toolFunctions = {
       return 'Failed to trim video: ' + error.message;
     }
   },
-  adjust_speed: async (args, videoFileData, setVideoFileData, addMessage) => {
+  adjust_speed: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       // Validate inputs
       if (args.speed === null || args.speed === undefined || args.speed <= 0) {
         throw new Error('Speed must be a positive number');
       }
-
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
 
       // atempo filter only supports values between 0.5 and 2.0
@@ -175,7 +168,7 @@ export const toolFunctions = {
       return 'Failed to adjust video speed: ' + error.message;
     }
   },
-  add_audio_track: async (args, videoFileData, setVideoFileData, addMessage) => {
+  add_audio_track: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       // Validate inputs
       if (!args.audioFile || args.audioFile === '') {
@@ -195,7 +188,6 @@ export const toolFunctions = {
         throw new Error('Volume must be between 0.0 and 2.0');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
 
       // Handle both base64 strings and Uint8Array audio data
@@ -250,7 +242,7 @@ export const toolFunctions = {
       return 'Failed to add audio track: ' + error.message;
     }
   },
-  adjust_audio_volume: async (args, videoFileData, setVideoFileData, addMessage) => {
+  adjust_audio_volume: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.volume === null || args.volume === undefined) {
         throw new Error('Volume is required');
@@ -259,7 +251,6 @@ export const toolFunctions = {
         throw new Error('Volume must be between 0 and 10');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `volume=${args.volume}`, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
@@ -271,7 +262,7 @@ export const toolFunctions = {
       return 'Failed to adjust audio volume: ' + error.message;
     }
   },
-  audio_fade: async (args, videoFileData, setVideoFileData, addMessage) => {
+  audio_fade: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (!args.type || (args.type !== 'in' && args.type !== 'out')) {
         throw new Error('Type must be either "in" or "out"');
@@ -280,7 +271,6 @@ export const toolFunctions = {
         throw new Error('Duration must be a positive number');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       const fadeFilter = args.type === 'in'
         ? `afade=t=in:st=0:d=${args.duration}`
@@ -295,13 +285,12 @@ export const toolFunctions = {
       return 'Failed to apply audio fade: ' + error.message;
     }
   },
-  audio_highpass: async (args, videoFileData, setVideoFileData, addMessage) => {
+  audio_highpass: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.frequency === null || args.frequency === undefined || args.frequency <= 0) {
         throw new Error('Frequency must be a positive number');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `highpass=f=${args.frequency}`, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
@@ -313,13 +302,12 @@ export const toolFunctions = {
       return 'Failed to apply highpass filter: ' + error.message;
     }
   },
-  audio_lowpass: async (args, videoFileData, setVideoFileData, addMessage) => {
+  audio_lowpass: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.frequency === null || args.frequency === undefined || args.frequency <= 0) {
         throw new Error('Frequency must be a positive number');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `lowpass=f=${args.frequency}`, '-c:v', 'copy', 'output.mp4']);
       const data = await ffmpeg.readFile('output.mp4');
@@ -331,7 +319,7 @@ export const toolFunctions = {
       return 'Failed to apply lowpass filter: ' + error.message;
     }
   },
-  audio_echo: async (args, videoFileData, setVideoFileData, addMessage) => {
+  audio_echo: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.delay === null || args.delay === undefined || args.delay <= 0) {
         throw new Error('Delay must be a positive number');
@@ -340,7 +328,6 @@ export const toolFunctions = {
         throw new Error('Decay must be between 0 and 1');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // aecho filter: in_gain:out_gain:delays:decays
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `aecho=1.0:0.7:${args.delay}:${args.decay}`, '-c:v', 'copy', 'output.mp4']);
@@ -353,7 +340,7 @@ export const toolFunctions = {
       return 'Failed to apply echo effect: ' + error.message;
     }
   },
-  adjust_bass: async (args, videoFileData, setVideoFileData, addMessage) => {
+  adjust_bass: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.gain === null || args.gain === undefined) {
         throw new Error('Gain is required');
@@ -362,7 +349,6 @@ export const toolFunctions = {
         throw new Error('Gain must be between -20 and 20 dB');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // bass filter adjusts frequencies around 100 Hz
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `bass=g=${args.gain}`, '-c:v', 'copy', 'output.mp4']);
@@ -375,7 +361,7 @@ export const toolFunctions = {
       return 'Failed to adjust bass: ' + error.message;
     }
   },
-  adjust_treble: async (args, videoFileData, setVideoFileData, addMessage) => {
+  adjust_treble: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.gain === null || args.gain === undefined) {
         throw new Error('Gain is required');
@@ -384,7 +370,6 @@ export const toolFunctions = {
         throw new Error('Gain must be between -20 and 20 dB');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // treble filter adjusts frequencies around 3000 Hz
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `treble=g=${args.gain}`, '-c:v', 'copy', 'output.mp4']);
@@ -397,7 +382,7 @@ export const toolFunctions = {
       return 'Failed to adjust treble: ' + error.message;
     }
   },
-  audio_equalizer: async (args, videoFileData, setVideoFileData, addMessage) => {
+  audio_equalizer: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.frequency === null || args.frequency === undefined || args.frequency <= 0) {
         throw new Error('Frequency must be a positive number');
@@ -410,7 +395,6 @@ export const toolFunctions = {
       }
       const width = args.width || 200;
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // equalizer filter: frequency=f:width_type=h:width=w:gain=g
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `equalizer=f=${args.frequency}:width_type=h:width=${width}:g=${args.gain}`, '-c:v', 'copy', 'output.mp4']);
@@ -423,7 +407,7 @@ export const toolFunctions = {
       return 'Failed to apply equalizer: ' + error.message;
     }
   },
-  normalize_audio: async (args, videoFileData, setVideoFileData, addMessage) => {
+  normalize_audio: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.target === null || args.target === undefined) {
         throw new Error('Target loudness is required');
@@ -432,7 +416,6 @@ export const toolFunctions = {
         throw new Error('Target must be between -70 and -5 LUFS');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // loudnorm filter normalizes audio loudness
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `loudnorm=I=${args.target}:TP=-1.5:LRA=11`, '-c:v', 'copy', 'output.mp4']);
@@ -445,7 +428,7 @@ export const toolFunctions = {
       return 'Failed to normalize audio: ' + error.message;
     }
   },
-  audio_delay: async (args, videoFileData, setVideoFileData, addMessage) => {
+  audio_delay: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.delay === null || args.delay === undefined) {
         throw new Error('Delay is required');
@@ -454,7 +437,6 @@ export const toolFunctions = {
         throw new Error('Delay must be non-negative');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // adelay filter delays audio by milliseconds
       await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `adelay=${args.delay}|${args.delay}`, '-c:v', 'copy', 'output.mp4']);
@@ -467,7 +449,7 @@ export const toolFunctions = {
       return 'Failed to delay audio: ' + error.message;
     }
   },
-  resize_video_preset: async (args, videoFileData, setVideoFileData, addMessage) => {
+  resize_video_preset: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       // Validate preset parameter
       if (!args.preset) {
@@ -479,7 +461,6 @@ export const toolFunctions = {
         throw new Error(`Invalid preset. Available presets: ${Object.keys(ASPECT_RATIO_PRESETS).join(', ')}`);
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
 
       // Scale video to fit preset dimensions while maintaining aspect ratio,
@@ -504,7 +485,7 @@ export const toolFunctions = {
       return 'Failed to resize video to preset: ' + error.message;
     }
   },
-  adjust_brightness: async (args, videoFileData, setVideoFileData, addMessage) => {
+  adjust_brightness: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.brightness === null || args.brightness === undefined) {
         throw new Error('Brightness is required');
@@ -513,7 +494,6 @@ export const toolFunctions = {
         throw new Error('Brightness must be between -1.0 and 1.0');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // eq filter's brightness parameter: -1.0 (very dark) to 1.0 (very bright), 0 is no change
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `eq=brightness=${args.brightness}`, '-c:a', 'copy', 'output.mp4']);
@@ -526,7 +506,7 @@ export const toolFunctions = {
       return 'Failed to adjust brightness: ' + error.message;
     }
   },
-  adjust_hue: async (args, videoFileData, setVideoFileData, addMessage) => {
+  adjust_hue: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.degrees === null || args.degrees === undefined) {
         throw new Error('Degrees is required');
@@ -535,7 +515,6 @@ export const toolFunctions = {
         throw new Error('Degrees must be between -360 and 360');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // hue filter's h parameter accepts degrees
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `hue=h=${args.degrees}`, '-c:a', 'copy', 'output.mp4']);
@@ -548,7 +527,7 @@ export const toolFunctions = {
       return 'Failed to adjust hue: ' + error.message;
     }
   },
-  adjust_saturation: async (args, videoFileData, setVideoFileData, addMessage) => {
+  adjust_saturation: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.saturation === null || args.saturation === undefined) {
         throw new Error('Saturation is required');
@@ -557,7 +536,6 @@ export const toolFunctions = {
         throw new Error('Saturation must be between 0 and 3');
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
       // eq filter's saturation parameter: 0 (grayscale) to 3 (very saturated), 1 is no change
       await ffmpeg.exec(['-i', 'input.mp4', '-vf', `eq=saturation=${args.saturation}`, '-c:a', 'copy', 'output.mp4']);
@@ -570,9 +548,8 @@ export const toolFunctions = {
       return 'Failed to adjust saturation: ' + error.message;
     }
   },
-  get_video_dimensions: async (args, videoFileData, setVideoFileData, addMessage) => {
+  get_video_dimensions: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
-      await loadFFmpeg();
       await ffmpeg.writeFile('input.mp4', videoFileData);
 
       // Helper function to calculate file size
@@ -650,7 +627,7 @@ export const toolFunctions = {
       return result;
     }
   },
-  convert_video_format: async (args, videoFileData, setVideoFileData, addMessage) => {
+  convert_video_format: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (!args.format) {
         throw new Error('Target format is required');
@@ -663,7 +640,6 @@ export const toolFunctions = {
         throw new Error(`Unsupported format. Supported formats: ${validFormats.join(', ')}`);
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input', videoFileData);
 
       // Set codec based on format or use user-specified codec
@@ -706,7 +682,7 @@ export const toolFunctions = {
       return 'Failed to convert video format: ' + error.message;
     }
   },
-  convert_audio_format: async (args, videoFileData, setVideoFileData, addMessage) => {
+  convert_audio_format: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (!args.format) {
         throw new Error('Target format is required');
@@ -721,7 +697,6 @@ export const toolFunctions = {
 
       const bitrate = args.bitrate || '192k';
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input', videoFileData);
 
       // Build codec arguments based on format
@@ -763,7 +738,7 @@ export const toolFunctions = {
       return 'Failed to convert audio format: ' + error.message;
     }
   },
-  extract_audio: async (args, videoFileData, setVideoFileData, addMessage) => {
+  extract_audio: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       const format = args.format || 'mp3';
       const bitrate = args.bitrate || '192k';
@@ -774,7 +749,6 @@ export const toolFunctions = {
         throw new Error(`Unsupported format. Supported formats: ${validFormats.join(', ')}`);
       }
 
-      await loadFFmpeg();
       await ffmpeg.writeFile('input', videoFileData);
 
       // Build codec arguments based on format
