@@ -28,7 +28,11 @@ describe('toolFunctions', () => {
     // Mock successful server response by default
     global.fetch.mockResolvedValue({
       ok: true,
-      arrayBuffer: async () => new ArrayBuffer(8)
+      arrayBuffer: async () => new ArrayBuffer(8),
+      json: async () => ({
+        format: { duration: 10, size: 1024 * 1024 },
+        streams: [{ codec_type: 'video', width: 1920, height: 1080, codec_name: 'h264', r_frame_rate: '30/1' }]
+      })
     });
   });
 

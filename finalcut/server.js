@@ -103,8 +103,20 @@ app.post('/api/process-video', upload.single('video'), async (req, res) => {
     await fs.writeFile(inputPath, req.file.buffer);
     
     // Process video based on operation
-    await new Promise((resolve, reject) => {
+    const result = await new Promise((resolve, reject) => {
       let command = ffmpeg(inputPath);
+      
+      // Special handling for get_video_info
+      if (operation === 'get_video_info') {
+        ffmpeg.ffprobe(inputPath, (err, metadata) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve({ metadata, isMetadata: true });
+          }
+        });
+        return;
+      }
       
       switch (operation) {
         case 'resize_video':
@@ -137,7 +149,38 @@ app.post('/api/process-video', upload.single('video'), async (req, res) => {
           break;
           
         case 'speed_video':
-          const audioFilter = parsedArgs.speed > 1 ? `atempo=${Math.min(parsedArgs.speed, 2)}` : `atempo=${Math.max(parsedArgs.speed, 0.5)}`;
+          // atempo filter only supports values between 0.5 and 2.0
+          // For values outside this range, we need to chain multiple atempo filters
+          let audioFilter = '';
+          let speed = parsedArgs.speed;
+
+          if (speed >= 0.5 && speed <= 2.0) {
+            audioFilter = `atempo=${speed}`;
+          } else if (speed < 0.5) {
+            // Chain atempo filters for slow speeds
+            let remainingSpeed = speed;
+            const filters = [];
+            while (remainingSpeed < 0.5) {
+              filters.push('atempo=0.5');
+              remainingSpeed *= 2;
+            }
+            if (remainingSpeed !== 1.0) {
+              filters.push(`atempo=${remainingSpeed}`);
+            }
+            audioFilter = filters.join(',');
+          } else {
+            // Chain atempo filters for fast speeds
+            let remainingSpeed = speed;
+            const filters = [];
+            while (remainingSpeed > 2.0) {
+              filters.push('atempo=2.0');
+              remainingSpeed /= 2;
+            }
+            if (remainingSpeed !== 1.0) {
+              filters.push(`atempo=${remainingSpeed}`);
+            }
+            audioFilter = filters.join(',');
+          }
           command = command.videoFilters(`setpts=PTS/${parsedArgs.speed}`).audioFilters(audioFilter);
           break;
           
@@ -201,17 +244,6 @@ app.post('/api/process-video', upload.single('video'), async (req, res) => {
           command = command.videoFilters(`eq=saturation=${parsedArgs.saturation}`).audioCodec('copy');
           break;
           
-        case 'get_video_info':
-          // Get metadata
-          ffmpeg.ffprobe(inputPath, (err, metadata) => {
-            if (err) {
-              reject(err);
-            } else {
-              resolve({ metadata });
-            }
-          });
-          return;
-          
         default:
           reject(new Error(`Unknown operation: ${operation}`));
           return;
@@ -223,6 +255,16 @@ app.post('/api/process-video', upload.single('video'), async (req, res) => {
         .on('error', (err) => reject(err))
         .run();
     });
+    
+    // Handle metadata response
+    if (result && result.isMetadata) {
+      // Clean up input file
+      await fs.unlink(inputPath);
+      
+      // Send metadata as JSON
+      res.json(result.metadata);
+      return;
+    }
     
     // Read the processed video
     const processedVideo = await fs.readFile(outputPath);
