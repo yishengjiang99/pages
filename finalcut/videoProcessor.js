@@ -2,6 +2,7 @@ import ffmpeg from 'fluent-ffmpeg';
 import fs from 'fs';
 import path from 'path';
 import { promisify } from 'util';
+import crypto from 'crypto';
 
 const unlinkAsync = promisify(fs.unlink);
 const mkdirAsync = promisify(fs.mkdir);
@@ -14,7 +15,8 @@ if (!fs.existsSync(TEMP_DIR)) {
 
 // Helper to generate unique filenames
 function generateTempFilename(extension = 'mp4') {
-  return path.join(TEMP_DIR, `${Date.now()}-${Math.random().toString(36).substring(7)}.${extension}`);
+  const randomBytes = crypto.randomBytes(16).toString('hex');
+  return path.join(TEMP_DIR, `${Date.now()}-${randomBytes}.${extension}`);
 }
 
 // Helper to clean up temp files
@@ -330,12 +332,21 @@ export const videoProcessors = {
           return;
         }
         
+        // Parse frame rate safely (e.g., "30/1" -> 30, "24000/1001" -> 23.976)
+        let frameRate = 0;
+        if (videoStream.r_frame_rate) {
+          const [numerator, denominator] = videoStream.r_frame_rate.split('/').map(Number);
+          if (numerator && denominator) {
+            frameRate = numerator / denominator;
+          }
+        }
+        
         resolve({
           width: videoStream.width,
           height: videoStream.height,
           duration: metadata.format.duration,
           codec: videoStream.codec_name,
-          frameRate: eval(videoStream.r_frame_rate) // Convert "30/1" to 30
+          frameRate: frameRate
         });
       });
     });
