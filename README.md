@@ -1,2 +1,1 @@
-# pages
-vibe coded pages
+experiments in javascript
