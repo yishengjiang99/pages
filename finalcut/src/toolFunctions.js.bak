@@ -103,14 +103,17 @@ export const toolFunctions = {
       return 'Failed to add text to video: ' + error.message;
     }
   },
-  trim_video: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  trim_video: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       // Validate inputs - use strict equality to allow 0 as a valid start time
       if (args.start === null || args.start === undefined || args.end === null || args.end === undefined) {
         throw new Error('Start and end times are required for trimming');
       }
 
-      const { videoUrl } = await processVideoOnServer('trim_video', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      await ffmpeg.exec(['-i', 'input.mp4', '-ss', args.start, '-to', args.end, '-c', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (trimmed):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video trimmed successfully.';
     } catch (error) {
@@ -118,14 +121,50 @@ export const toolFunctions = {
       return 'Failed to trim video: ' + error.message;
     }
   },
-  adjust_speed: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  adjust_speed: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       // Validate inputs
       if (args.speed === null || args.speed === undefined || args.speed <= 0) {
         throw new Error('Speed must be a positive number');
       }
+      await ffmpeg.writeFile('input.mp4', videoFileData);
 
-      const { videoUrl } = await processVideoOnServer('adjust_speed', args, videoFileData, addMessage);
+      // atempo filter only supports values between 0.5 and 2.0
+      // For values outside this range, we need to chain multiple atempo filters
+      let audioFilter = '';
+      let speed = args.speed;
+
+      if (speed >= 0.5 && speed <= 2.0) {
+        audioFilter = `atempo=${speed}`;
+      } else if (speed < 0.5) {
+        // Chain atempo filters for slow speeds
+        let remainingSpeed = speed;
+        const filters = [];
+        while (remainingSpeed < 0.5) {
+          filters.push('atempo=0.5');
+          remainingSpeed *= 2;
+        }
+        if (remainingSpeed !== 1.0) {
+          filters.push(`atempo=${remainingSpeed}`);
+        }
+        audioFilter = filters.join(',');
+      } else {
+        // Chain atempo filters for fast speeds
+        let remainingSpeed = speed;
+        const filters = [];
+        while (remainingSpeed > 2.0) {
+          filters.push('atempo=2.0');
+          remainingSpeed /= 2;
+        }
+        if (remainingSpeed !== 1.0) {
+          filters.push(`atempo=${remainingSpeed}`);
+        }
+        audioFilter = filters.join(',');
+      }
+
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:v', `setpts=PTS/${args.speed}`, '-filter:a', audioFilter, 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (speed adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video speed adjusted successfully.';
     } catch (error) {
@@ -133,7 +172,7 @@ export const toolFunctions = {
       return 'Failed to adjust video speed: ' + error.message;
     }
   },
-  add_audio_track: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  add_audio_track: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       // Validate inputs
       if (!args.audioFile || args.audioFile === '') {
@@ -153,7 +192,53 @@ export const toolFunctions = {
         throw new Error('Volume must be between 0.0 and 2.0');
       }
 
-      const { videoUrl } = await processVideoOnServer('add_audio_track', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+
+      // Handle both base64 strings and Uint8Array audio data
+      let audioData;
+      if (typeof args.audioFile === 'string') {
+        // If it's a base64 string, decode it
+        const base64Data = args.audioFile.split(',')[1] || args.audioFile;
+        const binaryString = atob(base64Data);
+        audioData = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          audioData[i] = binaryString.charCodeAt(i);
+        }
+      } else if (args.audioFile instanceof Uint8Array) {
+        audioData = args.audioFile;
+      } else {
+        throw new Error('Audio file must be a base64 string or Uint8Array');
+      }
+
+      await ffmpeg.writeFile('audio.mp3', audioData);
+
+      // Build FFmpeg command based on mode
+      if (mode === 'replace') {
+        // Replace audio: use video from first input, audio from second input
+        await ffmpeg.exec([
+          '-i', 'input.mp4',
+          '-i', 'audio.mp3',
+          '-map', '0:v',
+          '-map', '1:a',
+          '-filter:a', `volume=${volume}`,
+          '-c:v', 'copy',
+          '-shortest',
+          'output.mp4'
+        ]);
+      } else {
+        // Mix audio: combine both audio tracks
+        await ffmpeg.exec([
+          '-i', 'input.mp4',
+          '-i', 'audio.mp3',
+          '-filter_complex', `[0:a]volume=1.0[a0];[1:a]volume=${volume}[a1];[a0][a1]amix=inputs=2:duration=shortest`,
+          '-map', '0:v',
+          '-c:v', 'copy',
+          'output.mp4'
+        ]);
+      }
+
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage(`Processed video (audio track ${mode === 'replace' ? 'replaced' : 'mixed'}):`, false, videoUrl, 'processed', 'video/mp4');
       return `Audio track ${mode === 'replace' ? 'replaced' : 'mixed'} successfully.`;
     } catch (error) {
@@ -161,7 +246,7 @@ export const toolFunctions = {
       return 'Failed to add audio track: ' + error.message;
     }
   },
-  adjust_audio_volume: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  adjust_audio_volume: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.volume === null || args.volume === undefined) {
         throw new Error('Volume is required');
@@ -170,7 +255,10 @@ export const toolFunctions = {
         throw new Error('Volume must be between 0 and 10');
       }
 
-      const { videoUrl } = await processVideoOnServer('adjust_audio_volume', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `volume=${args.volume}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (audio volume adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Audio volume adjusted successfully.';
     } catch (error) {
@@ -178,7 +266,7 @@ export const toolFunctions = {
       return 'Failed to adjust audio volume: ' + error.message;
     }
   },
-  audio_fade: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  audio_fade: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (!args.type || (args.type !== 'in' && args.type !== 'out')) {
         throw new Error('Type must be either "in" or "out"');
@@ -187,7 +275,13 @@ export const toolFunctions = {
         throw new Error('Duration must be a positive number');
       }
 
-      const { videoUrl } = await processVideoOnServer('audio_fade', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      const fadeFilter = args.type === 'in'
+        ? `afade=t=in:st=0:d=${args.duration}`
+        : `afade=t=out:st=0:d=${args.duration}`;
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', fadeFilter, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage(`Processed video (audio fade ${args.type} applied):`, false, videoUrl, 'processed', 'video/mp4');
       return `Audio fade ${args.type} applied successfully.`;
     } catch (error) {
@@ -195,13 +289,16 @@ export const toolFunctions = {
       return 'Failed to apply audio fade: ' + error.message;
     }
   },
-  audio_highpass: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  audio_highpass: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.frequency === null || args.frequency === undefined || args.frequency <= 0) {
         throw new Error('Frequency must be a positive number');
       }
 
-      const { videoUrl } = await processVideoOnServer('audio_highpass', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `highpass=f=${args.frequency}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (highpass filter applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Highpass filter applied successfully.';
     } catch (error) {
@@ -209,13 +306,16 @@ export const toolFunctions = {
       return 'Failed to apply highpass filter: ' + error.message;
     }
   },
-  audio_lowpass: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  audio_lowpass: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.frequency === null || args.frequency === undefined || args.frequency <= 0) {
         throw new Error('Frequency must be a positive number');
       }
 
-      const { videoUrl } = await processVideoOnServer('audio_lowpass', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `lowpass=f=${args.frequency}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (lowpass filter applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Lowpass filter applied successfully.';
     } catch (error) {
@@ -223,7 +323,7 @@ export const toolFunctions = {
       return 'Failed to apply lowpass filter: ' + error.message;
     }
   },
-  audio_echo: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  audio_echo: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.delay === null || args.delay === undefined || args.delay <= 0) {
         throw new Error('Delay must be a positive number');
@@ -232,7 +332,11 @@ export const toolFunctions = {
         throw new Error('Decay must be between 0 and 1');
       }
 
-      const { videoUrl } = await processVideoOnServer('audio_echo', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // aecho filter: in_gain:out_gain:delays:decays
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `aecho=1.0:0.7:${args.delay}:${args.decay}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (echo effect applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Echo effect applied successfully.';
     } catch (error) {
@@ -240,7 +344,7 @@ export const toolFunctions = {
       return 'Failed to apply echo effect: ' + error.message;
     }
   },
-  adjust_bass: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  adjust_bass: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.gain === null || args.gain === undefined) {
         throw new Error('Gain is required');
@@ -249,7 +353,11 @@ export const toolFunctions = {
         throw new Error('Gain must be between -20 and 20 dB');
       }
 
-      const { videoUrl } = await processVideoOnServer('adjust_bass', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // bass filter adjusts frequencies around 100 Hz
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `bass=g=${args.gain}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (bass adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Bass adjusted successfully.';
     } catch (error) {
@@ -257,7 +365,7 @@ export const toolFunctions = {
       return 'Failed to adjust bass: ' + error.message;
     }
   },
-  adjust_treble: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  adjust_treble: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.gain === null || args.gain === undefined) {
         throw new Error('Gain is required');
@@ -266,7 +374,11 @@ export const toolFunctions = {
         throw new Error('Gain must be between -20 and 20 dB');
       }
 
-      const { videoUrl } = await processVideoOnServer('adjust_treble', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // treble filter adjusts frequencies around 3000 Hz
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `treble=g=${args.gain}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (treble adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Treble adjusted successfully.';
     } catch (error) {
@@ -274,7 +386,7 @@ export const toolFunctions = {
       return 'Failed to adjust treble: ' + error.message;
     }
   },
-  audio_equalizer: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  audio_equalizer: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.frequency === null || args.frequency === undefined || args.frequency <= 0) {
         throw new Error('Frequency must be a positive number');
@@ -285,8 +397,13 @@ export const toolFunctions = {
       if (args.gain < -20 || args.gain > 20) {
         throw new Error('Gain must be between -20 and 20 dB');
       }
+      const width = args.width || 200;
 
-      const { videoUrl } = await processVideoOnServer('audio_equalizer', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // equalizer filter: frequency=f:width_type=h:width=w:gain=g
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `equalizer=f=${args.frequency}:width_type=h:width=${width}:g=${args.gain}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (equalizer applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Equalizer applied successfully.';
     } catch (error) {
@@ -294,7 +411,7 @@ export const toolFunctions = {
       return 'Failed to apply equalizer: ' + error.message;
     }
   },
-  normalize_audio: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  normalize_audio: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.target === null || args.target === undefined) {
         throw new Error('Target loudness is required');
@@ -303,7 +420,11 @@ export const toolFunctions = {
         throw new Error('Target must be between -70 and -5 LUFS');
       }
 
-      const { videoUrl } = await processVideoOnServer('normalize_audio', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // loudnorm filter normalizes audio loudness
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `loudnorm=I=${args.target}:TP=-1.5:LRA=11`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (audio normalized):', false, videoUrl, 'processed', 'video/mp4');
       return 'Audio normalized successfully.';
     } catch (error) {
@@ -311,7 +432,7 @@ export const toolFunctions = {
       return 'Failed to normalize audio: ' + error.message;
     }
   },
-  audio_delay: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  audio_delay: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.delay === null || args.delay === undefined) {
         throw new Error('Delay is required');
@@ -320,7 +441,11 @@ export const toolFunctions = {
         throw new Error('Delay must be non-negative');
       }
 
-      const { videoUrl } = await processVideoOnServer('audio_delay', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // adelay filter delays audio by milliseconds
+      await ffmpeg.exec(['-i', 'input.mp4', '-filter:a', `adelay=${args.delay}|${args.delay}`, '-c:v', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (audio delayed):', false, videoUrl, 'processed', 'video/mp4');
       return 'Audio delayed successfully.';
     } catch (error) {
@@ -328,7 +453,7 @@ export const toolFunctions = {
       return 'Failed to delay audio: ' + error.message;
     }
   },
-  resize_video_preset: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  resize_video_preset: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       // Validate preset parameter
       if (!args.preset) {
@@ -340,7 +465,23 @@ export const toolFunctions = {
         throw new Error(`Invalid preset. Available presets: ${Object.keys(ASPECT_RATIO_PRESETS).join(', ')}`);
       }
 
-      const { videoUrl } = await processVideoOnServer('resize_video_preset', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+
+      // Scale video to fit preset dimensions while maintaining aspect ratio,
+      // then pad with black bars if needed to reach exact dimensions
+      const scaleFilter = `scale=${preset.width}:${preset.height}:force_original_aspect_ratio=decrease`;
+      const padFilter = `pad=${preset.width}:${preset.height}:(ow-iw)/2:(oh-ih)/2`;
+      const videoFilter = `${scaleFilter},${padFilter}`;
+
+      await ffmpeg.exec([
+        '-i', 'input.mp4',
+        '-vf', videoFilter,
+        '-c:a', 'copy',
+        'output.mp4'
+      ]);
+
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage(`Processed video (resized to ${args.preset} - ${preset.description}):`, false, videoUrl, 'processed', 'video/mp4');
       return `Video resized to ${args.preset} aspect ratio successfully.`;
     } catch (error) {
@@ -348,7 +489,7 @@ export const toolFunctions = {
       return 'Failed to resize video to preset: ' + error.message;
     }
   },
-  adjust_brightness: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  adjust_brightness: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.brightness === null || args.brightness === undefined) {
         throw new Error('Brightness is required');
@@ -357,7 +498,11 @@ export const toolFunctions = {
         throw new Error('Brightness must be between -1.0 and 1.0');
       }
 
-      const { videoUrl } = await processVideoOnServer('adjust_brightness', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // eq filter's brightness parameter: -1.0 (very dark) to 1.0 (very bright), 0 is no change
+      await ffmpeg.exec(['-i', 'input.mp4', '-vf', `eq=brightness=${args.brightness}`, '-c:a', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (brightness adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Brightness adjusted successfully.';
     } catch (error) {
@@ -365,7 +510,7 @@ export const toolFunctions = {
       return 'Failed to adjust brightness: ' + error.message;
     }
   },
-  adjust_hue: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  adjust_hue: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.degrees === null || args.degrees === undefined) {
         throw new Error('Degrees is required');
@@ -374,7 +519,11 @@ export const toolFunctions = {
         throw new Error('Degrees must be between -360 and 360');
       }
 
-      const { videoUrl } = await processVideoOnServer('adjust_hue', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // hue filter's h parameter accepts degrees
+      await ffmpeg.exec(['-i', 'input.mp4', '-vf', `hue=h=${args.degrees}`, '-c:a', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (hue adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Hue adjusted successfully.';
     } catch (error) {
@@ -382,7 +531,7 @@ export const toolFunctions = {
       return 'Failed to adjust hue: ' + error.message;
     }
   },
-  adjust_saturation: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  adjust_saturation: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (args.saturation === null || args.saturation === undefined) {
         throw new Error('Saturation is required');
@@ -391,7 +540,11 @@ export const toolFunctions = {
         throw new Error('Saturation must be between 0 and 3');
       }
 
-      const { videoUrl } = await processVideoOnServer('adjust_saturation', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input.mp4', videoFileData);
+      // eq filter's saturation parameter: 0 (grayscale) to 3 (very saturated), 1 is no change
+      await ffmpeg.exec(['-i', 'input.mp4', '-vf', `eq=saturation=${args.saturation}`, '-c:a', 'copy', 'output.mp4']);
+      const data = await ffmpeg.readFile('output.mp4');
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (saturation adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Saturation adjusted successfully.';
     } catch (error) {
@@ -399,53 +552,86 @@ export const toolFunctions = {
       return 'Failed to adjust saturation: ' + error.message;
     }
   },
-  get_video_dimensions: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  get_video_dimensions: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
-      const formData = new FormData();
-      const blob = new Blob([videoFileData], { type: 'video/mp4' });
-      formData.append('video', blob, 'input.mp4');
+      await ffmpeg.writeFile('input.mp4', videoFileData);
 
-      const response = await fetch('/api/video-info', {
-        method: 'POST',
-        body: formData
-      });
+      // Helper function to calculate file size
+      const getFileSizeMB = () => (videoFileData.length / (1024 * 1024)).toFixed(2);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to get video info');
+      // Create a promise to capture ffmpeg logs
+      let logOutput = '';
+      const logHandler = ({ message }) => {
+        logOutput += message + '\n';
+      };
+
+      // Add temporary log listener
+      ffmpeg.on('log', logHandler);
+
+      try {
+        // Use -f null to extract metadata without creating output file
+        // This is more reliable than intentionally failing the command
+        await ffmpeg.exec(['-i', 'input.mp4', '-f', 'null', '-']);
+      } catch (e) {
+        // Even with -f null, might produce some errors but logs are captured
       }
 
-      const info = await response.json();
-      
+      // Remove the temporary log listener
+      ffmpeg.off('log', logHandler);
+
+      // Parse the log output to extract video information
+      // More robust patterns to handle different FFmpeg output formats
+      const streamMatch = logOutput.match(/Stream #\d+:\d+.*Video:\s*([a-zA-Z0-9_-]+).*?(\d+)x(\d+)/);
+      const durationMatch = logOutput.match(/Duration:\s*(\d{2}):(\d{2}):(\d{2}\.\d{2})/);
+      const fpsMatch = logOutput.match(/(\d+(?:\.\d+)?)\s*(?:fps|tb\(r\))/);
+      const bitrateMatch = logOutput.match(/bitrate:\s*(\d+)\s*kb\/s/);
+
       let result = 'Video Information:\n';
-      if (info.width && info.height) {
-        result += `Resolution: ${info.width}x${info.height}\n`;
+
+      if (streamMatch) {
+        const codec = streamMatch[1];
+        const width = streamMatch[2];
+        const height = streamMatch[3];
+        result += `Resolution: ${width}x${height}\n`;
+        result += `Video Codec: ${codec}\n`;
       }
-      if (info.codec) {
-        result += `Video Codec: ${info.codec}\n`;
+
+      if (durationMatch) {
+        const hours = durationMatch[1];
+        const minutes = durationMatch[2];
+        const seconds = durationMatch[3];
+        result += `Duration: ${hours}:${minutes}:${seconds}\n`;
       }
-      if (info.duration) {
-        result += `Duration: ${info.duration}\n`;
+
+      if (fpsMatch) {
+        result += `Frame Rate: ${fpsMatch[1]} fps\n`;
       }
-      if (info.fps) {
-        result += `Frame Rate: ${info.fps} fps\n`;
+
+      if (bitrateMatch) {
+        result += `Bitrate: ${bitrateMatch[1]} kb/s\n`;
       }
-      if (info.bitrate) {
-        result += `Bitrate: ${info.bitrate} kb/s\n`;
-      }
-      const fileSizeMB = (videoFileData.length / (1024 * 1024)).toFixed(2);
+
+      const fileSizeMB = getFileSizeMB();
       result += `File Size: ${fileSizeMB} MB`;
+
+      // If we couldn't parse dimensions, provide basic info
+      if (!streamMatch) {
+        result = `Video file loaded successfully.\n`;
+        result += `File size: ${fileSizeMB} MB\n`;
+        result += `Video is ready for editing. Detailed metadata could not be extracted from logs.`;
+      }
 
       addMessage(result, false);
       return result;
     } catch (error) {
+      // Even if ffmpeg fails, we can still return file size info
       const fileSizeMB = (videoFileData.length / (1024 * 1024)).toFixed(2);
       const result = `Video file loaded (${fileSizeMB} MB). Ready for editing operations.`;
       addMessage(result, false);
       return result;
     }
   },
-  convert_video_format: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  convert_video_format: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (!args.format) {
         throw new Error('Target format is required');
@@ -458,8 +644,31 @@ export const toolFunctions = {
         throw new Error(`Unsupported format. Supported formats: ${validFormats.join(', ')}`);
       }
 
-      const { videoUrl } = await processVideoOnServer('convert_video_format', args, videoFileData, addMessage);
-      
+      await ffmpeg.writeFile('input', videoFileData);
+
+      // Set codec based on format or use user-specified codec
+      let codecArgs = [];
+      if (args.codec && args.codec !== 'auto') {
+        codecArgs = ['-c:v', args.codec];
+      } else {
+        // Auto-select codec based on format
+        if (format === 'webm') {
+          codecArgs = ['-c:v', 'libvpx-vp9', '-c:a', 'libopus'];
+        } else if (format === 'mp4') {
+          codecArgs = ['-c:v', 'libx264', '-c:a', 'aac'];
+        } else if (format === 'ogv') {
+          codecArgs = ['-c:v', 'libtheora', '-c:a', 'libvorbis'];
+        } else {
+          // For other formats, let FFmpeg decide the codec
+          codecArgs = [];
+        }
+      }
+
+      const outputFile = `output.${format}`;
+      await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
+
+      const data = await ffmpeg.readFile(outputFile);
+
       // Determine MIME type for blob
       let mimeType = 'video/mp4';
       if (format === 'webm') mimeType = 'video/webm';
@@ -469,6 +678,7 @@ export const toolFunctions = {
       else if (format === 'mkv') mimeType = 'video/x-matroska';
       else if (format === 'flv') mimeType = 'video/x-flv';
 
+      const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: mimeType }));
       addMessage(`Processed video (converted to ${format.toUpperCase()}):`, false, videoUrl, 'processed', mimeType);
       return `Video converted to ${format.toUpperCase()} successfully.`;
     } catch (error) {
@@ -476,7 +686,7 @@ export const toolFunctions = {
       return 'Failed to convert video format: ' + error.message;
     }
   },
-  convert_audio_format: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  convert_audio_format: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       if (!args.format) {
         throw new Error('Target format is required');
@@ -489,7 +699,31 @@ export const toolFunctions = {
         throw new Error(`Unsupported format. Supported formats: ${validFormats.join(', ')}`);
       }
 
-      const { videoUrl } = await processVideoOnServer('convert_audio_format', args, videoFileData, addMessage);
+      const bitrate = args.bitrate || '192k';
+
+      await ffmpeg.writeFile('input', videoFileData);
+
+      // Build codec arguments based on format
+      let codecArgs = ['-vn']; // -vn = no video
+
+      if (format === 'mp3') {
+        codecArgs.push('-c:a', 'libmp3lame', '-b:a', bitrate);
+      } else if (format === 'wav') {
+        codecArgs.push('-c:a', 'pcm_s16le');
+      } else if (format === 'aac' || format === 'm4a') {
+        codecArgs.push('-c:a', 'aac', '-b:a', bitrate);
+      } else if (format === 'ogg') {
+        codecArgs.push('-c:a', 'libvorbis', '-b:a', bitrate);
+      } else if (format === 'flac') {
+        codecArgs.push('-c:a', 'flac');
+      } else if (format === 'wma') {
+        codecArgs.push('-c:a', 'wmav2', '-b:a', bitrate);
+      }
+
+      const outputFile = `output.${format}`;
+      await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
+
+      const data = await ffmpeg.readFile(outputFile);
 
       // Determine MIME type for blob
       let mimeType = 'audio/mpeg';
@@ -500,23 +734,46 @@ export const toolFunctions = {
       else if (format === 'm4a') mimeType = 'audio/mp4';
       else if (format === 'wma') mimeType = 'audio/x-ms-wma';
 
-      addMessage(`Processed audio (converted to ${format.toUpperCase()}):`, false, videoUrl, 'processed', mimeType);
+      const audioUrl = URL.createObjectURL(new Blob([data.buffer], { type: mimeType }));
+      addMessage(`Processed audio (converted to ${format.toUpperCase()}):`, false, audioUrl, 'processed', mimeType);
       return `Audio converted to ${format.toUpperCase()} successfully.`;
     } catch (error) {
       addMessage('Error converting audio format: ' + error.message, false);
       return 'Failed to convert audio format: ' + error.message;
     }
   },
-  extract_audio: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg) => {
+  extract_audio: async (args, videoFileData, setVideoFileData, addMessage, ffmpeg = defaultFFmpeg) => {
     try {
       const format = args.format || 'mp3';
+      const bitrate = args.bitrate || '192k';
+
       const validFormats = ['mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a'];
 
       if (!validFormats.includes(format)) {
         throw new Error(`Unsupported format. Supported formats: ${validFormats.join(', ')}`);
       }
 
-      const { videoUrl } = await processVideoOnServer('extract_audio', args, videoFileData, addMessage);
+      await ffmpeg.writeFile('input', videoFileData);
+
+      // Build codec arguments based on format
+      let codecArgs = ['-vn']; // -vn = no video (extract audio only)
+
+      if (format === 'mp3') {
+        codecArgs.push('-c:a', 'libmp3lame', '-b:a', bitrate);
+      } else if (format === 'wav') {
+        codecArgs.push('-c:a', 'pcm_s16le');
+      } else if (format === 'aac' || format === 'm4a') {
+        codecArgs.push('-c:a', 'aac', '-b:a', bitrate);
+      } else if (format === 'ogg') {
+        codecArgs.push('-c:a', 'libvorbis', '-b:a', bitrate);
+      } else if (format === 'flac') {
+        codecArgs.push('-c:a', 'flac');
+      }
+
+      const outputFile = `output.${format}`;
+      await ffmpeg.exec(['-i', 'input', ...codecArgs, outputFile]);
+
+      const data = await ffmpeg.readFile(outputFile);
 
       // Determine MIME type for blob
       let mimeType = 'audio/mpeg';
@@ -526,7 +783,8 @@ export const toolFunctions = {
       else if (format === 'flac') mimeType = 'audio/flac';
       else if (format === 'm4a') mimeType = 'audio/mp4';
 
-      addMessage(`Extracted audio (${format.toUpperCase()}):`, false, videoUrl, 'processed', mimeType);
+      const audioUrl = URL.createObjectURL(new Blob([data.buffer], { type: mimeType }));
+      addMessage(`Extracted audio (${format.toUpperCase()}):`, false, audioUrl, 'processed', mimeType);
       return `Audio extracted to ${format.toUpperCase()} successfully.`;
     } catch (error) {
       addMessage('Error extracting audio: ' + error.message, false);
