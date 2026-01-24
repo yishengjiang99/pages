@@ -7,6 +7,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import rateLimit from 'express-rate-limit';
+import Stripe from 'stripe';
 
 dotenv.config();
 
@@ -16,12 +17,22 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 const XAI_API_TOKEN = process.env.XAI_API_TOKEN;
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
+const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
 if (!XAI_API_TOKEN) {
   console.error('ERROR: XAI_API_TOKEN environment variable is not set');
   console.error('Please create a .env file with XAI_API_TOKEN=your_token_here');
   process.exit(1);
 }
+
+if (!STRIPE_SECRET_KEY) {
+  console.warn('WARNING: STRIPE_SECRET_KEY environment variable is not set');
+  console.warn('Stripe payment endpoints will not be available');
+}
+
+// Initialize Stripe only if the secret key is available
+const stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
 
 // Rate limiting for API endpoints
 const apiLimiter = rateLimit({
@@ -306,8 +317,111 @@ app.post('/api/process-video', videoProcessLimiter, upload.single('video'), asyn
   }
 });
 
+// Stripe checkout session creation endpoint
+app.post('/api/create-checkout-session', apiLimiter, async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Stripe is not configured on this server' });
+  }
+
+  try {
+    const { priceId, successUrl, cancelUrl } = req.body;
+
+    if (!priceId || !successUrl || !cancelUrl) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: priceId, successUrl, and cancelUrl are required' 
+      });
+    }
+
+    // Create a Checkout Session
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      mode: 'payment',
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+    });
+
+    res.json({ sessionId: session.id, url: session.url });
+  } catch (error) {
+    console.error('Error creating checkout session:', error);
+    res.status(500).json({ error: error.message || 'Failed to create checkout session' });
+  }
+});
+
+// Stripe webhook endpoint for handling payment events
+// This endpoint needs to be registered in your Stripe dashboard
+app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Stripe is not configured on this server' });
+  }
+
+  const sig = req.headers['stripe-signature'];
+
+  if (!STRIPE_WEBHOOK_SECRET) {
+    console.warn('WARNING: STRIPE_WEBHOOK_SECRET is not set, skipping signature verification');
+    // In development, you might want to process webhooks without verification
+    // In production, this should always be verified
+    return res.status(400).json({ error: 'Webhook secret not configured' });
+  }
+
+  let event;
+
+  try {
+    // Verify the webhook signature
+    event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).json({ error: `Webhook Error: ${err.message}` });
+  }
+
+  // Handle the event
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed':
+        const session = event.data.object;
+        console.log('Payment successful:', session.id);
+        // TODO: Fulfill the order, grant access, etc.
+        // You can access session.customer_email, session.amount_total, etc.
+        break;
+
+      case 'payment_intent.succeeded':
+        const paymentIntent = event.data.object;
+        console.log('PaymentIntent successful:', paymentIntent.id);
+        // TODO: Handle successful payment
+        break;
+
+      case 'payment_intent.payment_failed':
+        const failedPayment = event.data.object;
+        console.log('Payment failed:', failedPayment.id);
+        // TODO: Handle failed payment
+        break;
+
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
+    }
+
+    // Return a response to acknowledge receipt of the event
+    res.json({ received: true });
+  } catch (error) {
+    console.error('Error handling webhook event:', error);
+    res.status(500).json({ error: 'Webhook handler failed' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Proxy server running on http://localhost:${PORT}`);
   console.log('Configuration loaded successfully');
   console.log('FFmpeg video processing endpoint available at /api/process-video');
+  if (stripe) {
+    console.log('Stripe payment endpoints available:');
+    console.log('  - POST /api/create-checkout-session');
+    console.log('  - POST /api/stripe-webhook');
+  } else {
+    console.log('Stripe payment endpoints are disabled (STRIPE_SECRET_KEY not set)');
+  }
 });
