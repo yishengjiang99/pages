@@ -114,9 +114,22 @@ Run tests with Vitest.
 ## Usage
 
 1. Start the server (which serves both the API proxy and handles video processing)
-2. Upload a video file
+2. Upload a video file or use the "Try with Sample Video" button
 3. Describe the edits you want in natural language
 4. The AI will apply the appropriate filters and transformations using server-side FFmpeg
+5. A spinner will display while ffmpeg is processing your video
+
+### Sample Video
+
+The application includes a "Try with Sample Video" feature on the landing page. To use this feature, you need to place a file named `BigBuckBunny.mp4` in the `finalcut/public/` directory.
+
+You can download Big Buck Bunny (a free sample video) from:
+```bash
+cd finalcut/public
+curl -o BigBuckBunny.mp4 "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+```
+
+Alternatively, you can use any MP4 video file and name it `BigBuckBunny.mp4`.
 
 ## Architecture
 
