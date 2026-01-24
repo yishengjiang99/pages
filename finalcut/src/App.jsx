@@ -219,45 +219,45 @@ export default function App() {
 
     return (
       <div style={{ fontFamily: 'Arial, sans-serif', margin: 0, padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#0d1117', overflowY: 'auto' }}>
-        <div style={{ maxWidth: '800px', padding: '40px 20px', color: '#c9d1d9' }}>
-          <h1 style={{ fontSize: '48px', fontWeight: 'bold', marginBottom: '20px', color: '#ffffff', textAlign: 'center' }}>
+        <div style={{ maxWidth: '800px', padding: '30px 20px', color: '#c9d1d9' }}>
+          <h1 style={{ fontSize: '40px', fontWeight: 'bold', marginBottom: '15px', color: '#ffffff', textAlign: 'center' }}>
             FinalCut Video Editor
           </h1>
-          <p style={{ fontSize: '20px', marginBottom: '40px', textAlign: 'center', color: '#8b949e' }}>
+          <p style={{ fontSize: '18px', marginBottom: '25px', textAlign: 'center', color: '#8b949e' }}>
             AI-powered video and audio editing at your fingertips
           </p>
 
-          <div style={{ marginBottom: '40px' }}>
-            <h2 style={{ fontSize: '28px', marginBottom: '20px', color: '#ffffff' }}>Available Tools</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
-              <div style={{ padding: '20px', backgroundColor: '#161b22', borderRadius: '8px', border: '1px solid #30363d' }}>
-                <h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#58a6ff' }}>✂️ Video Editing</h3>
-                <p style={{ fontSize: '14px', color: '#8b949e', margin: 0 }}>Trim, crop, resize, and rotate videos with precision</p>
+          <div style={{ marginBottom: '20px' }}>
+            <h2 style={{ fontSize: '22px', marginBottom: '12px', color: '#ffffff' }}>Available Tools</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+              <div style={{ padding: '12px', backgroundColor: '#161b22', borderRadius: '6px', border: '1px solid #30363d' }}>
+                <h3 style={{ fontSize: '15px', marginBottom: '6px', color: '#58a6ff' }}>✂️ Video Editing</h3>
+                <p style={{ fontSize: '12px', color: '#8b949e', margin: 0 }}>Trim, crop, resize, and rotate</p>
               </div>
-              <div style={{ padding: '20px', backgroundColor: '#161b22', borderRadius: '8px', border: '1px solid #30363d' }}>
-                <h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#58a6ff' }}>🎨 Visual Effects</h3>
-                <p style={{ fontSize: '14px', color: '#8b949e', margin: 0 }}>Adjust brightness, hue, saturation, and add text overlays</p>
+              <div style={{ padding: '12px', backgroundColor: '#161b22', borderRadius: '6px', border: '1px solid #30363d' }}>
+                <h3 style={{ fontSize: '15px', marginBottom: '6px', color: '#58a6ff' }}>🎨 Visual Effects</h3>
+                <p style={{ fontSize: '12px', color: '#8b949e', margin: 0 }}>Brightness, hue, saturation, text</p>
               </div>
-              <div style={{ padding: '20px', backgroundColor: '#161b22', borderRadius: '8px', border: '1px solid #30363d' }}>
-                <h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#58a6ff' }}>🎵 Audio Tools</h3>
-                <p style={{ fontSize: '14px', color: '#8b949e', margin: 0 }}>Volume control, fade effects, equalizer, and audio filters</p>
+              <div style={{ padding: '12px', backgroundColor: '#161b22', borderRadius: '6px', border: '1px solid #30363d' }}>
+                <h3 style={{ fontSize: '15px', marginBottom: '6px', color: '#58a6ff' }}>🎵 Audio Tools</h3>
+                <p style={{ fontSize: '12px', color: '#8b949e', margin: 0 }}>Volume, fade, equalizer, filters</p>
               </div>
-              <div style={{ padding: '20px', backgroundColor: '#161b22', borderRadius: '8px', border: '1px solid #30363d' }}>
-                <h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#58a6ff' }}>⚡ Speed Control</h3>
-                <p style={{ fontSize: '14px', color: '#8b949e', margin: 0 }}>Speed up or slow down your videos and audio</p>
+              <div style={{ padding: '12px', backgroundColor: '#161b22', borderRadius: '6px', border: '1px solid #30363d' }}>
+                <h3 style={{ fontSize: '15px', marginBottom: '6px', color: '#58a6ff' }}>⚡ Speed Control</h3>
+                <p style={{ fontSize: '12px', color: '#8b949e', margin: 0 }}>Speed up or slow down media</p>
               </div>
-              <div style={{ padding: '20px', backgroundColor: '#161b22', borderRadius: '8px', border: '1px solid #30363d' }}>
-                <h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#58a6ff' }}>📱 Social Media</h3>
-                <p style={{ fontSize: '14px', color: '#8b949e', margin: 0 }}>Preset formats for Instagram, TikTok, YouTube, and more</p>
+              <div style={{ padding: '12px', backgroundColor: '#161b22', borderRadius: '6px', border: '1px solid #30363d' }}>
+                <h3 style={{ fontSize: '15px', marginBottom: '6px', color: '#58a6ff' }}>📱 Social Media</h3>
+                <p style={{ fontSize: '12px', color: '#8b949e', margin: 0 }}>Instagram, TikTok, YouTube presets</p>
               </div>
-              <div style={{ padding: '20px', backgroundColor: '#161b22', borderRadius: '8px', border: '1px solid #30363d' }}>
-                <h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#58a6ff' }}>🔄 Format Conversion</h3>
-                <p style={{ fontSize: '14px', color: '#8b949e', margin: 0 }}>Convert between MP4, WebM, MOV, and other formats</p>
+              <div style={{ padding: '12px', backgroundColor: '#161b22', borderRadius: '6px', border: '1px solid #30363d' }}>
+                <h3 style={{ fontSize: '15px', marginBottom: '6px', color: '#58a6ff' }}>🔄 Format Conversion</h3>
+                <p style={{ fontSize: '12px', color: '#8b949e', margin: 0 }}>Convert MP4, WebM, MOV formats</p>
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', marginTop: '20px' }}>
             <button 
               onClick={handleGetStarted}
               style={primaryButtonStyle}
