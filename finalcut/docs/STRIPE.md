@@ -2,6 +2,8 @@
 
 This document describes the Stripe payment functionality added to server.js.
 
+For complete client-side code examples, see [stripe-client-examples.js](./stripe-client-examples.js).
+
 ## Configuration
 
 Add the following environment variables to your `.env` file:
