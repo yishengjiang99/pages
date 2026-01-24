@@ -150,7 +150,7 @@ export default function App() {
 
   const loadSampleVideo = async () => {
     setShowLanding(false);
-    // Use a sample video URL - this could be hosted or a placeholder
+    // Sample video path - this is a public asset URL, not a file system path
     const sampleVideoUrl = '/sample-video.mp4';
     
     try {
@@ -186,6 +186,31 @@ export default function App() {
 
   // Landing page component
   if (showLanding) {
+    const primaryButtonStyle = {
+      padding: '15px 40px',
+      fontSize: '18px',
+      fontWeight: 'bold',
+      backgroundColor: '#1f6feb',
+      color: '#ffffff',
+      border: 'none',
+      borderRadius: '8px',
+      cursor: 'pointer',
+      width: '300px',
+      transition: 'background-color 0.2s'
+    };
+
+    const secondaryButtonStyle = {
+      padding: '12px 40px',
+      fontSize: '16px',
+      backgroundColor: '#21262d',
+      color: '#c9d1d9',
+      border: '1px solid #30363d',
+      borderRadius: '8px',
+      cursor: 'pointer',
+      width: '300px',
+      transition: 'background-color 0.2s'
+    };
+
     return (
       <div style={{ fontFamily: 'Arial, sans-serif', margin: 0, padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#0d1117' }}>
         <div style={{ maxWidth: '800px', padding: '40px 20px', color: '#c9d1d9' }}>
@@ -229,38 +254,13 @@ export default function App() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
             <button 
               onClick={handleGetStarted}
-              style={{ 
-                padding: '15px 40px', 
-                fontSize: '18px', 
-                fontWeight: 'bold',
-                backgroundColor: '#1f6feb', 
-                color: '#ffffff', 
-                border: 'none', 
-                borderRadius: '8px', 
-                cursor: 'pointer',
-                width: '300px',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseOver={(e) => e.target.style.backgroundColor = '#1a5cd7'}
-              onMouseOut={(e) => e.target.style.backgroundColor = '#1f6feb'}
+              style={primaryButtonStyle}
             >
               Get Started
             </button>
             <button 
               onClick={loadSampleVideo}
-              style={{ 
-                padding: '12px 40px', 
-                fontSize: '16px', 
-                backgroundColor: '#21262d', 
-                color: '#c9d1d9', 
-                border: '1px solid #30363d', 
-                borderRadius: '8px', 
-                cursor: 'pointer',
-                width: '300px',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseOver={(e) => e.target.style.backgroundColor = '#30363d'}
-              onMouseOut={(e) => e.target.style.backgroundColor = '#21262d'}
+              style={secondaryButtonStyle}
             >
               Try with Sample Video
             </button>
