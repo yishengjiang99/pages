@@ -59,14 +59,27 @@ export default function App() {
 
       const msg = data.choices[0].message;
 
+      // Add content to UI if it exists
       if (msg.content) {
         addMessage(msg.content, false);
-        currentMessages.push({ role: 'assistant', content: msg.content, id: messageIdCounterRef.current++ });
+      }
+
+      // Add assistant message to history (with both content and tool_calls if present)
+      if (msg.content || msg.tool_calls) {
+        const assistantMessage = {
+          role: 'assistant',
+          content: msg.content || null,
+          id: messageIdCounterRef.current++
+        };
+        
+        if (msg.tool_calls) {
+          assistantMessage.tool_calls = msg.tool_calls;
+        }
+        
+        currentMessages.push(assistantMessage);
       }
 
       if (msg.tool_calls) {
-        currentMessages.push({ role: 'assistant', content: null, tool_calls: msg.tool_calls, id: messageIdCounterRef.current++ });
-        
         // Server-side processing - show spinner during ffmpeg processing
         setProcessing(true);
         
