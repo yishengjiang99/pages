@@ -218,7 +218,7 @@ export default function App() {
     };
 
     return (
-      <div style={{ fontFamily: 'Arial, sans-serif', margin: 0, padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#0d1117' }}>
+      <div style={{ fontFamily: 'Arial, sans-serif', margin: 0, padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#0d1117', overflowY: 'auto' }}>
         <div style={{ maxWidth: '800px', padding: '40px 20px', color: '#c9d1d9' }}>
           <h1 style={{ fontSize: '48px', fontWeight: 'bold', marginBottom: '20px', color: '#ffffff', textAlign: 'center' }}>
             FinalCut Video Editor
@@ -313,7 +313,7 @@ export default function App() {
         )}
         <div ref={chatWindowRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '16px', paddingTop: '50px', WebkitOverflowScrolling: 'touch' }}>
           {messages.slice(1).map((msg) => (
-            <div key={msg.id} style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', marginLeft: msg.role === 'user' ? 'auto' : 0, marginRight: msg.role === 'user' ? 0 : 'auto', backgroundColor: msg.role === 'user' ? '#1f6feb' : '#21262d', color: msg.role === 'user' ? '#ffffff' : '#c9d1d9', wordWrap: 'break-word' }}>
+            <div key={msg.id} style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', marginLeft: msg.role === 'user' ? 'auto' : 0, marginRight: msg.role === 'user' ? 0 : 'auto', backgroundColor: msg.role === 'user' ? '#d0d0d0' : '#21262d', color: msg.role === 'user' ? '#000000' : '#c9d1d9', wordWrap: 'break-word' }}>
               <p style={{ margin: 0 }}>{msg.content}</p>
               {msg.videoUrl && (
                 <div style={{ marginTop: '8px' }}>

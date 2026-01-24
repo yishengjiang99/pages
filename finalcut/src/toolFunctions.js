@@ -47,6 +47,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('resize_video', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (resized):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video resized successfully.';
@@ -67,6 +68,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('crop_video', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (cropped):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video cropped successfully.';
@@ -84,6 +86,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('rotate_video', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (rotated):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video rotated successfully.';
@@ -101,6 +104,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('add_text', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (text added):', false, videoUrl, 'processed', 'video/mp4');
       return 'Text added to video successfully.';
@@ -118,6 +122,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('trim_video', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (trimmed):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video trimmed successfully.';
@@ -135,6 +140,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('speed_video', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (speed adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Video speed adjusted successfully.';
@@ -152,6 +158,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('adjust_volume', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (volume adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Volume adjusted successfully.';
@@ -172,6 +179,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('audio_fade', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (audio fade applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Audio fade applied successfully.';
@@ -189,6 +197,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('highpass_filter', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (highpass filter applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Highpass filter applied successfully.';
@@ -206,6 +215,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('lowpass_filter', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (lowpass filter applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Lowpass filter applied successfully.';
@@ -223,6 +233,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('echo_effect', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (echo effect applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Echo effect applied successfully.';
@@ -240,6 +251,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('bass_adjustment', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (bass adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Bass adjusted successfully.';
@@ -257,6 +269,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('treble_adjustment', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (treble adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Treble adjusted successfully.';
@@ -274,6 +287,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('equalizer', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (equalizer applied):', false, videoUrl, 'processed', 'video/mp4');
       return 'Equalizer applied successfully.';
@@ -286,6 +300,7 @@ export const toolFunctions = {
   normalize_audio: async (args, videoFileData, setVideoFileData, addMessage) => {
     try {
       const data = await processVideoOnServer('normalize_audio', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (audio normalized):', false, videoUrl, 'processed', 'video/mp4');
       return 'Audio normalized successfully.';
@@ -303,6 +318,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('delay_audio', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (audio delayed):', false, videoUrl, 'processed', 'video/mp4');
       return 'Audio delay applied successfully.';
@@ -320,6 +336,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('adjust_brightness', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (brightness adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Brightness adjusted successfully.';
@@ -337,6 +354,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('adjust_hue', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (hue adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Hue adjusted successfully.';
@@ -354,6 +372,7 @@ export const toolFunctions = {
       }
 
       const data = await processVideoOnServer('adjust_saturation', args, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage('Processed video (saturation adjusted):', false, videoUrl, 'processed', 'video/mp4');
       return 'Saturation adjusted successfully.';
@@ -444,6 +463,7 @@ export const toolFunctions = {
         width: preset.width, 
         height: preset.height 
       }, videoFileData);
+      setVideoFileData(data); // Update video data for subsequent edits
       
       const videoUrl = URL.createObjectURL(new Blob([data.buffer], { type: 'video/mp4' }));
       addMessage(`Processed video (resized to ${args.ratio}):\n${preset.description}`, false, videoUrl, 'processed', 'video/mp4');
