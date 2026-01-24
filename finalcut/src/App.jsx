@@ -23,6 +23,17 @@ export default function App() {
     }
   }, [messages]);
 
+  // Check if user is returning from successful payment
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path === '/success') {
+      // Hide landing page and show editor after successful payment
+      setShowLanding(false);
+      // Clean up the URL without reloading the page
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
+
   const addMessage = (text, isUser = false, videoUrl = null, videoType = 'processed', mimeType = null) => {
     const id = messageIdCounterRef.current++;
     setMessages(prev => [...prev, { role: isUser ? 'user' : 'assistant', content: text, videoUrl, videoType, mimeType, id }]);

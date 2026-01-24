@@ -119,4 +119,30 @@ describe('App Component', () => {
 
     alertSpy.mockRestore();
   });
+
+  it('shows editor interface when returning from successful payment', () => {
+    // Mock location.pathname to simulate returning from /success
+    delete window.location;
+    window.location = { 
+      pathname: '/success',
+      origin: 'http://localhost:3000',
+      href: 'http://localhost:3000/success'
+    };
+    
+    const replaceStateSpy = vi.spyOn(window.history, 'replaceState');
+
+    render(<App />);
+
+    // Landing page should not be shown
+    expect(screen.queryByText('Get Started')).not.toBeInTheDocument();
+    
+    // Editor interface should be shown (check for file input)
+    const fileInput = document.querySelector('input[type="file"]');
+    expect(fileInput).toBeInTheDocument();
+    
+    // URL should be cleaned up
+    expect(replaceStateSpy).toHaveBeenCalledWith({}, '', '/');
+
+    replaceStateSpy.mockRestore();
+  });
 });
