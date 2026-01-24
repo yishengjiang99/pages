@@ -17,7 +17,7 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
     buttonPrimary: isDarkMode ? '#0d6efd' : '#007bff',
     buttonSuccess: isDarkMode ? '#198754' : '#28a745',
     buttonDisabled: isDarkMode ? '#4a4a4a' : '#ccc',
-    inputBorder: isDarkMode ? '#555' : '#ddd',
+    inputBorder: isDarkMode ? '#404040' : '#ddd',
     inputBg: isDarkMode ? '#3a3a3a' : 'white',
     inputText: isDarkMode ? '#e0e0e0' : '#000000',
     shadow: isDarkMode ? '0 2px 10px rgba(0, 0, 0, 0.5)' : '0 2px 10px rgba(0, 0, 0, 0.1)',
