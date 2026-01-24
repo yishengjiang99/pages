@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function VideoPreview({ videoUrl, title = 'Video Preview', defaultCollapsed = false, mimeType = null }) {
+export default function VideoPreview({ videoUrl, title = 'Video Preview', defaultCollapsed = false, mimeType = null, isDarkMode = false }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -8,6 +8,20 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [isAudio, setIsAudio] = useState(false);
   const videoRef = useRef(null);
+
+  // Theme colors
+  const theme = {
+    previewBg: isDarkMode ? 'rgba(58, 58, 58, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+    titleText: isDarkMode ? '#e0e0e0' : '#000000',
+    infoText: isDarkMode ? '#b0b0b0' : '#666',
+    buttonPrimary: isDarkMode ? '#0d6efd' : '#007bff',
+    buttonSuccess: isDarkMode ? '#198754' : '#28a745',
+    buttonDisabled: isDarkMode ? '#4a4a4a' : '#ccc',
+    inputBorder: isDarkMode ? '#555' : '#ddd',
+    inputBg: isDarkMode ? '#3a3a3a' : 'white',
+    inputText: isDarkMode ? '#e0e0e0' : '#000000',
+    shadow: isDarkMode ? '0 2px 10px rgba(0, 0, 0, 0.5)' : '0 2px 10px rgba(0, 0, 0, 0.1)',
+  };
 
   useEffect(() => {
     if (videoRef.current) {
@@ -111,10 +125,10 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
 
   return (
     <div style={{ 
-      backgroundColor: 'rgba(255,255,255,0.95)', 
+      backgroundColor: theme.previewBg, 
       padding: '12px', 
       borderRadius: '8px',
-      boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+      boxShadow: theme.shadow,
       maxWidth: '100%',
       boxSizing: 'border-box'
     }}>
@@ -124,13 +138,13 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
         alignItems: 'center',
         marginBottom: isCollapsed ? '0' : '8px'
       }}>
-        <p style={{ margin: '0', fontSize: '14px', fontWeight: 'bold' }}>{title}</p>
+        <p style={{ margin: '0', fontSize: '14px', fontWeight: 'bold', color: theme.titleText }}>{title}</p>
         <button 
           onClick={() => setIsCollapsed(!isCollapsed)}
           style={{
             padding: '4px 12px',
             fontSize: '12px',
-            backgroundColor: '#007bff',
+            backgroundColor: theme.buttonPrimary,
             color: 'white',
             border: 'none',
             borderRadius: '4px',
@@ -193,7 +207,7 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
         justifyContent: 'space-between', 
         fontSize: '12px', 
         marginBottom: '12px',
-        color: '#666'
+        color: theme.infoText
       }}>
         <span>Time: {formatTime(currentTime)}</span>
         {!isAudio && <span>Frame: {getCurrentFrame()} / {getTotalFrames()}</span>}
@@ -201,7 +215,7 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
       
       {/* FPS selector - only for video */}
       {!isAudio && (
-        <div style={{ marginBottom: '12px', fontSize: '12px' }}>
+        <div style={{ marginBottom: '12px', fontSize: '12px', color: theme.titleText }}>
           <label style={{ marginRight: '8px' }}>FPS:</label>
           <select 
             value={fps} 
@@ -209,8 +223,10 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
             style={{
               padding: '4px 8px',
               borderRadius: '4px',
-              border: '1px solid #ddd',
-              fontSize: '12px'
+              border: `1px solid ${theme.inputBorder}`,
+              fontSize: '12px',
+              backgroundColor: theme.inputBg,
+              color: theme.inputText
             }}
           >
             <option value={24}>24</option>
@@ -235,7 +251,7 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
             style={{
               padding: '8px 12px',
               fontSize: '14px',
-              backgroundColor: currentTime <= 0 ? '#ccc' : '#28a745',
+              backgroundColor: currentTime <= 0 ? theme.buttonDisabled : theme.buttonSuccess,
               color: 'white',
               border: 'none',
               borderRadius: '4px',
@@ -252,7 +268,7 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
           style={{
             padding: '8px 16px',
             fontSize: '14px',
-            backgroundColor: '#007bff',
+            backgroundColor: theme.buttonPrimary,
             color: 'white',
             border: 'none',
             borderRadius: '4px',
@@ -270,7 +286,7 @@ export default function VideoPreview({ videoUrl, title = 'Video Preview', defaul
             style={{
               padding: '8px 12px',
               fontSize: '14px',
-              backgroundColor: currentTime >= duration ? '#ccc' : '#28a745',
+              backgroundColor: currentTime >= duration ? theme.buttonDisabled : theme.buttonSuccess,
               color: 'white',
               border: 'none',
               borderRadius: '4px',
