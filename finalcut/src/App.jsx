@@ -6,6 +6,7 @@ import VideoPreview from './VideoPreview.jsx';
 export default function App() {
   const [showLanding, setShowLanding] = useState(true); // Show landing page initially
   const [loaded, setLoaded] = useState(true); // Server-side processing doesn't require loading
+  const [processing, setProcessing] = useState(false); // Track ffmpeg processing state
   const videoRef = useRef(null);
   const messageRef = useRef(null);
   const [messages, setMessages] = useState([{ role: 'system', content: systemPrompt, id: 0 }]);
@@ -66,21 +67,26 @@ export default function App() {
       if (msg.tool_calls) {
         currentMessages.push({ role: 'assistant', content: null, tool_calls: msg.tool_calls, id: messageIdCounterRef.current++ });
         
-        // Server-side processing - no need to load FFmpeg
+        // Server-side processing - show spinner during ffmpeg processing
+        setProcessing(true);
         
-        for (const call of msg.tool_calls) {
-          const funcName = call.function.name;
-          const args = JSON.parse(call.function.arguments);
-          const result = await toolFunctions[funcName](args, videoFileData, setVideoFileData, addMessage);
-          currentMessages.push({
-            role: 'tool',
-            tool_call_id: call.id,
-            name: funcName,
-            content: result,
-            id: messageIdCounterRef.current++
-          });
+        try {
+          for (const call of msg.tool_calls) {
+            const funcName = call.function.name;
+            const args = JSON.parse(call.function.arguments);
+            const result = await toolFunctions[funcName](args, videoFileData, setVideoFileData, addMessage);
+            currentMessages.push({
+              role: 'tool',
+              tool_call_id: call.id,
+              name: funcName,
+              content: result,
+              id: messageIdCounterRef.current++
+            });
+          }
+          await callAPI(currentMessages);
+        } finally {
+          setProcessing(false);
         }
-        await callAPI(currentMessages);
       }
     } catch (error) {
       addMessage('Error communicating with xAI API: ' + error.message, false);
@@ -150,8 +156,8 @@ export default function App() {
 
   const loadSampleVideo = async () => {
     setShowLanding(false);
-    // Sample video path - this is a public asset URL, not a file system path
-    const sampleVideoUrl = '/sample-video.mp4';
+    // Sample video path - using BigBuckBunny.mp4 as specified
+    const sampleVideoUrl = '/BigBuckBunny.mp4';
     
     try {
       // Fetch the sample video
@@ -273,6 +279,38 @@ export default function App() {
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', margin: 0, padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#0d1117' }}>
       <main style={{ width: '100%', maxWidth: '100vw', height: '100vh', backgroundColor: '#0d1117', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        {/* Processing Spinner Overlay */}
+        {processing && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(13, 17, 23, 0.8)',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}>
+            <div style={{
+              width: '50px',
+              height: '50px',
+              border: '4px solid #30363d',
+              borderTop: '4px solid #1f6feb',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }}></div>
+            <p style={{ color: '#c9d1d9', marginTop: '20px', fontSize: '16px' }}>Processing video with ffmpeg...</p>
+            <style>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
+        )}
         <div ref={chatWindowRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '16px', paddingTop: '50px', WebkitOverflowScrolling: 'touch' }}>
           {messages.slice(1).map((msg) => (
             <div key={msg.id} style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', marginLeft: msg.role === 'user' ? 'auto' : 0, marginRight: msg.role === 'user' ? 0 : 'auto', backgroundColor: msg.role === 'user' ? '#1f6feb' : '#21262d', color: msg.role === 'user' ? '#ffffff' : '#c9d1d9', wordWrap: 'break-word' }}>
