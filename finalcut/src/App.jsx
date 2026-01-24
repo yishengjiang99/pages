@@ -25,13 +25,37 @@ export default function App() {
 
   // Check if user is returning from successful payment
   useEffect(() => {
-    const path = window.location.pathname;
-    if (path === '/success') {
-      // Hide landing page and show editor after successful payment
-      setShowLanding(false);
-      // Clean up the URL without reloading the page
-      window.history.replaceState({}, '', '/');
-    }
+    const verifyPayment = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session_id');
+      
+      if (sessionId && window.location.pathname === '/success') {
+        try {
+          // Verify the session with the backend
+          const response = await fetch('/api/verify-checkout-session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ sessionId })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.verified && data.paymentStatus === 'paid') {
+              // Hide landing page and show editor after verified payment
+              setShowLanding(false);
+              // Clean up the URL without reloading the page
+              window.history.replaceState({}, '', '/');
+            }
+          }
+        } catch (error) {
+          console.error('Error verifying payment:', error);
+        }
+      }
+    };
+
+    verifyPayment();
   }, []);
 
   const addMessage = (text, isUser = false, videoUrl = null, videoType = 'processed', mimeType = null) => {
@@ -183,7 +207,7 @@ export default function App() {
         },
         body: JSON.stringify({
           priceId: 'price_1StDJe4OymfcnKESq2dIraNE',
-          successUrl: window.location.origin + '/success',
+          successUrl: window.location.origin + '/success?session_id={CHECKOUT_SESSION_ID}',
           cancelUrl: window.location.origin
         })
       });

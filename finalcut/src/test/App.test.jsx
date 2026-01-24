@@ -93,7 +93,7 @@ describe('App Component', () => {
         },
         body: JSON.stringify({
           priceId: 'price_1StDJe4OymfcnKESq2dIraNE',
-          successUrl: 'http://localhost:3000/success',
+          successUrl: 'http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}',
           cancelUrl: 'http://localhost:3000'
         })
       });
@@ -120,21 +120,45 @@ describe('App Component', () => {
     alertSpy.mockRestore();
   });
 
-  it('shows editor interface when returning from successful payment', () => {
-    // Mock location.pathname to simulate returning from /success
+  it('shows editor interface when returning from successful payment', async () => {
+    // Mock location with session_id query parameter
     delete window.location;
     window.location = { 
       pathname: '/success',
+      search: '?session_id=cs_test_123',
       origin: 'http://localhost:3000',
-      href: 'http://localhost:3000/success'
+      href: 'http://localhost:3000/success?session_id=cs_test_123'
     };
+    
+    // Mock the verify endpoint
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ 
+        verified: true, 
+        paymentStatus: 'paid',
+        customerEmail: 'test@example.com'
+      })
+    });
     
     const replaceStateSpy = vi.spyOn(window.history, 'replaceState');
 
     render(<App />);
 
-    // Landing page should not be shown
-    expect(screen.queryByText('Get Started')).not.toBeInTheDocument();
+    // Wait for the verification to complete
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/verify-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ sessionId: 'cs_test_123' })
+      });
+    });
+
+    // Landing page should not be shown after verification
+    await waitFor(() => {
+      expect(screen.queryByText('Get Started')).not.toBeInTheDocument();
+    });
     
     // Editor interface should be shown (check for file input)
     const fileInput = document.querySelector('input[type="file"]');
