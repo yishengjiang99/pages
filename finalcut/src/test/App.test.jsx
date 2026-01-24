@@ -25,34 +25,42 @@ global.URL.createObjectURL = vi.fn(() => 'mock-url');
 describe('App Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete window.location;
+    window.location = { href: '', origin: 'http://localhost:3000' };
   });
 
   it('renders the app component', () => {
     render(<App />);
-    expect(screen.getByPlaceholderText('Describe the video edit...')).toBeInTheDocument();
+    // The landing page is shown initially, so we won't see the chat input yet
+    const getStartedButton = screen.getByText('Get Started');
+    expect(getStartedButton).toBeInTheDocument();
   });
 
-  it('renders file upload input', () => {
+  it('renders file upload input after getting started', async () => {
+    const mockCheckoutUrl = 'https://checkout.stripe.com/pay/cs_test_123';
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ sessionId: 'cs_test_123', url: mockCheckoutUrl })
+    });
+
     render(<App />);
-    const fileInput = document.querySelector('input[type="file"]');
-    expect(fileInput).toBeInTheDocument();
+    // Landing page doesn't have file input initially
+    expect(screen.queryByText('Get Started')).toBeInTheDocument();
   });
 
-  it('renders chat input with placeholder', () => {
+  it('renders landing page with title', () => {
     render(<App />);
-    expect(screen.getByPlaceholderText('Describe the video edit...')).toBeInTheDocument();
+    expect(screen.getByText('FinalCut Video Editor')).toBeInTheDocument();
   });
 
-  it('renders send button', () => {
+  it('renders landing page with Get Started button', () => {
     render(<App />);
-    const sendButtons = screen.getAllByText('Send');
-    expect(sendButtons.length).toBeGreaterThan(0);
+    expect(screen.getByText('Get Started')).toBeInTheDocument();
   });
 
-  it('send button is disabled when no video is uploaded', () => {
+  it('renders landing page with Try with Sample Video button', () => {
     render(<App />);
-    const sendButton = screen.getByText('Send');
-    expect(sendButton).toBeDisabled();
+    expect(screen.getByText('Try with Sample Video')).toBeInTheDocument();
   });
 
   it('does not expose token in client-side code', () => {
@@ -63,5 +71,52 @@ describe('App Component', () => {
     expect(html).not.toContain('xaiToken');
     expect(html).not.toContain('Set Token');
     expect(html).not.toContain('No token');
+  });
+
+  it('Get Started button creates checkout session and redirects to Stripe', async () => {
+    const mockCheckoutUrl = 'https://checkout.stripe.com/pay/cs_test_123';
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ sessionId: 'cs_test_123', url: mockCheckoutUrl })
+    });
+
+    render(<App />);
+    const getStartedButton = screen.getByText('Get Started');
+    
+    fireEvent.click(getStartedButton);
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          priceId: 'price_1StDJe4OymfcnKESq2dIraNE',
+          successUrl: 'http://localhost:3000/success',
+          cancelUrl: 'http://localhost:3000'
+        })
+      });
+    });
+
+    await waitFor(() => {
+      expect(window.location.href).toBe(mockCheckoutUrl);
+    });
+  });
+
+  it('Get Started button handles errors gracefully', async () => {
+    global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network error'));
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+
+    render(<App />);
+    const getStartedButton = screen.getByText('Get Started');
+    
+    fireEvent.click(getStartedButton);
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith('Failed to start checkout. Please try again.');
+    });
+
+    alertSpy.mockRestore();
   });
 });

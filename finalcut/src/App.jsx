@@ -163,8 +163,34 @@ export default function App() {
     await callAPI(newMessages);
   };
 
-  const handleGetStarted = () => {
-    setShowLanding(false);
+  const handleGetStarted = async () => {
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          priceId: 'price_1StDJe4OymfcnKESq2dIraNE',
+          successUrl: window.location.origin + '/success',
+          cancelUrl: window.location.origin
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const data = await response.json();
+      
+      // Redirect to Stripe checkout
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      alert('Failed to start checkout. Please try again.');
+    }
   };
 
   const loadSampleVideo = async () => {
