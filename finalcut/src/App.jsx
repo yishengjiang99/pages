@@ -186,6 +186,8 @@ export default function App() {
       // Redirect to Stripe checkout
       if (data.url) {
         window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received from server');
       }
     } catch (error) {
       console.error('Error creating checkout session:', error);
