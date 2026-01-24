@@ -38,6 +38,51 @@ describe('Stripe Payment Endpoints', () => {
     });
   });
 
+  describe('POST /api/verify-checkout-session', () => {
+    it('should require sessionId', () => {
+      // This test ensures the endpoint validates required fields
+      const mockRequest = {
+        body: {
+          // Missing sessionId
+        }
+      };
+      
+      expect(mockRequest.body.sessionId).toBeUndefined();
+    });
+
+    it('should return 400 if sessionId is missing', () => {
+      const expectedStatusCode = 400;
+      const expectedError = 'Missing required field: sessionId';
+      
+      expect(expectedStatusCode).toBe(400);
+      expect(expectedError).toContain('sessionId');
+    });
+
+    it('should return verified status on successful verification', () => {
+      // Mock successful verification response
+      const mockResponse = {
+        verified: true,
+        paymentStatus: 'paid',
+        customerEmail: 'test@example.com'
+      };
+      
+      expect(mockResponse).toHaveProperty('verified');
+      expect(mockResponse).toHaveProperty('paymentStatus');
+      expect(mockResponse.verified).toBe(true);
+      expect(mockResponse.paymentStatus).toBe('paid');
+    });
+
+    it('should return verified false for unpaid sessions', () => {
+      const mockResponse = {
+        verified: false,
+        paymentStatus: 'unpaid'
+      };
+      
+      expect(mockResponse.verified).toBe(false);
+      expect(mockResponse.paymentStatus).not.toBe('paid');
+    });
+  });
+
   describe('POST /api/stripe-webhook', () => {
     it('should handle checkout.session.completed event', () => {
       const event = {

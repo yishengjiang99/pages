@@ -23,6 +23,41 @@ export default function App() {
     }
   }, [messages]);
 
+  // Check if user is returning from successful payment
+  useEffect(() => {
+    const verifyPayment = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session_id');
+      
+      if (sessionId && window.location.pathname === '/success') {
+        try {
+          // Verify the session with the backend
+          const response = await fetch('/api/verify-checkout-session', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ sessionId })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.verified && data.paymentStatus === 'paid') {
+              // Hide landing page and show editor after verified payment
+              setShowLanding(false);
+              // Clean up the URL without reloading the page
+              window.history.replaceState({}, '', '/');
+            }
+          }
+        } catch (error) {
+          console.error('Error verifying payment:', error);
+        }
+      }
+    };
+
+    verifyPayment();
+  }, []);
+
   const addMessage = (text, isUser = false, videoUrl = null, videoType = 'processed', mimeType = null) => {
     const id = messageIdCounterRef.current++;
     setMessages(prev => [...prev, { role: isUser ? 'user' : 'assistant', content: text, videoUrl, videoType, mimeType, id }]);
@@ -163,8 +198,36 @@ export default function App() {
     await callAPI(newMessages);
   };
 
-  const handleGetStarted = () => {
-    setShowLanding(false);
+  const handleGetStarted = async () => {
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          priceId: 'price_1StDJe4OymfcnKESq2dIraNE',
+          successUrl: window.location.origin + '/success?session_id={CHECKOUT_SESSION_ID}',
+          cancelUrl: window.location.origin
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const data = await response.json();
+      
+      // Redirect to Stripe checkout
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('No checkout URL received from server');
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      alert('Failed to start checkout. Please try again.');
+    }
   };
 
   const loadSampleVideo = async () => {

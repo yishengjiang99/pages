@@ -353,6 +353,43 @@ app.post('/api/create-checkout-session', apiLimiter, async (req, res) => {
   }
 });
 
+// Verify checkout session endpoint
+app.post('/api/verify-checkout-session', apiLimiter, async (req, res) => {
+  if (!stripe) {
+    return res.status(503).json({ error: 'Stripe is not configured on this server' });
+  }
+
+  try {
+    const { sessionId } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({ 
+        error: 'Missing required field: sessionId' 
+      });
+    }
+
+    // Retrieve the session from Stripe to verify it
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    // Verify the session is valid and payment was successful
+    if (session && session.payment_status === 'paid') {
+      res.json({ 
+        verified: true, 
+        paymentStatus: session.payment_status,
+        customerEmail: session.customer_email 
+      });
+    } else {
+      res.json({ 
+        verified: false, 
+        paymentStatus: session?.payment_status || 'unknown' 
+      });
+    }
+  } catch (error) {
+    console.error('Error verifying checkout session:', error);
+    res.status(500).json({ error: error.message || 'Failed to verify checkout session' });
+  }
+});
+
 // Stripe webhook endpoint for handling payment events
 // This endpoint needs to be registered in your Stripe dashboard
 app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
@@ -420,6 +457,7 @@ app.listen(PORT, () => {
   if (stripe) {
     console.log('Stripe payment endpoints available:');
     console.log('  - POST /api/create-checkout-session');
+    console.log('  - POST /api/verify-checkout-session');
     console.log('  - POST /api/stripe-webhook');
   } else {
     console.log('Stripe payment endpoints are disabled (STRIPE_SECRET_KEY not set)');
