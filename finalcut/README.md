@@ -7,6 +7,7 @@ A React-based video editing application with AI chat capabilities using xAI's Gr
 - Upload and edit videos in the browser
 - AI-powered video editing through natural language chat
 - **Server-side FFmpeg processing** for reliable video operations
+- **Stripe payment integration** for accepting payments
 - Video operations:
   - Resize video
   - Crop video
@@ -40,6 +41,7 @@ A React-based video editing application with AI chat capabilities using xAI's Gr
 - npm
 - **FFmpeg installed on the system** (for server-side processing)
 - xAI API token (get one from https://console.x.ai/)
+- (Optional) Stripe API keys for payment processing
 
 ### FFmpeg Installation
 
@@ -74,6 +76,14 @@ cp .env.example .env
 ```bash
 XAI_API_TOKEN=your_actual_token_here
 ```
+
+3. (Optional) Add Stripe API keys for payment processing:
+```bash
+STRIPE_SECRET_KEY=sk_test_your_secret_key_here
+STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+```
+
+See [docs/STRIPE.md](./docs/STRIPE.md) for detailed Stripe integration documentation.
 
 **Important**: Never commit your `.env` file to version control. It's already included in `.gitignore`.
 
