@@ -14,6 +14,17 @@ export default function App() {
   const [fileMimeType, setFileMimeType] = useState(''); // Store MIME type for proper detection
   const messageIdCounterRef = useRef(1); // Counter for unique message IDs
   const chatWindowRef = useRef(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Detect dark mode preference
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    setIsDarkMode(mediaQuery.matches);
+    
+    const handler = (e) => setIsDarkMode(e.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => {
     if (chatWindowRef.current) {
@@ -143,12 +154,44 @@ export default function App() {
     await callAPI(newMessages);
   };
 
+  const colors = isDarkMode ? {
+    outerBg: '#1a1a1a',
+    mainBg: '#2d2d2d',
+    chatBg: '#2d2d2d',
+    userMsgBg: '#0d6efd',
+    assistantMsgBg: '#3a3a3a',
+    userMsgText: '#ffffff',
+    assistantMsgText: '#e0e0e0',
+    inputBg: '#3a3a3a',
+    inputBorder: '#404040',
+    inputText: '#e0e0e0',
+    buttonBg: '#0d6efd',
+    buttonDisabled: '#4a4a4a',
+    buttonText: '#ffffff',
+    borderColor: '#404040'
+  } : {
+    outerBg: '#f0f0f0',
+    mainBg: 'white',
+    chatBg: 'white',
+    userMsgBg: '#007bff',
+    assistantMsgBg: '#e9ecef',
+    userMsgText: 'white',
+    assistantMsgText: 'black',
+    inputBg: 'white',
+    inputBorder: '#ddd',
+    inputText: 'black',
+    buttonBg: '#007bff',
+    buttonDisabled: '#ccc',
+    buttonText: 'white',
+    borderColor: '#ddd'
+  };
+
   return (
-    <div style={{ fontFamily: 'Arial, sans-serif', margin: 0, padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f0f0f0' }}>
-      <main style={{ width: '100%', maxWidth: '100vw', height: '100vh', backgroundColor: 'white', overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+    <div style={{ fontFamily: 'Arial, sans-serif', margin: 0, padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: colors.outerBg }}>
+      <main style={{ width: '100%', maxWidth: '100vw', height: '100vh', backgroundColor: colors.mainBg, overflow: 'hidden', display: 'flex', flexDirection: 'column', position: 'relative' }}>
         <div ref={chatWindowRef} style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '16px', paddingTop: '50px', WebkitOverflowScrolling: 'touch' }}>
           {messages.slice(1).map((msg) => (
-            <div key={msg.id} style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', marginLeft: msg.role === 'user' ? 'auto' : 0, marginRight: msg.role === 'user' ? 0 : 'auto', backgroundColor: msg.role === 'user' ? '#007bff' : '#e9ecef', color: msg.role === 'user' ? 'white' : 'black', wordWrap: 'break-word' }}>
+            <div key={msg.id} style={{ marginBottom: '12px', padding: '8px 12px', borderRadius: '8px', maxWidth: '80%', alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start', marginLeft: msg.role === 'user' ? 'auto' : 0, marginRight: msg.role === 'user' ? 0 : 'auto', backgroundColor: msg.role === 'user' ? colors.userMsgBg : colors.assistantMsgBg, color: msg.role === 'user' ? colors.userMsgText : colors.assistantMsgText, wordWrap: 'break-word' }}>
               <p style={{ margin: 0 }}>{msg.content}</p>
               {msg.videoUrl && (
                 <div style={{ marginTop: '8px' }}>
@@ -158,16 +201,17 @@ export default function App() {
                     videoUrl={msg.videoUrl}
                     title={getVideoTitle(msg.videoType)}
                     mimeType={msg.mimeType}
+                    isDarkMode={isDarkMode}
                   />
                 </div>
               )}
             </div>
           ))}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', padding: '12px', gap: '8px', borderTop: '1px solid #ddd', backgroundColor: 'white' }}>
-          <input type="file" onChange={handleUpload} accept="video/*,audio/*,video/mp4,video/quicktime,audio/mpeg,audio/wav,audio/mp3,audio/ogg,audio/aac" capture="environment" style={{ width: '100%', padding: '8px', fontSize: '16px' }} />
-          <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="Describe the video edit..." style={{ width: '100%', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '16px' }} />
-          <button onClick={handleSend} disabled={!videoFileData} style={{ padding: '10px 16px', backgroundColor: videoFileData ? '#007bff' : '#ccc', color: 'white', border: 'none', borderRadius: '4px', cursor: videoFileData ? 'pointer' : 'not-allowed', fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}>Send</button>
+        <div style={{ display: 'flex', flexDirection: 'column', padding: '12px', gap: '8px', borderTop: `1px solid ${colors.borderColor}`, backgroundColor: colors.mainBg }}>
+          <input type="file" onChange={handleUpload} accept="video/*,audio/*,video/mp4,video/quicktime,audio/mpeg,audio/wav,audio/mp3,audio/ogg,audio/aac" capture="environment" style={{ width: '100%', padding: '8px', fontSize: '16px', backgroundColor: colors.inputBg, color: colors.inputText, border: `1px solid ${colors.inputBorder}`, borderRadius: '4px' }} />
+          <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSend()} placeholder="Describe the video edit..." style={{ width: '100%', padding: '10px', border: `1px solid ${colors.inputBorder}`, borderRadius: '4px', fontSize: '16px', backgroundColor: colors.inputBg, color: colors.inputText }} />
+          <button onClick={handleSend} disabled={!videoFileData} style={{ padding: '10px 16px', backgroundColor: videoFileData ? colors.buttonBg : colors.buttonDisabled, color: colors.buttonText, border: 'none', borderRadius: '4px', cursor: videoFileData ? 'pointer' : 'not-allowed', fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}>Send</button>
         </div>
       </main>
     </div>
