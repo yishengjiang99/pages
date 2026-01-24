@@ -8,11 +8,30 @@ import { describe, it, expect } from 'vitest';
  * message history, not two separate messages.
  */
 describe('Duplicate Message Fix - Logic Verification', () => {
-  it('should create a single assistant message when response has both content and tool_calls', () => {
-    // Simulated message history
+  /**
+   * Helper function to simulate the NEW fixed logic for creating assistant messages
+   */
+  const createAssistantMessage = (msg, messageIdCounter) => {
     const currentMessages = [];
-    let messageIdCounter = 1;
     
+    if (msg.content || msg.tool_calls) {
+      const assistantMessage = {
+        role: 'assistant',
+        content: msg.content || null,
+        id: messageIdCounter
+      };
+      
+      if (msg.tool_calls) {
+        assistantMessage.tool_calls = msg.tool_calls;
+      }
+      
+      currentMessages.push(assistantMessage);
+    }
+    
+    return currentMessages;
+  };
+
+  it('should create a single assistant message when response has both content and tool_calls', () => {
     // Simulated API response with BOTH content and tool_calls
     const msg = {
       content: "I'll resize the video for you.",
@@ -25,20 +44,8 @@ describe('Duplicate Message Fix - Logic Verification', () => {
       }]
     };
     
-    // NEW LOGIC (after fix): Create single message with both content and tool_calls
-    if (msg.content || msg.tool_calls) {
-      const assistantMessage = {
-        role: 'assistant',
-        content: msg.content || null,
-        id: messageIdCounter++
-      };
-      
-      if (msg.tool_calls) {
-        assistantMessage.tool_calls = msg.tool_calls;
-      }
-      
-      currentMessages.push(assistantMessage);
-    }
+    // Use the helper to apply the NEW LOGIC
+    const currentMessages = createAssistantMessage(msg, 1);
     
     // Verify: Should have exactly ONE assistant message
     expect(currentMessages.length).toBe(1);
@@ -51,28 +58,13 @@ describe('Duplicate Message Fix - Logic Verification', () => {
   });
 
   it('should create a single assistant message with content when response has only content', () => {
-    const currentMessages = [];
-    let messageIdCounter = 1;
-    
     // Simulated API response with ONLY content
     const msg = {
       content: "Video processed successfully."
     };
     
-    // NEW LOGIC: Create single message with content
-    if (msg.content || msg.tool_calls) {
-      const assistantMessage = {
-        role: 'assistant',
-        content: msg.content || null,
-        id: messageIdCounter++
-      };
-      
-      if (msg.tool_calls) {
-        assistantMessage.tool_calls = msg.tool_calls;
-      }
-      
-      currentMessages.push(assistantMessage);
-    }
+    // Use the helper to apply the NEW LOGIC
+    const currentMessages = createAssistantMessage(msg, 1);
     
     // Verify: Should have exactly ONE assistant message
     expect(currentMessages.length).toBe(1);
@@ -84,9 +76,6 @@ describe('Duplicate Message Fix - Logic Verification', () => {
   });
 
   it('should create a single assistant message with null content when response has only tool_calls', () => {
-    const currentMessages = [];
-    let messageIdCounter = 1;
-    
     // Simulated API response with ONLY tool_calls (no content)
     const msg = {
       content: null,
@@ -99,20 +88,8 @@ describe('Duplicate Message Fix - Logic Verification', () => {
       }]
     };
     
-    // NEW LOGIC: Create single message with null content and tool_calls
-    if (msg.content || msg.tool_calls) {
-      const assistantMessage = {
-        role: 'assistant',
-        content: msg.content || null,
-        id: messageIdCounter++
-      };
-      
-      if (msg.tool_calls) {
-        assistantMessage.tool_calls = msg.tool_calls;
-      }
-      
-      currentMessages.push(assistantMessage);
-    }
+    // Use the helper to apply the NEW LOGIC
+    const currentMessages = createAssistantMessage(msg, 1);
     
     // Verify: Should have exactly ONE assistant message
     expect(currentMessages.length).toBe(1);
