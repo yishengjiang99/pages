@@ -4,6 +4,7 @@ import { toolFunctions } from './toolFunctions.js';
 import VideoPreview from './VideoPreview.jsx';
 
 export default function App() {
+  const [showLanding, setShowLanding] = useState(true); // Show landing page initially
   const [loaded, setLoaded] = useState(true); // Server-side processing doesn't require loading
   const videoRef = useRef(null);
   const messageRef = useRef(null);
@@ -142,6 +143,132 @@ export default function App() {
     setMessages(newMessages);
     await callAPI(newMessages);
   };
+
+  const handleGetStarted = () => {
+    setShowLanding(false);
+  };
+
+  const loadSampleVideo = async () => {
+    setShowLanding(false);
+    // Use a sample video URL - this could be hosted or a placeholder
+    const sampleVideoUrl = '/sample-video.mp4';
+    
+    try {
+      // Fetch the sample video
+      const response = await fetch(sampleVideoUrl);
+      if (!response.ok) {
+        // If sample video doesn't exist, just show a message
+        addMessage('Sample video not available. Please upload your own video.', false);
+        return;
+      }
+      
+      const blob = await response.blob();
+      const arrayBuffer = await blob.arrayBuffer();
+      const data = new Uint8Array(arrayBuffer);
+      setVideoFileData(data);
+      const url = URL.createObjectURL(blob);
+      
+      setFileType('video');
+      setFileMimeType('video/mp4');
+      
+      // Show selected video
+      const uploadedMessage = { role: 'user', content: 'Selected sample video:', videoUrl: url, videoType: 'original', mimeType: 'video/mp4', id: messageIdCounterRef.current++ };
+      const userMessage = { role: 'user', content: 'Sample video loaded and ready for editing.', id: messageIdCounterRef.current++ };
+      
+      const messagesForAPI = [...messages, uploadedMessage, userMessage];
+      setMessages(prev => [...prev, uploadedMessage, userMessage]);
+      
+      await callAPI(messagesForAPI);
+    } catch (error) {
+      addMessage('Error loading sample video. Please upload your own video.', false);
+    }
+  };
+
+  // Landing page component
+  if (showLanding) {
+    return (
+      <div style={{ fontFamily: 'Arial, sans-serif', margin: 0, padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#0d1117' }}>
+        <div style={{ maxWidth: '800px', padding: '40px 20px', color: '#c9d1d9' }}>
+          <h1 style={{ fontSize: '48px', fontWeight: 'bold', marginBottom: '20px', color: '#ffffff', textAlign: 'center' }}>
+            FinalCut Video Editor
+          </h1>
+          <p style={{ fontSize: '20px', marginBottom: '40px', textAlign: 'center', color: '#8b949e' }}>
+            AI-powered video and audio editing at your fingertips
+          </p>
+
+          <div style={{ marginBottom: '40px' }}>
+            <h2 style={{ fontSize: '28px', marginBottom: '20px', color: '#ffffff' }}>Available Tools</h2>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+              <div style={{ padding: '20px', backgroundColor: '#161b22', borderRadius: '8px', border: '1px solid #30363d' }}>
+                <h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#58a6ff' }}>✂️ Video Editing</h3>
+                <p style={{ fontSize: '14px', color: '#8b949e', margin: 0 }}>Trim, crop, resize, and rotate videos with precision</p>
+              </div>
+              <div style={{ padding: '20px', backgroundColor: '#161b22', borderRadius: '8px', border: '1px solid #30363d' }}>
+                <h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#58a6ff' }}>🎨 Visual Effects</h3>
+                <p style={{ fontSize: '14px', color: '#8b949e', margin: 0 }}>Adjust brightness, hue, saturation, and add text overlays</p>
+              </div>
+              <div style={{ padding: '20px', backgroundColor: '#161b22', borderRadius: '8px', border: '1px solid #30363d' }}>
+                <h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#58a6ff' }}>🎵 Audio Tools</h3>
+                <p style={{ fontSize: '14px', color: '#8b949e', margin: 0 }}>Volume control, fade effects, equalizer, and audio filters</p>
+              </div>
+              <div style={{ padding: '20px', backgroundColor: '#161b22', borderRadius: '8px', border: '1px solid #30363d' }}>
+                <h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#58a6ff' }}>⚡ Speed Control</h3>
+                <p style={{ fontSize: '14px', color: '#8b949e', margin: 0 }}>Speed up or slow down your videos and audio</p>
+              </div>
+              <div style={{ padding: '20px', backgroundColor: '#161b22', borderRadius: '8px', border: '1px solid #30363d' }}>
+                <h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#58a6ff' }}>📱 Social Media</h3>
+                <p style={{ fontSize: '14px', color: '#8b949e', margin: 0 }}>Preset formats for Instagram, TikTok, YouTube, and more</p>
+              </div>
+              <div style={{ padding: '20px', backgroundColor: '#161b22', borderRadius: '8px', border: '1px solid #30363d' }}>
+                <h3 style={{ fontSize: '18px', marginBottom: '10px', color: '#58a6ff' }}>🔄 Format Conversion</h3>
+                <p style={{ fontSize: '14px', color: '#8b949e', margin: 0 }}>Convert between MP4, WebM, MOV, and other formats</p>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
+            <button 
+              onClick={handleGetStarted}
+              style={{ 
+                padding: '15px 40px', 
+                fontSize: '18px', 
+                fontWeight: 'bold',
+                backgroundColor: '#1f6feb', 
+                color: '#ffffff', 
+                border: 'none', 
+                borderRadius: '8px', 
+                cursor: 'pointer',
+                width: '300px',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseOver={(e) => e.target.style.backgroundColor = '#1a5cd7'}
+              onMouseOut={(e) => e.target.style.backgroundColor = '#1f6feb'}
+            >
+              Get Started
+            </button>
+            <button 
+              onClick={loadSampleVideo}
+              style={{ 
+                padding: '12px 40px', 
+                fontSize: '16px', 
+                backgroundColor: '#21262d', 
+                color: '#c9d1d9', 
+                border: '1px solid #30363d', 
+                borderRadius: '8px', 
+                cursor: 'pointer',
+                width: '300px',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseOver={(e) => e.target.style.backgroundColor = '#30363d'}
+              onMouseOut={(e) => e.target.style.backgroundColor = '#21262d'}
+            >
+              Try with Sample Video
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', margin: 0, padding: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#0d1117' }}>
