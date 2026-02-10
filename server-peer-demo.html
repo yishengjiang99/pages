@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Server-Peer Video Demo</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #0f1115;
+      color: #eef1f7;
+    }
+    h1 { color: #4da3ff; }
+    h2 { color: #5db4ff; margin-top: 30px; }
+    video {
+      width: 100%;
+      max-width: 640px;
+      display: block;
+      margin: 20px auto;
+      background: #000;
+      border-radius: 8px;
+    }
+    .error {
+      background: #ff4444;
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .success {
+      background: #44ff44;
+      color: #0f1115;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+    }
+    .info {
+      background: #1b2333;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border: 1px solid #2a3346;
+    }
+    code {
+      background: #0f1827;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    pre {
+      background: #0f1827;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    .status {
+      padding: 10px;
+      border-radius: 8px;
+      margin: 10px 0;
+    }
+    button {
+      background: #4da3ff;
+      color: #041427;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      margin: 5px;
+    }
+    button:hover {
+      background: #5db4ff;
+    }
+  </style>
+</head>
+<body>
+  <h1>Server-Peer Video Streaming Demo</h1>
+  
+  <div class="info">
+    <h3>📋 About This Demo</h3>
+    <p>This page demonstrates the <code>server-peer.js</code> video server that serves <code>demo.mp4</code> with proper HTTP range request support for video streaming.</p>
+  </div>
+
+  <h2>Server Status</h2>
+  <div id="serverStatus" class="status info">
+    <p>⏳ Checking server status...</p>
+  </div>
+
+  <h2>Video Player</h2>
+  <div id="videoStatus" class="status info">
+    <p>Attempting to load video from server...</p>
+  </div>
+  
+  <video id="videoPlayer" controls>
+    <source src="http://localhost:3002/demo.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+
+  <h2>🔧 Setup Instructions</h2>
+  <div class="info">
+    <h3>Step 1: Start the server</h3>
+    <pre>npm run server</pre>
+    
+    <h3>Step 2: Add demo.mp4 video file</h3>
+    <p>Download a sample video to the root directory:</p>
+    <pre>curl -o demo.mp4 "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"</pre>
+    <p>Or copy your own MP4 file and name it <code>demo.mp4</code></p>
+
+    <h3>Step 3: Open this page</h3>
+    <p>Navigate to <code>http://localhost:3002/</code> or this file</p>
+  </div>
+
+  <h2>🧪 Test Endpoints</h2>
+  <div class="info">
+    <button onclick="testHealth()">Test Health Endpoint</button>
+    <button onclick="testVideo()">Test Video Endpoint</button>
+    <button onclick="reloadVideo()">Reload Video</button>
+    
+    <div id="testResults" style="margin-top: 15px;"></div>
+  </div>
+
+  <h2>📊 Technical Details</h2>
+  <div class="info">
+    <h3>Features:</h3>
+    <ul>
+      <li>✅ HTTP Range request support (byte-range streaming)</li>
+      <li>✅ Proper Content-Type and Content-Length headers</li>
+      <li>✅ CORS enabled for cross-origin requests</li>
+      <li>✅ 206 Partial Content responses for seeking</li>
+      <li>✅ Error handling for missing files</li>
+    </ul>
+    
+    <h3>Endpoints:</h3>
+    <ul>
+      <li><code>GET /</code> - This info page</li>
+      <li><code>GET /demo.mp4</code> - Video streaming endpoint</li>
+      <li><code>GET /health</code> - Health check endpoint</li>
+    </ul>
+  </div>
+
+  <script>
+    const video = document.getElementById('videoPlayer');
+    const videoStatus = document.getElementById('videoStatus');
+    const serverStatus = document.getElementById('serverStatus');
+    const testResults = document.getElementById('testResults');
+    
+    // Check server health
+    async function checkServerHealth() {
+      try {
+        const response = await fetch('http://localhost:3002/health');
+        const data = await response.json();
+        serverStatus.className = 'status success';
+        serverStatus.innerHTML = '<p>✅ Server is running on http://localhost:3002</p>';
+        return true;
+      } catch (error) {
+        serverStatus.className = 'status error';
+        serverStatus.innerHTML = `
+          <p>❌ Server is not running</p>
+          <p>Please start the server with: <code>npm run server</code></p>
+        `;
+        return false;
+      }
+    }
+    
+    // Test health endpoint
+    async function testHealth() {
+      testResults.innerHTML = '<p>⏳ Testing health endpoint...</p>';
+      try {
+        const response = await fetch('http://localhost:3002/health');
+        const data = await response.json();
+        testResults.innerHTML = `
+          <div class="success">
+            <p>✅ Health check passed</p>
+            <pre>${JSON.stringify(data, null, 2)}</pre>
+          </div>
+        `;
+      } catch (error) {
+        testResults.innerHTML = `
+          <div class="error">
+            <p>❌ Health check failed</p>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+    
+    // Test video endpoint
+    async function testVideo() {
+      testResults.innerHTML = '<p>⏳ Testing video endpoint...</p>';
+      try {
+        const response = await fetch('http://localhost:3002/demo.mp4', { method: 'HEAD' });
+        if (response.ok) {
+          const size = response.headers.get('content-length');
+          testResults.innerHTML = `
+            <div class="success">
+              <p>✅ Video file found</p>
+              <p>Size: ${(size / 1024 / 1024).toFixed(2)} MB</p>
+              <p>Content-Type: ${response.headers.get('content-type')}</p>
+              <p>Accept-Ranges: ${response.headers.get('accept-ranges')}</p>
+            </div>
+          `;
+        } else if (response.status === 404) {
+          const data = await response.json();
+          testResults.innerHTML = `
+            <div class="error">
+              <p>❌ demo.mp4 not found</p>
+              <p>${data.message}</p>
+            </div>
+          `;
+        }
+      } catch (error) {
+        testResults.innerHTML = `
+          <div class="error">
+            <p>❌ Video test failed</p>
+            <p>${error.message}</p>
+          </div>
+        `;
+      }
+    }
+    
+    // Reload video
+    function reloadVideo() {
+      video.load();
+      videoStatus.className = 'status info';
+      videoStatus.innerHTML = '<p>⏳ Reloading video...</p>';
+    }
+    
+    // Video event handlers
+    video.addEventListener('error', () => {
+      videoStatus.className = 'status error';
+      videoStatus.innerHTML = `
+        <p>❌ Failed to load video</p>
+        <p>Make sure:</p>
+        <ul>
+          <li>Server is running (<code>npm run server</code>)</li>
+          <li>demo.mp4 file exists in the root directory</li>
+        </ul>
+      `;
+    });
+    
+    video.addEventListener('loadedmetadata', () => {
+      videoStatus.className = 'status success';
+      videoStatus.innerHTML = `
+        <p>✅ Video loaded successfully</p>
+        <p>Duration: ${video.duration.toFixed(2)} seconds</p>
+        <p>Dimensions: ${video.videoWidth} × ${video.videoHeight}</p>
+      `;
+    });
+    
+    video.addEventListener('loadeddata', () => {
+      console.log('Video data loaded');
+    });
+    
+    // Check server on load
+    checkServerHealth();
+  </script>
+</body>
+</html>
