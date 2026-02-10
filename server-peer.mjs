@@ -45,7 +45,7 @@ app.get('/demo.mp4', async (req, res) => {
         });
       }
 
-      const chunksize = (end - start) + 1;
+      const chunkSize = (end - start) + 1;
 
       // Stream the video chunk directly from disk (efficient for large files)
       const stream = createReadStream(videoPath, { start, end });
@@ -54,7 +54,7 @@ app.get('/demo.mp4', async (req, res) => {
       res.writeHead(206, {
         'Content-Range': `bytes ${start}-${end}/${fileSize}`,
         'Accept-Ranges': 'bytes',
-        'Content-Length': chunksize,
+        'Content-Length': chunkSize,
         'Content-Type': 'video/mp4',
       });
       
