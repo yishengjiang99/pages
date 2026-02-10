@@ -1,5 +1,5 @@
 import express from 'express';
-import { promises as fs } from 'fs';
+import { promises as fs, createReadStream } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -34,9 +34,8 @@ app.get('/demo.mp4', async (req, res) => {
       const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
       const chunksize = (end - start) + 1;
 
-      // Read the video chunk
-      const file = await fs.readFile(videoPath);
-      const chunk = file.slice(start, end + 1);
+      // Stream the video chunk directly from disk (efficient for large files)
+      const stream = createReadStream(videoPath, { start, end });
 
       // Send partial content response
       res.writeHead(206, {
@@ -45,17 +44,35 @@ app.get('/demo.mp4', async (req, res) => {
         'Content-Length': chunksize,
         'Content-Type': 'video/mp4',
       });
-      res.end(chunk);
+      
+      // Handle stream errors
+      stream.on('error', (err) => {
+        console.error('Stream error:', err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Failed to stream video' });
+        }
+      });
+      
+      stream.pipe(res);
     } else {
-      // Send full video
-      const file = await fs.readFile(videoPath);
+      // Stream full video directly from disk (efficient for large files)
+      const stream = createReadStream(videoPath);
       
       res.writeHead(200, {
         'Content-Length': fileSize,
         'Content-Type': 'video/mp4',
         'Accept-Ranges': 'bytes'
       });
-      res.end(file);
+      
+      // Handle stream errors
+      stream.on('error', (err) => {
+        console.error('Stream error:', err);
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Failed to stream video' });
+        }
+      });
+      
+      stream.pipe(res);
     }
   } catch (error) {
     console.error('Error serving video:', error);

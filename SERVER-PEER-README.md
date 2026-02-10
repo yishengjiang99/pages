@@ -154,7 +154,20 @@ This allows the video to be embedded in pages served from different origins.
 - `demo.mp4` - Video file (not in git, see .gitignore)
 - `demo.mp4.README.md` - Instructions for obtaining demo.mp4
 - `server-peer-demo.html` - Demo/test page
-- `package.json` - Updated with express dependency and server script
+- `package.json` - Updated with express dependency, server script, and ES module support
+
+## Package.json Changes
+
+The `package.json` file was updated with:
+
+1. **ES Module Support**: Added `"type": "module"` to enable ES6 import/export syntax
+   - This affects all `.js` files in the project root
+   - Allows use of `import`/`export` instead of `require()`/`module.exports`
+   - Existing scripts should still work as Node.js supports both module systems
+
+2. **Express Dependency**: Added `express` for the HTTP server
+
+3. **Server Script**: Added `npm run server` command to start the video server
 
 ## Dependencies
 
@@ -168,6 +181,20 @@ Install with:
 ```bash
 npm install
 ```
+
+## Implementation Details
+
+### Efficient Streaming
+The server uses Node.js streams (`fs.createReadStream`) instead of loading entire files into memory:
+- **Memory efficient**: Only reads requested chunks from disk
+- **Scalable**: Can handle large video files without memory issues
+- **Performance**: Stream directly to response without intermediate buffers
+
+### Error Handling
+- Stream error handlers prevent crashes
+- 404 responses for missing files
+- 500 responses for server errors
+- Helpful error messages
 
 ## Why This Matters
 
