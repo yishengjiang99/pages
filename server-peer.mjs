@@ -32,6 +32,19 @@ app.get('/demo.mp4', async (req, res) => {
       const parts = range.replace(/bytes=/, '').split('-');
       const start = parseInt(parts[0], 10);
       const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      // Validate range values
+      if (isNaN(start) || isNaN(end)) {
+        return res.status(400).json({ error: 'Invalid range format' });
+      }
+      
+      if (start < 0 || end >= fileSize || start > end) {
+        return res.status(416).json({ 
+          error: 'Range not satisfiable',
+          message: `Valid range: 0-${fileSize - 1}` 
+        });
+      }
+
       const chunksize = (end - start) + 1;
 
       // Stream the video chunk directly from disk (efficient for large files)

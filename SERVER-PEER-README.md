@@ -1,14 +1,14 @@
 # Server-Peer Video Streaming
 
-This directory contains a simple Node.js server (`server-peer.js`) that serves video files with proper HTTP range request support for streaming.
+This directory contains a simple Node.js server (`server-peer.mjs`) that serves video files with proper HTTP range request support for streaming.
 
 ## The Issue
 
-The original problem was that `server-peer.js` was missing and not sending the `demo.mp4` video file. This has been resolved by creating a proper video streaming server.
+The original problem was that `server-peer.mjs` was missing and not sending the `demo.mp4` video file. This has been resolved by creating a proper video streaming server.
 
 ## Solution Components
 
-### 1. server-peer.js
+### 1. server-peer.mjs
 A Node.js Express server that:
 - Serves video files with HTTP range request support (essential for video seeking)
 - Returns 206 Partial Content responses for range requests
@@ -44,7 +44,7 @@ npm run server
 Or directly:
 
 ```bash
-node server-peer.js
+node server-peer.mjs
 ```
 
 The server will start on http://localhost:3002
@@ -150,24 +150,21 @@ This allows the video to be embedded in pages served from different origins.
 
 ## Files
 
-- `server-peer.js` - Main server file
+- `server-peer.mjs` - Main server file (ES module format)
 - `demo.mp4` - Video file (not in git, see .gitignore)
 - `demo.mp4.README.md` - Instructions for obtaining demo.mp4
 - `server-peer-demo.html` - Demo/test page
-- `package.json` - Updated with express dependency, server script, and ES module support
+- `package.json` - Updated with express dependency and server script
 
 ## Package.json Changes
 
 The `package.json` file was updated with:
 
-1. **ES Module Support**: Added `"type": "module"` to enable ES6 import/export syntax
-   - This affects all `.js` files in the project root
-   - Allows use of `import`/`export` instead of `require()`/`module.exports`
-   - Existing scripts should still work as Node.js supports both module systems
+1. **Express Dependency**: Added `express` for the HTTP server
 
-2. **Express Dependency**: Added `express` for the HTTP server
+2. **Server Script**: Added `npm run server` command to start the video server
 
-3. **Server Script**: Added `npm run server` command to start the video server
+Note: The server uses the `.mjs` extension to enable ES6 import/export syntax without affecting other scripts in the project that use CommonJS.
 
 ## Dependencies
 
@@ -190,9 +187,19 @@ The server uses Node.js streams (`fs.createReadStream`) instead of loading entir
 - **Scalable**: Can handle large video files without memory issues
 - **Performance**: Stream directly to response without intermediate buffers
 
+### Range Request Validation
+Comprehensive validation ensures proper HTTP compliance:
+- **Format validation**: Ensures range header contains valid numbers
+- **Bounds checking**: Verifies start and end are within file size
+- **Logical validation**: Ensures start ≤ end
+- **Error responses**:
+  - `400 Bad Request` for invalid format (e.g., "bytes=abc-def")
+  - `416 Range Not Satisfiable` for invalid ranges (e.g., start > end, out of bounds)
+
 ### Error Handling
 - Stream error handlers prevent crashes
 - 404 responses for missing files
+- 416 responses for invalid ranges
 - 500 responses for server errors
 - Helpful error messages
 
