@@ -67,13 +67,6 @@ jobs:
         env:
           DEBIAN_FRONTEND: noninteractive
 
-      - name: Build finalcut Vite project
-        run: |
-          cd finalcut
-          npm ci
-          npm run build
-          cd ..
-
       - name: Generate index.html
         run: node generate-index.js
         env:

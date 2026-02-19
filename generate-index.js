@@ -74,43 +74,6 @@ const server = http.createServer((req, res) => {
 server.listen(PORT, async () => {
   console.log(`Server running at http://localhost:${PORT}`);
 
-  // Create symlink for finalcut.html -> finalcut/dist/index.html
-  const finalcutSymlink = path.join(CWD, 'finalcut.html');
-  const finalcutTarget = path.join(CWD, 'finalcut', 'dist', 'index.html');
-  
-  // Remove existing symlink if it exists
-  try {
-    if (fs.existsSync(finalcutSymlink)) {
-      const stats = fs.lstatSync(finalcutSymlink);
-      // Remove if it's a symlink, file, or any non-directory
-      if (!stats.isDirectory()) {
-        fs.unlinkSync(finalcutSymlink);
-      } else {
-        console.log(`Warning: finalcut.html exists and is a directory`);
-      }
-    }
-  } catch (err) {
-    console.error(`Error removing existing finalcut.html: ${err.message}`);
-  }
-  
-  // Create the symlink if the target exists
-  try {
-    // Use statSync to follow symlinks and check the actual target
-    const targetStats = fs.statSync(finalcutTarget);
-    if (targetStats.isFile()) {
-      // Use relative path for better portability
-      const relativeTarget = path.relative(path.dirname(finalcutSymlink), finalcutTarget);
-      fs.symlinkSync(relativeTarget, finalcutSymlink);
-      console.log(`Created symlink: finalcut.html -> ${relativeTarget}`);
-    }
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      console.log(`Warning: finalcut/dist/index.html does not exist, symlink not created`);
-    } else {
-      console.error(`Error creating symlink: ${err.message}`);
-    }
-  }
-
   // Find HTML files, exclude index.html in root
   let htmlFiles = findHtmlFiles(CWD).filter(file => path.basename(file).toLowerCase() !== 'index.html');
 
