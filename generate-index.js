@@ -70,6 +70,68 @@ const server = http.createServer((req, res) => {
   });
 });
 
+// Build and inject a navigation block into an HTML file using relative paths
+function buildNavBlock(file, allHtmlFiles) {
+  const fileDir = path.dirname(file);
+  const relIndexPath = path.relative(fileDir, path.join(CWD, 'index.html')).replace(/\\/g, '/');
+
+  const drawerLinks = allHtmlFiles
+    .map(f => {
+      const rel = path.relative(fileDir, f).replace(/\\/g, '/');
+      return `  <a href="${rel}">${path.basename(f)}</a>`;
+    })
+    .join('\n');
+
+  return `\n<!-- NAVIGATION INJECTED -->
+<style>
+  body { margin: 0; font-family: Arial, sans-serif; }
+  header {
+    background: #333; color: white; padding: 10px 20px;
+    display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: 0; z-index: 1000;
+  }
+  header a { color: white; text-decoration: none; font-weight: bold; }
+  .menu-btn { background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; }
+  .drawer {
+    height: 100%; width: 250px; position: fixed; top: 0; left: -250px;
+    background: #444; overflow-x: hidden; transition: 0.3s; padding-top: 60px;
+    z-index: 999;
+  }
+  .drawer.open { left: 0; }
+  .drawer a {
+    padding: 10px 20px; text-decoration: none; color: white; display: block;
+  }
+  .drawer a:hover { background: #575757; }
+  main { margin: 20px; }
+</style>
+<header>
+  <a href="${relIndexPath}">← Back to Index</a>
+  <button class="menu-btn" onclick="toggleDrawer()">☰ Menu</button>
+</header>
+<div id="drawer" class="drawer">
+${drawerLinks}
+</div>
+<script>
+  function toggleDrawer() {
+    document.getElementById('drawer').classList.toggle('open');
+  }
+</script>`;
+}
+
+function injectNavigation(file, allHtmlFiles) {
+  let content = fs.readFileSync(file, 'utf8');
+  // Remove any existing injected navigation block (idempotent)
+  content = content.replace(/\n?<!-- NAVIGATION INJECTED -->[\s\S]*?<\/script>/g, '');
+  // Inject new navigation block before </body>, or append at end if absent
+  const navBlock = buildNavBlock(file, allHtmlFiles);
+  if (content.includes('</body>')) {
+    content = content.replace('</body>', `${navBlock}\n</body>`);
+  } else {
+    content += navBlock;
+  }
+  fs.writeFileSync(file, content, 'utf8');
+}
+
 // Start server and perform tasks
 server.listen(PORT, async () => {
   console.log(`Server running at http://localhost:${PORT}`);
@@ -81,6 +143,12 @@ server.listen(PORT, async () => {
     console.log('No HTML files found.');
     server.close();
     return;
+  }
+
+  // Inject navigation into all HTML files (excluding node_modules and test files)
+  const navFiles = htmlFiles.filter(f => !f.includes('node_modules') && !f.includes('_test_'));
+  for (const file of navFiles) {
+    injectNavigation(file, navFiles);
   }
 
   // Launch Puppeteer with --no-sandbox
