@@ -1,75 +1,306 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8">
-  <title>PDF Line Editor</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PDF Reflow Rebuild (Option A)</title>
+
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.js"></script>
+  <!-- pdf-lib -->
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
   <style>
-    canvas { border: 1px solid #ccc; }
-    .line-input {
-      margin-bottom: 5px;
-      width: 100%;
-      font-family: monospace;
+    :root { color-scheme: light dark; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:#0b0c0f; color:#eaeaf0; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 16px; }
+    .card { background:#11131a; border:1px solid #22263a; border-radius: 14px; padding: 14px; }
+    .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; }
+    .btn, .file {
+      display:inline-flex; align-items:center; gap:8px;
+      padding:10px 12px; border-radius:12px;
+      border:1px solid #2a2f49; background:#171a26; color:#eaeaf0;
+      cursor:pointer; user-select:none; font-weight:700;
     }
+    .btn:disabled { opacity:.55; cursor:not-allowed; }
+    input[type="file"] { display:none; }
+    .meta { margin-top:10px; font-size: 13px; opacity: .9; line-height:1.35; }
+    .cols { margin-top:14px; display:grid; grid-template-columns: 1fr; gap: 12px; }
+    .box { background:#0e1017; border:1px solid #22263a; border-radius:14px; padding: 10px; }
+    textarea {
+      width:100%; min-height: 220px; resize: vertical;
+      border-radius:12px; border:1px solid #2a2f49; background:#0b0c0f; color:#eaeaf0;
+      padding: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size: 12px; line-height: 1.35;
+    }
+    .hint { font-size: 12px; opacity: .85; margin-top: 8px; }
   </style>
 </head>
 <body>
-  <h2>PDF Line Editor</h2>
-  <input type="file" id="file-input" />
-  <br><br>
-  <canvas id="pdf-canvas"></canvas>
-  <div id="text-lines"></div>
+  <div class="wrap">
+    <div class="card">
+      <div class="row">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <label class="file btn" for="pdfFile">📄 Choose PDF</label>
+          <input id="pdfFile" type="file" accept="application/pdf" />
+          <button id="extractBtn" class="btn" disabled>🧾 Extract text</button>
+          <button id="rebuildBtn" class="btn" disabled>🧱 Rebuild (reflow) PDF</button>
+          <button id="downloadBtn" class="btn" disabled>⬇️ Download rebuilt PDF</button>
+        </div>
+      </div>
+
+      <div class="meta" id="status">Load a PDF, extract text, optionally edit the extracted text, then rebuild a reflowed PDF.</div>
+
+      <div class="cols">
+        <div class="box">
+          <div style="font-weight:800; margin-bottom:8px;">Extracted / editable text (simple reading order)</div>
+          <textarea id="textArea" placeholder="Extracted text will appear here…"></textarea>
+          <div class="hint">
+            This demo rebuilds a new PDF from this text with word wrap + pagination (single column).
+            If your source PDF is multi-column/tables, you’ll want better grouping before rebuild.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script>
-    const fileInput = document.getElementById('file-input');
-    const canvas = document.getElementById('pdf-canvas');
-    const ctx = canvas.getContext('2d');
-    const textLinesDiv = document.getElementById('text-lines');
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.js";
 
-    fileInput.addEventListener('change', async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    const { PDFDocument, StandardFonts, rgb } = PDFLib;
 
-      const arrayBuffer = await file.arrayBuffer();
+    const elFile = document.getElementById("pdfFile");
+    const elExtract = document.getElementById("extractBtn");
+    const elRebuild = document.getElementById("rebuildBtn");
+    const elDownload = document.getElementById("downloadBtn");
+    const elStatus = document.getElementById("status");
+    const elText = document.getElementById("textArea");
 
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      const page = await pdf.getPage(1);
+    let pdfBytes = null;
+    let extractedText = "";
+    let rebuiltBytes = null;
 
-      // Render the page to canvas
-      const viewport = page.getViewport({ scale: 1.5 });
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
+    function setStatus(s) { elStatus.textContent = s; }
+    function u8(buf) { return (buf instanceof Uint8Array) ? buf : new Uint8Array(buf); }
 
-      await page.render({ canvasContext: ctx, viewport }).promise;
+    function downloadBytes(bytes, filename) {
+      const blob = new Blob([bytes], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
 
-      // Get and display editable lines
-      const textContent = await page.getTextContent();
+    // --- Extraction: "good enough" reading order for many single-column PDFs ---
+    // Groups items into lines by y, then sorts lines top-to-bottom, items left-to-right.
+    async function extractAllPagesText(pdfBytesU8) {
+      const doc = await pdfjsLib.getDocument({ data: pdfBytesU8 }).promise;
+      const pageCount = doc.numPages;
+
+      const OUT = [];
+      for (let p = 1; p <= pageCount; p++) {
+        const page = await doc.getPage(p);
+        const tc = await page.getTextContent();
+
+        const items = tc.items
+          .filter(it => it.str && it.str.trim().length)
+          .map(it => {
+            const x = it.transform[4];
+            const y = it.transform[5];
+            const w = it.width || 0;
+            const h = it.height || Math.abs(it.transform[3]) || 10;
+            return { str: it.str, x, y, w, h };
+          });
+
+        // Sort by y desc, then x asc
+        items.sort((a,b) => (b.y - a.y) || (a.x - b.x));
+
+        const Y_TOL = 2.0;
+        const lines = [];
+        for (const it of items) {
+          let line = lines.find(L => Math.abs(L.y - it.y) <= Y_TOL);
+          if (!line) {
+            line = { y: it.y, items: [] };
+            lines.push(line);
+          }
+          line.items.push(it);
+        }
+
+        // Now sort lines top->bottom and build line strings
+        lines.sort((a,b) => b.y - a.y);
+
+        // Insert page marker to help debugging (optional)
+        // OUT.push(`\n=== Page ${p} ===\n`);
+
+        for (const L of lines) {
+          L.items.sort((a,b) => a.x - b.x);
+          let s = "";
+          for (let i = 0; i < L.items.length; i++) {
+            const cur = L.items[i];
+            const prev = L.items[i-1];
+            if (prev) {
+              const gap = cur.x - (prev.x + prev.w);
+              if (gap > 1.5) s += " ";
+            }
+            s += cur.str;
+          }
+          s = s.trim();
+          if (s) OUT.push(s);
+        }
+
+        // Add blank line between pages
+        OUT.push("");
+      }
+
+      // Heuristic: collapse excessive blank lines
+      return OUT.join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+    }
+
+    // --- Rebuild: lay out text with word wrap + pagination (single column) ---
+    function wrapText(text, measureFn, maxWidth) {
+      const words = text.split(/\s+/).filter(Boolean);
       const lines = [];
+      let line = "";
 
-      let currentLineY = null;
-      let currentLineText = "";
-
-      for (const item of textContent.items) {
-        const y = item.transform[5];
-        if (currentLineY === null || Math.abs(currentLineY - y) < 2) {
-          currentLineText += item.str + " ";
-          currentLineY = y;
+      for (const w of words) {
+        const test = line ? (line + " " + w) : w;
+        if (measureFn(test) <= maxWidth) {
+          line = test;
         } else {
-          lines.push(currentLineText.trim());
-          currentLineText = item.str + " ";
-          currentLineY = y;
+          if (line) lines.push(line);
+          // If a single word is too long, hard break it
+          if (measureFn(w) > maxWidth) {
+            let chunk = "";
+            for (const ch of w) {
+              const t = chunk + ch;
+              if (measureFn(t) <= maxWidth) chunk = t;
+              else {
+                if (chunk) lines.push(chunk);
+                chunk = ch;
+              }
+            }
+            line = chunk;
+          } else {
+            line = w;
+          }
         }
       }
-      if (currentLineText) lines.push(currentLineText.trim());
+      if (line) lines.push(line);
+      return lines;
+    }
 
-      textLinesDiv.innerHTML = ""; // clear previous
-      lines.forEach((line, idx) => {
-        const input = document.createElement("input");
-        input.type = "text";
-        input.value = line;
-        input.className = "line-input";
-        textLinesDiv.appendChild(input);
-      });
+    async function rebuildReflowPdfFromPlainText(text) {
+      // Letter size in points: 612 x 792
+      const pageW = 612;
+      const pageH = 792;
+      const margin = 54; // 0.75"
+      const fontSize = 11;
+      const lineHeight = 14; // points
+      const paragraphGap = 6;
+
+      const doc = await PDFDocument.create();
+      const font = await doc.embedFont(StandardFonts.Helvetica);
+
+      function newPage() {
+        return doc.addPage([pageW, pageH]);
+      }
+
+      let page = newPage();
+      let cursorY = pageH - margin;
+
+      const maxWidth = pageW - margin * 2;
+      const measure = (s) => font.widthOfTextAtSize(s, fontSize);
+
+      const paragraphs = text
+        .replace(/\r\n/g, "\n")
+        .split(/\n{2,}/) // blank line = paragraph break
+        .map(p => p.trim())
+        .filter(Boolean);
+
+      for (const p of paragraphs) {
+        // Wrap each paragraph
+        const raw = p.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
+        const lines = wrapText(raw, measure, maxWidth);
+
+        for (const ln of lines) {
+          if (cursorY - lineHeight < margin) {
+            page = newPage();
+            cursorY = pageH - margin;
+          }
+          page.drawText(ln, {
+            x: margin,
+            y: cursorY - fontSize,
+            size: fontSize,
+            font,
+            color: rgb(0, 0, 0),
+          });
+          cursorY -= lineHeight;
+        }
+
+        cursorY -= paragraphGap;
+        if (cursorY < margin) {
+          page = newPage();
+          cursorY = pageH - margin;
+        }
+      }
+
+      return await doc.save();
+    }
+
+    elFile.addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      setStatus("Loading PDF…");
+      pdfBytes = u8(await file.arrayBuffer());
+      extractedText = "";
+      rebuiltBytes = null;
+      elText.value = "";
+      elExtract.disabled = false;
+      elRebuild.disabled = true;
+      elDownload.disabled = true;
+      setStatus(`Loaded "${file.name}". Click “Extract text”.`);
+    });
+
+    elExtract.addEventListener("click", async () => {
+      if (!pdfBytes) return;
+      try {
+        elExtract.disabled = true;
+        setStatus("Extracting text from all pages (PDF.js)…");
+        extractedText = await extractAllPagesText(pdfBytes);
+        elText.value = extractedText;
+        elRebuild.disabled = false;
+        setStatus("Text extracted. Edit it if you want, then click “Rebuild (reflow) PDF”.");
+      } catch (err) {
+        console.error(err);
+        setStatus("Extraction failed. See console for details.");
+        elExtract.disabled = false;
+      }
+    });
+
+    elRebuild.addEventListener("click", async () => {
+      try {
+        elRebuild.disabled = true;
+        elDownload.disabled = true;
+        setStatus("Rebuilding a new reflowed PDF from the text (pdf-lib)…");
+        rebuiltBytes = await rebuildReflowPdfFromPlainText(elText.value || "");
+        elDownload.disabled = false;
+        setStatus("Rebuild complete. Click “Download rebuilt PDF”.");
+      } catch (err) {
+        console.error(err);
+        setStatus("Rebuild failed. See console for details.");
+        elRebuild.disabled = false;
+      }
+    });
+
+    elDownload.addEventListener("click", () => {
+      if (!rebuiltBytes) return;
+      downloadBytes(rebuiltBytes, "rebuilt-reflow.pdf");
     });
   </script>
 </body>
