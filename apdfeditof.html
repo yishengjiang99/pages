@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>PDF Line Editor</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <style>
+    canvas { border: 1px solid #ccc; }
+    .line-input {
+      margin-bottom: 5px;
+      width: 100%;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <h2>PDF Line Editor</h2>
+  <input type="file" id="file-input" />
+  <br><br>
+  <canvas id="pdf-canvas"></canvas>
+  <div id="text-lines"></div>
+
+  <script>
+    const fileInput = document.getElementById('file-input');
+    const canvas = document.getElementById('pdf-canvas');
+    const ctx = canvas.getContext('2d');
+    const textLinesDiv = document.getElementById('text-lines');
+
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const arrayBuffer = await file.arrayBuffer();
+
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const page = await pdf.getPage(1);
+
+      // Render the page to canvas
+      const viewport = page.getViewport({ scale: 1.5 });
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      await page.render({ canvasContext: ctx, viewport }).promise;
+
+      // Get and display editable lines
+      const textContent = await page.getTextContent();
+      const lines = [];
+
+      let currentLineY = null;
+      let currentLineText = "";
+
+      for (const item of textContent.items) {
+        const y = item.transform[5];
+        if (currentLineY === null || Math.abs(currentLineY - y) < 2) {
+          currentLineText += item.str + " ";
+          currentLineY = y;
+        } else {
+          lines.push(currentLineText.trim());
+          currentLineText = item.str + " ";
+          currentLineY = y;
+        }
+      }
+      if (currentLineText) lines.push(currentLineText.trim());
+
+      textLinesDiv.innerHTML = ""; // clear previous
+      lines.forEach((line, idx) => {
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = line;
+        input.className = "line-input";
+        textLinesDiv.appendChild(input);
+      });
+    });
+  </script>
+</body>
+</html>
