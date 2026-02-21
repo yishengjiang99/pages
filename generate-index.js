@@ -84,11 +84,11 @@ function buildNavBlock(file, allHtmlFiles) {
 
   return `\n<!-- NAVIGATION INJECTED -->
 <style>
-  body { margin: 0; font-family: Arial, sans-serif; }
+  body { margin: 0; font-family: Arial, sans-serif; padding-bottom: 60px; }
   header {
     background: #333; color: white; padding: 10px 20px;
     display: flex; justify-content: space-between; align-items: center;
-    position: sticky; top: 0; z-index: 1000;
+    position: fixed; bottom: 0; left: 0; width: 100%; z-index: 1000;
   }
   header a { color: white; text-decoration: none; font-weight: bold; }
   .menu-btn { background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; }
