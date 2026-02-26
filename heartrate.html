@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Hume Band Heart Rate Demo (Web Bluetooth)</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; }
+    button { padding: 12px 24px; font-size: 1.1rem; margin: 0.5rem 0; }
+    #status { margin: 1rem 0; font-weight: bold; color: #555; }
+    #hrValue { font-size: 4rem; color: #e74c3c; }
+  </style>
+</head>
+<body>
+  <h1>Connect to BLE Heart Rate Device</h1>
+  <p>This tries to use the standard Heart Rate Service (0x180D). Most likely <strong>won't work directly</strong> with Hume Health Band (proprietary protocol), but good for testing & discovery.</p>
+
+  <button id="connectBtn">Connect to Device & Get Heart Rate</button>
+  <div id="status">Status: Not connected</div>
+  <div>Current Heart Rate: <span id="hrValue">--</span> bpm</div>
+
+  <script>
+    const connectBtn = document.getElementById('connectBtn');
+    const statusDiv  = document.getElementById('status');
+    const hrValue    = document.getElementById('hrValue');
+
+    let device;
+    let server;
+    let heartRateCharacteristic;
+
+    const HEART_RATE_SERVICE_UUID    = '0000180d-0000-1000-8000-00805f9b34fb'; // or just '180d'
+    const HEART_RATE_MEASUREMENT_UUID = '00002a37-0000-1000-8000-00805f9b34fb'; // or '2a37'
+
+    async function connect() {
+      try {
+        statusDiv.textContent = 'Status: Requesting Bluetooth device...';
+        
+        // Request any device that advertises heart rate (or remove filters to see everything)
+        device = await navigator.bluetooth.requestDevice({
+          filters: [
+            { services: [HEART_RATE_SERVICE_UUID] }   // try standard HR first
+            // If Hume doesn't appear, comment line above and use this instead to see all:
+            // {}  
+          ],
+          optionalServices: [HEART_RATE_SERVICE_UUID]  // allow access even if not advertised
+        });
+
+        statusDiv.textContent = `Status: Connecting to ${device.name || device.id}...`;
+        server = await device.gatt.connect();
+
+        statusDiv.textContent = 'Status: Connected → Discovering services...';
+        const service = await server.getPrimaryService(HEART_RATE_SERVICE_UUID);
+
+        statusDiv.textContent = 'Status: Found Heart Rate Service → Getting characteristic...';
+        heartRateCharacteristic = await service.getCharacteristic(HEART_RATE_MEASUREMENT_UUID);
+
+        statusDiv.textContent = 'Status: Subscribing to notifications...';
+        await heartRateCharacteristic.startNotifications();
+
+        heartRateCharacteristic.addEventListener('characteristicvaluechanged', handleHeartRate);
+        statusDiv.textContent = 'Status: Subscribed! Waiting for heart rate data...';
+      } catch (error) {
+        statusDiv.textContent = `Error: ${error.message}`;
+        console.error(error);
+      }
+    }
+
+    function handleHeartRate(event) {
+      const value = event.target.value;
+      const flags = value.getUint8(0);
+      let offset = 1;
+
+      let rate;
+      if (flags & 0x01) { // uint16 if bit 0 set
+        rate = value.getUint16(offset, /* littleEndian */ true);
+        offset += 2;
+      } else {
+        rate = value.getUint8(offset);
+        offset += 1;
+      }
+
+      hrValue.textContent = rate;
+      console.log('Heart Rate:', rate, 'bpm', '(flags:', flags, ')');
+    }
+
+    // Optional: disconnect cleanly when page unloads
+    window.addEventListener('beforeunload', () => {
+      if (device && device.gatt && device.gatt.connected) {
+        device.gatt.disconnect();
+      }
+    });
+
+    connectBtn.addEventListener('click', connect);
+  </script>
+</body>
+</html>
