@@ -754,6 +754,8 @@
     filter = new Tone.Filter(1900, "lowpass").toDestination();
     reverb = new Tone.Reverb({decay:2.6, wet:0.18}).connect(filter);
 
+    const beatToSec = (beats) => beats * 60 / piece.bpm;
+
     for(let i=0;i<piece.voices.length;i++){
       const synth = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: i === piece.voices.length-1 ? "square4" : (i === 0 ? "triangle4" : "sawtooth3") },
@@ -765,20 +767,21 @@
 
     for(let vi=0; vi<piece.voices.length; vi++){
       const events = piece.notes.filter(n => n.voice === vi).map(n => ({
-        time:n.time,
+        timeSec: beatToSec(n.time),
         note:n.note,
-        durSec: Tone.Time(`${n.dur} * 4n`).toSeconds(),
+        durSec: Math.max(0.05, beatToSec(n.dur)),
         velocity:n.velocity
       }));
       const part = new Tone.Part((time, val) => {
         synths[vi].triggerAttackRelease(val.note, val.durSec, time, val.velocity);
-      }, events).start(0);
+      }, events.map(e => [e.timeSec, e])).start(0);
       parts.push(part);
     }
 
     function frame(){
       if(currentPiece){
-        drawPianoRoll(currentPiece, (Tone.Transport.seconds / 60) * currentPiece.bpm);
+        const playBeat = Tone.Transport.seconds * currentPiece.bpm / 60;
+        drawPianoRoll(currentPiece, playBeat);
       }
       rafId = requestAnimationFrame(frame);
     }
@@ -1025,7 +1028,7 @@
       transport.start(0);
     }, durationSec);
 
-    const wavBytes = audioBufferToWav(rendered.get());
+    const wavBytes = audioBufferToWav(rendered);
     wavBlobUrl = downloadBytes(wavBytes, "bach_fugue_generator.wav", "audio/wav");
     setStatus("Exported WAV.");
   }
@@ -1038,6 +1041,11 @@
   startBtn.addEventListener("click", async () => {
     await ensureAudio();
     if(!currentPiece) generate();
+    if(synths[0]){
+      try {
+        synths[0].triggerAttackRelease("C5", 0.08, Tone.now(), 0.001);
+      } catch (e) {}
+    }
     Tone.Transport.start();
     setStatus("Playback started.");
   });
