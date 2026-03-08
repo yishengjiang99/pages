@@ -759,7 +759,10 @@
       let currentPiece = null;
       let transportPart = null;
       let synths = [];
+      let outputChain = [];
       let playing = false;
+      const LOWPASS_FREQUENCY = 2100;
+      const COMPRESSOR_SETTINGS = { threshold: -24, ratio: 3, attack: 0.02, release: 0.18, knee: 18 };
       function currentTransportBeat() {
         const running = typeof Tone !== 'undefined' && Tone.Transport.state === 'started';
         return running ? Tone.Transport.seconds * (Tone.Transport.bpm.value / 60) : 0;
@@ -768,11 +771,23 @@
         await Tone.start();
         Tone.Destination.volume.value = -6;
       }
-      function makeVoiceSynth() {
+      function createMasterChain(destination = Tone.Destination) {
+        const lowpass = new Tone.Filter({
+          type: 'lowpass',
+          frequency: LOWPASS_FREQUENCY,
+          rolloff: -24,
+          Q: 0.7
+        });
+        const compressor = new Tone.Compressor(COMPRESSOR_SETTINGS);
+        lowpass.connect(compressor);
+        compressor.connect(destination);
+        return { input: lowpass, nodes: [lowpass, compressor] };
+      }
+      function makeVoiceSynth(destination) {
         return new Tone.PolySynth(Tone.Synth, {
           oscillator: { type: 'custom', partials: [1, 0.7, 0.5, 0.3, 0.15] },
           envelope: { attack: 0.005, decay: 0.08, sustain: 0.65, release: 0.1 }
-        }).connect(new Tone.Filter(2400, 'lowpass')).toDestination();
+        }).connect(destination);
       }
       function stopPlayback() {
         Tone.Transport.stop();
@@ -780,13 +795,17 @@
         if (transportPart) { transportPart.dispose(); transportPart = null; }
         synths.forEach(s => s.dispose());
         synths = [];
+        outputChain.forEach(node => node.dispose());
+        outputChain = [];
         playing = false;
       }
       function schedulePlayback(piece, tempo) {
         stopPlayback();
         Tone.Transport.bpm.value = tempo;
         const voices = Math.max(...piece.notes.map(n => n.voice)) + 1;
-        synths = range(voices).map(() => makeVoiceSynth());
+        const master = createMasterChain();
+        outputChain = master.nodes;
+        synths = range(voices).map(() => makeVoiceSynth(master.input));
         const events = piece.notes.map(n => ({ time: n.startBeat, note: n }));
         transportPart = new Tone.Part((time, ev) => {
           const n = ev.note;
@@ -918,10 +937,11 @@
         const rendered = await Tone.Offline(({ transport }) => {
           transport.bpm.value = tempo;
           const voices = Math.max(...piece.notes.map(n => n.voice)) + 1;
+          const master = createMasterChain();
           const synths = range(voices).map(() => new Tone.PolySynth(Tone.Synth, {
             oscillator: { type: 'custom', partials: [1, 0.7, 0.45, 0.28, 0.12] },
             envelope: { attack: 0.005, decay: 0.08, sustain: 0.65, release: 0.12 }
-          }).toDestination());
+          }).connect(master.input));
           for (const n of piece.notes) {
             const when = n.startBeat * (60 / tempo);
             const dur = n.durBeat * (60 / tempo);
