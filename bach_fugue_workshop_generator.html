@@ -1,1075 +1,1006 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Bach Fugue Workshop Generator</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
-<style>
-  :root{
-    --bg:#0d0d0f;
-    --panel:#17171b;
-    --panel2:#202028;
-    --text:#efe6cf;
-    --muted:#bcae8a;
-    --line:#4c4128;
-    --accent:#d6b56b;
-    --red:#e57373;
-  }
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Georgia,"Times New Roman",serif;}
-  .wrap{max-width:1200px;margin:0 auto;padding:16px;}
-  h1{margin:0 0 8px;font-size:30px}
-  .subtitle{color:var(--muted);line-height:1.35;margin-bottom:14px}
-  .controls{
-    display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;
-    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;
-  }
-  label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
-  select,button{
-    width:100%;padding:10px;border-radius:8px;border:1px solid #5a4a2f;background:var(--panel2);color:var(--text);
-    box-sizing:border-box;font-size:14px;
-  }
-  button{cursor:pointer;background:linear-gradient(180deg,#3b2e19,#2d2417)}
-  button:hover{filter:brightness(1.08)}
-  .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;grid-column:1/-1}
-  .canvasWrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px}
-  canvas{display:block;width:100%;height:420px;background:#0b0b0d;border-radius:8px}
-  .info{display:grid;grid-template-columns:1.15fr 1fr;gap:12px;margin-top:12px}
-  .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
-  .box h2{margin:0 0 8px;font-size:18px}
-  pre{margin:0;white-space:pre-wrap;word-break:break-word;color:#e5dcc7;line-height:1.35;font-size:13px}
-  .small{font-size:13px;line-height:1.42;color:var(--muted)}
-  .status{margin-top:8px;font-size:13px;color:var(--muted)}
-  @media (max-width: 860px){
-    .info{grid-template-columns:1fr}
-    canvas{height:320px}
-  }
-</style>
-</head>
-<body>
-<div class="wrap">
-  <h1>Bach Fugue Workshop Generator</h1>
-  <div class="subtitle">
-    A stricter, longer contrapuntal engine: subject, answer, countersubject, episodic sequence, stretto-like overlap, cadential planning, and scrolling piano-roll playback.
-  </div>
 
-  <div class="controls">
-    <div>
-      <label for="keySel">Key</label>
-      <select id="keySel">
-        <option>C</option><option>G</option><option>D</option><option>F</option><option>Bb</option><option>A</option><option>E</option>
-        <option>Am</option><option>Em</option><option>Dm</option><option>Gm</option><option>Cm</option>
-      </select>
-    </div>
-    <div>
-      <label for="lengthSel">Length</label>
-      <select id="lengthSel">
-        <option value="medium">Medium fugue (35–60s)</option>
-        <option value="long">Long fugue (60–100s)</option>
-      </select>
-    </div>
-    <div>
-      <label for="voicesSel">Voices</label>
-      <select id="voicesSel">
-        <option value="3">3 voices</option>
-        <option value="4">4 voices</option>
-      </select>
-    </div>
-    <div>
-      <label for="charSel">Character</label>
-      <select id="charSel">
-        <option value="fugue">Fugue exposition</option>
-        <option value="stretto">Dense stretto fugue</option>
-        <option value="ricercar">Severe ricercar</option>
-        <option value="toccatina">Fugue with toccata episodes</option>
-      </select>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Browser Fugue Generator</title>
+  <link rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext y='14' font-size='14'%3E%F0%9D%84%9E%3C/text%3E%3C/svg%3E" />
+  <script src="https://unpkg.com/tone@14.8.49/build/Tone.js"></script>
+  <style>
+    :root {
+      --bg: #f4efe2;
+      --panel: #fffaf0;
+      --ink: #222;
+      --accent: #6a4c2e;
+      --muted: #866;
+    }
+
+    body {
+      margin: 0;
+      font-family: ui-serif, Georgia, serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 14px;
+    }
+
+    h1 {
+      margin: 6px 0 10px;
+      font-size: 28px;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
+      gap: 8px;
+      background: var(--panel);
+      padding: 12px;
+      border: 1px solid #cbb;
+      border-radius: 10px;
+    }
+
+    .controls>div {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    select,
+    button,
+    input,
+    textarea {
+      font: inherit;
+    }
+
+    select,
+    input,
+    textarea {
+      padding: 7px;
+      border-radius: 7px;
+      border: 1px solid #bda;
+      background: white;
+    }
+
+    button {
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #8f765d;
+      background: #efe2cc;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #e6d4b8;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 10px 0;
+    }
+
+    .meta {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid #cbb;
+      border-radius: 10px;
+      padding: 10px;
+    }
+
+    #roll {
+      width: 100%;
+      height: 360px;
+      display: block;
+      background: #fbfaf6;
+      border: 1px solid #cbb;
+      border-radius: 10px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 170px;
+      resize: vertical;
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 900px) {
+      .controls {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+      }
+
+      .meta {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>Fugue Generator</h1>
+    <div class="controls">
+      <div><label>Key</label><select id="keySel"></select></div>
+      <div><label>Length</label><select id="lengthSel">
+          <option value="short">Short</option>
+          <option value="medium" selected>Medium</option>
+          <option value="long">Long</option>
+        </select></div>
+      <div><label>Voices</label><select id="voicesSel">
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+        </select></div>
+      <div><label>Character</label><select id="charSel">
+          <option>severe ricercar</option>
+          <option selected>compact fugue</option>
+          <option>lively fughetta</option>
+          <option>stretto-driven fugue</option>
+          <option>toccata + fugue hybrid</option>
+        </select></div>
+      <div><label>Complexity</label><select id="complexitySel">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3" selected>3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+        </select></div>
+      <div><label>Tempo</label><select id="tempoSel">
+          <option value="78">78</option>
+          <option value="92" selected>92</option>
+          <option value="108">108</option>
+          <option value="126">126</option>
+        </select></div>
     </div>
     <div class="actions">
-      <button id="generateBtn">Generate</button>
+      <button id="genBtn">Generate</button>
       <button id="startBtn">Start / Resume</button>
       <button id="stopBtn">Stop</button>
       <button id="midiBtn">Export MIDI</button>
       <button id="wavBtn">Export WAV</button>
+      <button id="newSeedBtn">New Seed</button>
+      <span class="small" id="seedBox"></span>
     </div>
-  </div>
-
-  <div class="canvasWrap">
-    <canvas id="roll" width="1160" height="420"></canvas>
-  </div>
-
-  <div class="info">
-    <div class="box">
-      <h2>Fugal Plan</h2>
-      <pre id="analysis"></pre>
-      <div class="status" id="status"></div>
-    </div>
-    <div class="box">
-      <h2>Engine Notes</h2>
-      <div class="small">
-        The generator now thinks more like a small fugue machine than a simple invention machine. It builds a subject, tonal answer, countersubject, later restatements, episodic sequential material, and overlapping entries. The piano roll scrolls with a centered playhead. MIDI export writes the symbolic score directly. WAV export renders the same score offline in the browser.
+    <canvas id="roll" width="1140" height="360"></canvas>
+    <div class="meta">
+      <div class="card">
+        <div><strong>Structure</strong></div>
+        <div id="summary" class="small"></div>
+      </div>
+      <div class="card">
+        <label>Structural analysis</label>
+        <textarea id="analysisBox"></textarea>
       </div>
     </div>
   </div>
-</div>
+  <script>
+    (() => {
+      'use strict';
 
-<script>
-(() => {
-  const keySel = document.getElementById('keySel');
-  const lengthSel = document.getElementById('lengthSel');
-  const voicesSel = document.getElementById('voicesSel');
-  const charSel = document.getElementById('charSel');
-  const generateBtn = document.getElementById('generateBtn');
-  const startBtn = document.getElementById('startBtn');
-  const stopBtn = document.getElementById('stopBtn');
-  const midiBtn = document.getElementById('midiBtn');
-  const wavBtn = document.getElementById('wavBtn');
-  const analysisEl = document.getElementById('analysis');
-  const statusEl = document.getElementById('status');
-  const canvas = document.getElementById('roll');
-  const ctx = canvas.getContext('2d');
+      // ============================================================
+      // config and helpers
+      // ============================================================
+      const KEYS = ['C', 'G', 'D', 'A', 'E', 'F', 'Bb', 'Eb', 'A minor', 'E minor', 'D minor', 'G minor'];
+      const KEY_TO_PC = { C: 0, G: 7, D: 2, A: 9, E: 4, F: 5, Bb: 10, Eb: 3, 'A minor': 9, 'E minor': 4, 'D minor': 2, 'G minor': 7 };
+      const MODE_OF = key => key.includes('minor') ? 'minor' : 'major';
+      const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+      const rnd = (rng, a = 1) => rng() * a;
+      const choice = (rng, arr) => arr[Math.floor(rng() * arr.length)];
+      const coin = (rng, p = 0.5) => rng() < p;
+      const sum = arr => arr.reduce((a, b) => a + b, 0);
+      const range = n => Array.from({ length: n }, (_, i) => i);
+      function mulberry32(a) { return function () { let t = a += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+      function hashString(s) { let h = 1779033703 ^ s.length; for (let i = 0; i < s.length; i++) { h = Math.imul(h ^ s.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; } return (h >>> 0); }
+      function byStart(a, b) { return a.startBeat - b.startBeat || a.voice - b.voice || a.midi - b.midi; }
+      function deepCopy(obj) { return JSON.parse(JSON.stringify(obj)); }
+      function midiToName(m) { const names = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B']; return names[(m % 12 + 12) % 12] + (Math.floor(m / 12) - 1); }
+      function downloadBlob(blob, filename) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1500); }
 
-  let currentPiece = null;
-  let synths = [];
-  let parts = [];
-  let filter = null;
-  let reverb = null;
-  let audioStarted = false;
-  let rafId = null;
-  let midiBlobUrl = null;
-  let wavBlobUrl = null;
-
-  const NOTE_TO_PC = {C:0,"C#":1,Db:1,D:2,"D#":3,Eb:3,E:4,F:5,"F#":6,Gb:6,G:7,"G#":8,Ab:8,A:9,"A#":10,Bb:10,B:11};
-  const MAJOR = [0,2,4,5,7,9,11];
-  const MINOR = [0,2,3,5,7,8,10];
-  const HMIN7 = 11;
-  const COLORS = ["rgba(214,181,107,0.90)","rgba(126,177,227,0.88)","rgba(182,132,214,0.88)","rgba(125,203,160,0.88)"];
-  const PPQ = 480;
-
-  function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-  function chance(p){ return Math.random() < p; }
-  function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
-  function mod(n,m){ return ((n % m) + m) % m; }
-  function midiToNote(m){ return Tone.Frequency(m, "midi").toNote(); }
-  function noteNameNoOct(m){ return midiToNote(m).replace(/\d+/, ""); }
-
-  function setStatus(s){ statusEl.textContent = s; }
-
-  function parseKey(name){
-    const isMinor = name.endsWith('m');
-    const tonic = isMinor ? name.slice(0,-1) : name;
-    return { tonic, tonicPc: NOTE_TO_PC[tonic], isMinor };
-  }
-
-  function degreePc(key, degree, harmonic=false){
-    const i = mod(degree - 1, 7);
-    if(key.isMinor){
-      const s = MINOR.slice();
-      if(harmonic) s[6] = HMIN7;
-      return mod(key.tonicPc + s[i], 12);
-    }
-    return mod(key.tonicPc + MAJOR[i], 12);
-  }
-
-  function degreeMidi(key, degree, octave, harmonic=false){
-    return 12 * (octave + 1) + degreePc(key, degree, harmonic);
-  }
-
-  function nearestMidiForPc(pc, around, lo, hi){
-    let best = lo, bestD = Infinity;
-    for(let m=lo; m<=hi; m++){
-      if(mod(m,12) === mod(pc,12)){
-        const d = Math.abs(m-around);
-        if(d < bestD){ best = m; bestD = d; }
+      // ============================================================
+      // scale and harmony tools
+      // ============================================================
+      const SCALES = {
+        major: [0, 2, 4, 5, 7, 9, 11],
+        minor: [0, 2, 3, 5, 7, 8, 10]
+      };
+      const DEGREE_QUALITIES = {
+        major: ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°'],
+        minor: ['i', 'ii°', 'III', 'iv', 'v', 'VI', 'VII']
+      };
+      function makeKeyContext(key) {
+        const tonicPc = KEY_TO_PC[key];
+        const mode = MODE_OF(key);
+        const scale = SCALES[mode];
+        return { key, tonicPc, mode, scale };
       }
-    }
-    return best;
-  }
-
-  function romanChord(key, roman){
-    const map = {
-      I:[1,3,5], ii:[2,4,6], iii:[3,5,7], IV:[4,6,1], V:[5,7,2], vi:[6,1,3], vii:[7,2,4],
-      i:[1,3,5], iio:[2,4,6], III:[3,5,7], iv:[4,6,1], v:[5,7,2], VI:[6,1,3], VII:[7,2,4]
-    };
-    const harmonic = roman === "V" || roman === "v" || roman === "vii" || roman === "iio";
-    return (map[roman] || [1,3,5]).map(d => degreePc(key, d, harmonic));
-  }
-
-  function bassRoot(key, roman){
-    const map = {I:1,ii:2,iii:3,IV:4,V:5,vi:6,vii:7,i:1,iio:2,III:3,iv:4,v:5,VI:6,VII:7};
-    const deg = map[roman] || 1;
-    return degreeMidi(key, deg, 3, roman === "V" || roman === "v" || roman === "vii");
-  }
-
-  function buildProgression(key, character, measures){
-    const major = {
-      fugue: ["I","V","vi","ii","V","I","IV","ii","V","I","vi","ii","V","I"],
-      stretto: ["I","V","vi","iii","IV","ii","V","I","ii","V","I","IV","V","I"],
-      ricercar: ["I","IV","ii","V","I","vi","ii","V","I","IV","ii","V","I"],
-      toccatina: ["I","V","vi","ii","V","I","IV","V","I","vi","IV","ii","V","I"]
-    };
-    const minor = {
-      fugue: ["i","V","VI","iv","V","i","iv","iio","V","i","VI","iv","V","i"],
-      stretto: ["i","V","VI","III","iv","iio","V","i","iv","V","i","VI","V","i"],
-      ricercar: ["i","iv","iio","V","i","VI","iv","V","i","iv","iio","V","i"],
-      toccatina: ["i","V","VI","iv","V","i","iv","V","i","VI","iv","V","i"]
-    };
-    const base = (key.isMinor ? minor : major)[character] || (key.isMinor ? minor.fugue : major.fugue);
-    const out = [];
-    while(out.length < measures){
-      for(const r of base){
-        out.push(r);
-        if(out.length >= measures) break;
-      }
-    }
-    out[out.length-2] = "V";
-    out[out.length-1] = key.isMinor ? "i" : "I";
-    return out;
-  }
-
-  function totalBeats(notes){
-    return notes.reduce((m,n) => Math.max(m, n.time + n.dur), 0);
-  }
-
-  function cloneNotes(notes){ return notes.map(n => ({...n})); }
-
-  function remapTimes(notes, offset=0){
-    return notes.map(n => ({...n, time:n.time + offset}));
-  }
-
-  function subjectSkeleton(character){
-    const variants = {
-      fugue: [
-        {deg:[1,5,4,3,2,1,7,1], dur:[0.5,0.5,0.5,0.5,0.5,0.5,1,1]},
-        {deg:[1,2,3,5,4,3,2,1], dur:[0.5,0.5,0.5,0.5,0.5,0.5,1,1]},
-        {deg:[5,6,5,4,3,2,7,1], dur:[0.5,0.5,0.5,0.5,0.5,0.5,1,1]}
-      ],
-      stretto: [
-        {deg:[1,2,3,5,4,3,2,1,7], dur:[0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,1]},
-        {deg:[5,4,3,2,1,2,3,4,5], dur:[0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,1]}
-      ],
-      ricercar: [
-        {deg:[1,2,3,2,1,7,1], dur:[1,1,0.5,0.5,1,1,1]},
-        {deg:[5,4,3,2,3,4,5], dur:[1,1,0.5,0.5,1,1,1]}
-      ],
-      toccatina: [
-        {deg:[1,2,3,5,4,3,2,1,2,3], dur:[0.25,0.25,0.5,0.5,0.25,0.25,0.5,0.5,0.5,0.5]},
-        {deg:[5,6,5,4,3,2,1,7,1,2], dur:[0.25,0.25,0.5,0.5,0.25,0.25,0.5,0.5,0.5,0.5]}
-      ]
-    };
-    return rand(variants[character] || variants.fugue);
-  }
-
-  function buildSubject(key, character){
-    // Single seed subject. Everything else grows from this.
-    const sk = subjectSkeleton(character);
-    const notes = [];
-    let t = 0;
-    let prev = degreeMidi(key, sk.deg[0], 5, false);
-    for(let i=0;i<sk.deg.length;i++){
-      let m = degreeMidi(key, sk.deg[i], 5, i === sk.deg.length-1);
-      if(Math.abs(m-prev) > 7) m += (m < prev ? 12 : -12);
-      m = clamp(m, 60, 84);
-      notes.push({time:t, dur:sk.dur[i], midi:m, tag:"subject"});
-      prev = m;
-      t += sk.dur[i];
-    }
-    return notes;
-  }
-
-  function tonalAnswer(subject, key){
-    // Simple tonal answer approximation: dominant leaning, but preserve shape.
-    const firstPc = mod(subject[0].midi,12);
-    const fifthPc = degreePc(key, 5, true);
-    const trans = mod(fifthPc - firstPc, 12);
-    return subject.map((n, i) => {
-      let m = n.midi + trans;
-      if(i === 0) m = nearestMidiForPc(fifthPc, n.midi + 7, 55, 86);
-      if(i > 0 && Math.abs(m - (subject[i-1].midi + trans)) > 9) m += (m < subject[i-1].midi + trans ? 12 : -12);
-      return {...n, midi:clamp(m, 52, 86), tag:"answer"};
-    });
-  }
-
-  function invertAround(notes, axis){
-    return notes.map(n => ({...n, midi: axis - (n.midi - axis), tag:(n.tag || "") + "-inv"}));
-  }
-
-  function retrograde(notes){
-    let t = 0;
-    return notes.slice().reverse().map(n => {
-      const out = {...n, time:t, tag:(n.tag || "") + "-retro"};
-      t += n.dur;
-      return out;
-    });
-  }
-
-  function augment(notes, factor){
-    let t = 0;
-    return notes.map(n => {
-      const out = {...n, dur:n.dur*factor, time:t, tag:(n.tag || "") + "-aug"};
-      t += out.dur;
-      return out;
-    });
-  }
-
-  function diminish(notes, factor){
-    let t = 0;
-    return notes.map(n => {
-      const out = {...n, dur:n.dur*factor, time:t, tag:(n.tag || "") + "-dim"};
-      t += out.dur;
-      return out;
-    });
-  }
-
-  function sequentialEpisode(subject, key, startDegree=2, steps=4, unitBeats=2){
-    // Episode from subject fragments by descending / ascending sequence.
-    const frag = subject.slice(0, Math.min(4, subject.length)).map(n => ({...n}));
-    const out = [];
-    let t = 0;
-    const seqDegrees = [];
-    for(let i=0;i<steps;i++) seqDegrees.push(startDegree + i);
-    const basePc = mod(frag[0].midi,12);
-    seqDegrees.forEach((deg, idx) => {
-      const targetPc = degreePc(key, mod(deg-1,7)+1, idx % 2 === 1);
-      const trans = mod(targetPc - basePc, 12);
-      let localT = t;
-      frag.forEach(n => {
-        const scaledDur = unitBeats / frag.reduce((s,x)=>s+x.dur,0) * n.dur;
-        let m = n.midi + trans + (idx % 2 === 1 ? -12 : 0);
-        m = clamp(m, 50, 82);
-        out.push({time:localT, dur:scaledDur, midi:m, tag:"episode"});
-        localT += scaledDur;
-      });
-      t += unitBeats;
-    });
-    return out;
-  }
-
-  function makeBassLine(key, progression, measures, character){
-    const notes = [];
-    let time = 0;
-    let prev = bassRoot(key, progression[0]);
-    for(let m=0;m<measures;m++){
-      const roman = progression[m];
-      const nextRoman = progression[Math.min(measures-1,m+1)];
-      const root = bassRoot(key, roman);
-      const nextRoot = bassRoot(key, nextRoman);
-      const pattern =
-        character === "ricercar" ? [2,1,1] :
-        character === "toccatina" ? [1,1,1,1] :
-        chance(0.6) ? [2,1,1] : [1,1,1,1];
-      let localTime = time;
-      let curr = nearestMidiForPc(mod(root,12), prev, 36, 56);
-      pattern.forEach((d, idx) => {
-        const strong = idx === 0 || idx === pattern.length-1;
-        const pcChoices = strong
-          ? [mod(root,12)]
-          : [mod(root,12), mod(root+7,12), mod(root+4,12), mod(nextRoot,12)];
-        const pc = rand(pcChoices);
-        const m2 = nearestMidiForPc(pc, curr + rand([-2,-1,0,1,2]), 36, 56);
-        notes.push({time:localTime, dur:d, midi:m2, tag:"bass"});
-        curr = m2;
-        localTime += d;
-      });
-      prev = curr;
-      time += 4;
-    }
-    return notes;
-  }
-
-  function fitToHarmony(notes, chordPcs, lo, hi, preferFrom){
-    // Strong beats forced toward harmonic support. Weak beats may decorate.
-    let prev = preferFrom ?? notes[0].midi;
-    return notes.map(n => {
-      const strong = Math.round(n.time * 2) % 2 === 0;
-      const cands = [];
-      for(let m=lo;m<=hi;m++){
-        const chord = chordPcs.includes(mod(m,12));
-        if(strong && !chord) continue;
-        cands.push(m);
-      }
-      let best = cands.length ? cands[0] : clamp(prev, lo, hi);
-      let bestScore = Infinity;
-      (cands.length ? cands : [best]).forEach(m => {
-        let score = Math.abs(m-prev);
-        if(strong && chordPcs.includes(mod(m,12))) score -= 1.1;
-        if(Math.abs(m-prev) > 7) score += 4;
-        if(Math.abs(m-prev) === 6) score += 1.2;
-        if(score < bestScore){ best = m; bestScore = score; }
-      });
-      prev = best;
-      return {...n, midi:best};
-    });
-  }
-
-  function getActiveAt(voice, t){
-    for(let i=0;i<voice.length;i++){
-      const n = voice[i];
-      if(t >= n.time && t < n.time + n.dur) return n;
-    }
-    return null;
-  }
-
-  function boundaryTimes(voices){
-    const s = new Set([0]);
-    voices.forEach(v => v.forEach(n => {
-      s.add(+n.time.toFixed(4));
-      s.add(+(n.time+n.dur).toFixed(4));
-    }));
-    return Array.from(s).sort((a,b)=>a-b);
-  }
-
-  function motion(a1,a2,b1,b2){
-    const da = Math.sign(a2-a1);
-    const db = Math.sign(b2-b1);
-    if(da === 0 || db === 0) return "oblique";
-    return da === db ? "similar" : "contrary";
-  }
-
-  function isConsonant(iv){
-    const ic = mod(Math.abs(iv),12);
-    return [0,3,4,7,8,9].includes(ic);
-  }
-
-  function parallelCount(v1, v2){
-    const ts = boundaryTimes([v1,v2]);
-    let bad = 0;
-    for(let i=0;i<ts.length-2;i++){
-      const t1 = ts[i] + 0.0001;
-      const t2 = ts[i+1] + 0.0001;
-      const a1 = getActiveAt(v1,t1), b1 = getActiveAt(v2,t1), a2 = getActiveAt(v1,t2), b2 = getActiveAt(v2,t2);
-      if(!a1 || !b1 || !a2 || !b2) continue;
-      if(a1.midi === a2.midi && b1.midi === b2.midi) continue;
-      const i1 = mod(a1.midi - b1.midi, 12), i2 = mod(a2.midi - b2.midi, 12);
-      if(motion(a1.midi,a2.midi,b1.midi,b2.midi) === "similar" && ((i1===7&&i2===7)||(i1===0&&i2===0))) bad++;
-    }
-    return bad;
-  }
-
-  function contraryScore(v1, v2){
-    const ts = boundaryTimes([v1,v2]);
-    let score = 0;
-    for(let i=0;i<ts.length-2;i++){
-      const t1 = ts[i] + 0.0001;
-      const t2 = ts[i+1] + 0.0001;
-      const a1 = getActiveAt(v1,t1), b1 = getActiveAt(v2,t1), a2 = getActiveAt(v1,t2), b2 = getActiveAt(v2,t2);
-      if(!a1 || !b1 || !a2 || !b2) continue;
-      if(motion(a1.midi,a2.midi,b1.midi,b2.midi) === "contrary") score++;
-    }
-    return score;
-  }
-
-  function melodicPenalty(voice){
-    let p = 0;
-    for(let i=1;i<voice.length;i++){
-      const leap = Math.abs(voice[i].midi - voice[i-1].midi);
-      if(leap > 12) p += 10;
-      else if(leap > 7) p += 4;
-      else if(leap === 6) p += 1;
-      if(i<voice.length-1 && leap >= 7){
-        const d1 = Math.sign(voice[i].midi - voice[i-1].midi);
-        const d2 = Math.sign(voice[i+1].midi - voice[i].midi);
-        if(d1 === d2) p += 3;
-      }
-    }
-    return p;
-  }
-
-  function verticalPenalty(voices){
-    let p = 0;
-    const ts = boundaryTimes(voices);
-    for(let i=0;i<ts.length-1;i++){
-      const t = ts[i] + 0.0001;
-      const active = voices.map(v => getActiveAt(v,t)).filter(Boolean);
-      for(let a=0;a<active.length;a++){
-        for(let b=a+1;b<active.length;b++){
-          if(!isConsonant(active[a].midi - active[b].midi)) p += 0.7;
+      function degreePc(ctx, degree) { return (ctx.tonicPc + ctx.scale[(degree - 1) % 7]) % 12; }
+      function scaleMidi(ctx, degree, octave) { return 12 * (octave + 1) + degreePc(ctx, degree); }
+      function nearestInScale(ctx, midi) {
+        let best = midi, bestd = 999;
+        for (let oct = -1; oct <= 9; oct++) for (let deg = 1; deg <= 7; deg++) {
+          const m = scaleMidi(ctx, deg, oct);
+          const d = Math.abs(m - midi);
+          if (d < bestd) { bestd = d; best = m; }
         }
+        return best;
       }
-    }
-    return p;
-  }
+      function fitToScale(ctx, midi) { return nearestInScale(ctx, midi); }
+      function chordPcsForFunction(ctx, fn) {
+        const mapMajor = { T: [1, 3, 5], PD: [2, 4, 6], D: [5, 7, 2], CAD: [5, 1] };
+        const mapMinor = { T: [1, 3, 5], PD: [2, 4, 6], D: [5, 7, 2], CAD: [5, 1] };
+        const degs = (ctx.mode === 'major' ? mapMajor : mapMinor)[fn] || [1, 3, 5];
+        return degs.map(d => degreePc(ctx, d));
+      }
+      function isConsonantInterval(semi) {
+        const x = Math.abs(semi) % 12;
+        return [0, 3, 4, 7, 8, 9].includes(x);
+      }
+      function intervalClass(a, b) { return Math.abs(a - b) % 12; }
+      function buildHarmonicPlan(ctx, length, character) {
+        const measures = length === 'short' ? 14 : length === 'medium' ? 20 : 28;
+        const plan = [];
+        for (let i = 0; i < measures; i++) {
+          let fn = 'T', region = 'tonic';
+          if (i >= 4 && i < 7) fn = 'D';
+          if (i === 7) fn = 'CAD';
+          if (i >= 8 && i < 11) { fn = ['T', 'PD', 'D'][i % 3]; region = ctx.mode === 'major' ? 'dominant' : 'relative'; }
+          if (i >= 11 && i < 14) { fn = ['PD', 'D', 'T'][i % 3]; region = 'sequence'; }
+          if (i >= 14 && i < measures - 4) { fn = ['T', 'PD', 'D', 'T'][i % 4]; region = (i % 6 < 3 ? 'medial' : 'modulatory'); }
+          if (i >= measures - 4) { fn = i === measures - 1 ? 'CAD' : (i === measures - 2 ? 'D' : 'T'); region = 'closing'; }
+          if (character === 'stretto-driven fugue' && i > measures - 6) region = 'stretto';
+          if (character === 'toccata + fugue hybrid' && i < 2) region = 'prelude';
+          plan.push({ measure: i, fn, region });
+        }
+        return plan;
+      }
 
-  function insertPassingTones(voice, lo, hi){
-    const out = [];
-    for(let i=0;i<voice.length;i++){
-      const n = {...voice[i]};
-      out.push(n);
-      if(i<voice.length-1){
-        const next = voice[i+1];
-        const leap = next.midi - n.midi;
-        if(n.dur >= 1 && Math.abs(leap) >= 3 && Math.abs(leap) <= 5 && chance(0.38)){
-          out[out.length-1].dur = n.dur/2;
-          out.push({
-            time:n.time+n.dur/2,
-            dur:n.dur/2,
-            midi:clamp(n.midi + Math.sign(leap)*(Math.abs(leap)===4?2:1), lo, hi),
-            tag:(n.tag||"") + "-pass"
+      // ============================================================
+      // subject generator
+      // ============================================================
+      function generateSubject(ctx, rng, character, complexity) {
+        const rhythmBanks = {
+          'severe ricercar': [[1, 1, 1, 1, 1, 1], [2, 1, 1, 2, 2], [1, 0.5, 0.5, 1, 1, 2]],
+          'compact fugue': [[1, 0.5, 0.5, 1, 1, 1, 1], [0.5, 0.5, 1, 1, 0.5, 0.5, 2, 1], [1, 1, 0.5, 0.5, 1, 2]],
+          'lively fughetta': [[0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1], [1, 0.5, 0.5, 0.5, 0.5, 1, 2], [0.5, 0.5, 1, 0.5, 0.5, 1, 1, 1]],
+          'stretto-driven fugue': [[0.5, 0.5, 1, 0.5, 0.5, 1, 1, 1], [1, 0.5, 0.5, 1, 0.5, 0.5, 1, 1], [0.5, 0.5, 0.5, 0.5, 1, 1, 2]],
+          'toccata + fugue hybrid': [[0.25, 0.25, 0.5, 0.5, 0.5, 0.5, 1, 1, 1], [0.5, 0.5, 0.5, 0.5, 1, 1, 1, 1], [1, 0.5, 0.5, 0.25, 0.25, 1, 2]],
+        };
+        const contourBanks = [
+          [0, 2, 4, 3, 5, 4, 2, 1],
+          [0, 1, 3, 5, 4, 2, 3, 1],
+          [0, 4, 3, 1, 2, 5, 4, 2],
+          [0, -1, 2, 4, 3, 1, 2, 0],
+          [0, 3, 2, 4, 6, 5, 3, 2]
+        ];
+        const rhythm = choice(rng, rhythmBanks[character]).slice(0);
+        while (rhythm.length < 6) rhythm.push(1);
+        const contour = choice(rng, contourBanks);
+        const len = clamp(Math.round(6 + complexity + rnd(rng, 3)), 6, 12);
+        const startDegree = coin(rng, 0.6) ? 1 : choice(rng, [3, 5]);
+        const startOct = ctx.mode === 'major' ? 5 : 4;
+        const baseMidi = scaleMidi(ctx, startDegree, startOct);
+        let last = baseMidi;
+        const notes = [];
+        let beat = 0;
+        for (let i = 0; i < len; i++) {
+          const dur = rhythm[i % rhythm.length];
+          const target = baseMidi + contour[i % contour.length] + (coin(rng, 0.2) ? choice(rng, [-2, 2]) : 0);
+          let midi = fitToScale(ctx, target);
+          if (Math.abs(midi - last) > 8) midi = fitToScale(ctx, last + Math.sign(midi - last) * choice(rng, [2, 3, 4, 5]));
+          notes.push({ voice: 0, midi, startBeat: beat, durBeat: dur, role: 'subject', section: 'subject' });
+          beat += dur;
+          last = midi;
+        }
+        // close near dominant or tonic for answer potential
+        const lastN = notes[notes.length - 1];
+        lastN.midi = fitToScale(ctx, scaleMidi(ctx, coin(rng, 0.5) ? 5 : 2, Math.floor(lastN.midi / 12) - 1));
+        return { notes, totalBeats: beat };
+      }
+
+      // ============================================================
+      // transformation library
+      // ============================================================
+      function transformSubject(subjectNotes, opts) {
+        const { transpose = 0, invertAround = null, retrograde = false, augment = 1, diminish = 1, tonalAdjust = false, ctx = null } = opts || {};
+        let notes = deepCopy(subjectNotes);
+        if (invertAround != null) {
+          notes = notes.map(n => ({ ...n, midi: invertAround - (n.midi - invertAround) }));
+        }
+        if (retrograde) {
+          const total = notes[notes.length - 1].startBeat + notes[notes.length - 1].durBeat;
+          notes = notes.slice().reverse().map(n => ({ ...n, startBeat: total - (n.startBeat + n.durBeat) }));
+        }
+        const factor = augment / diminish;
+        notes = notes.map(n => ({ ...n, startBeat: n.startBeat * factor, durBeat: n.durBeat * factor, midi: n.midi + transpose }));
+        if (tonalAdjust && ctx) {
+          // Bach principle: tonal answer preserves harmonic function by muting exact real transposition at sensitive scale degrees.
+          notes = notes.map((n, i) => {
+            let midi = n.midi;
+            const pc = (midi % 12 + 12) % 12;
+            const tonic = ctx.tonicPc, dom = (ctx.tonicPc + 7) % 12;
+            if (i < 3 && pc === ((tonic + 7) % 12)) midi -= 1;
+            if (pc === ((dom + 5) % 12)) midi -= 1;
+            return { ...n, midi: fitToScale(ctx, midi) };
           });
-        } else if(n.dur >= 1 && chance(0.16)) {
-          out[out.length-1].dur = n.dur/2;
-          out.push({
-            time:n.time+n.dur/2,
-            dur:n.dur/2,
-            midi:clamp(n.midi + rand([-1,1]), lo, hi),
-            tag:(n.tag||"") + "-nbr"
-          });
+        } else if (ctx) {
+          notes = notes.map(n => ({ ...n, midi: fitToScale(ctx, n.midi) }));
         }
+        return notes.sort(byStart);
       }
-    }
-    return out.sort((a,b)=>a.time-b.time);
-  }
-
-  function refineRegistral(voices){
-    // Try octave placements to reduce parallels and harsh spacing.
-    const shifts = [0,12,-12];
-    let best = voices.map(v => cloneNotes(v));
-    let bestScore = Infinity;
-    const recurse = (idx, current) => {
-      if(idx === current.length-1){
-        const score =
-          current.slice(0,-1).reduce((s,v)=>s + parallelCount(v,current[current.length-1])*18 + melodicPenalty(v)*1.2,0) +
-          verticalPenalty(current)*1.4 -
-          contraryScore(current[0], current[current.length-1])*0.4;
-        if(score < bestScore){
-          bestScore = score;
-          best = current.map(v => cloneNotes(v));
+      function fragmentNotes(notes, from, to) {
+        return notes.filter(n => n.startBeat >= from && n.startBeat < to).map(n => ({ ...n, startBeat: n.startBeat - from }));
+      }
+      function sequenceFragment(ctx, frag, steps, transposition, durScale) {
+        const out = [];
+        let beat = 0;
+        for (let i = 0; i < steps; i++) {
+          frag.forEach(n => out.push({
+            ...n,
+            midi: fitToScale(ctx, n.midi + i * transposition),
+            startBeat: beat + n.startBeat * durScale,
+            durBeat: n.durBeat * durScale,
+            role: 'episode'
+          }));
+          const fragDur = Math.max(...frag.map(n => n.startBeat + n.durBeat)) * durScale;
+          beat += fragDur;
         }
-        return;
+        return out;
       }
-      for(const sh of shifts){
-        const nv = current[idx].map(n => ({...n, midi:clamp(n.midi + sh, idx===0?60:48, idx===0?88:78)}));
-        const next = current.map((v,i)=>i===idx?nv:v);
-        recurse(idx+1, next);
-      }
-    };
-    recurse(0, voices.map(v => cloneNotes(v)));
-    return best;
-  }
-
-  function cadenceAdjust(voices, key){
-    const endBeat = Math.max(...voices.map(v=>totalBeats(v)));
-    const finalWindow = endBeat - 3;
-    voices.forEach((v, idx) => {
-      v.forEach(n => {
-        if(n.time >= finalWindow){
-          if(idx === 0){
-            n.midi = nearestMidiForPc(degreePc(key,1,true), n.midi, 67, 86);
-          } else if(idx === voices.length-1){
-            n.midi = nearestMidiForPc(degreePc(key,1,true), n.midi, 36, 57);
+      function buildCountersubject(ctx, subject, rng) {
+        // Bach principle: countersubject keeps rhythmic identity and invertible tendency while avoiding homophonic lockstep.
+        const notes = [];
+        for (const s of subject) {
+          const dir = coin(rng, 0.5) ? -1 : 1;
+          const offset = choice(rng, [3, 4, 6, 8, 9]);
+          let midi = fitToScale(ctx, s.midi + dir * offset);
+          if (intervalClass(midi, s.midi) === 0) midi = fitToScale(ctx, midi + dir * 2);
+          let dur = s.durBeat;
+          if (dur >= 1 && coin(rng, 0.6)) {
+            notes.push({ voice: 0, midi, startBeat: s.startBeat, durBeat: dur / 2, role: 'countersubject' });
+            notes.push({ voice: 0, midi: fitToScale(ctx, midi + dir * 2), startBeat: s.startBeat + dur / 2, durBeat: dur / 2, role: 'countersubject' });
           } else {
-            n.midi = nearestMidiForPc(chance(0.5)?degreePc(key,3,true):degreePc(key,5,true), n.midi, 50, 74);
+            notes.push({ voice: 0, midi, startBeat: s.startBeat, durBeat: dur, role: 'countersubject' });
           }
         }
-      });
-    });
-  }
-
-  function findMeasureAtBeat(beat){
-    return Math.floor(beat / 4);
-  }
-
-  function fitSegmentByMeasure(notes, progression, key, lo, hi, fromMidi){
-    // Use measure-local chord support for each note.
-    let prev = fromMidi ?? (notes[0] ? notes[0].midi : 60);
-    return notes.map(n => {
-      const chord = romanChord(key, progression[Math.min(progression.length-1, findMeasureAtBeat(n.time))]);
-      const strong = Math.round(n.time * 2) % 2 === 0;
-      let best = clamp(prev, lo, hi), bestScore = Infinity;
-      for(let m=lo;m<=hi;m++){
-        if(strong && !chord.includes(mod(m,12))) continue;
-        let score = Math.abs(m-prev);
-        if(strong && chord.includes(mod(m,12))) score -= 1.3;
-        if(Math.abs(m-prev) > 7) score += 4;
-        if(score < bestScore){ best = m; bestScore = score; }
+        return notes.sort(byStart);
       }
-      prev = best;
-      return {...n, midi:best};
-    });
-  }
 
-  function buildPiece(opts){
-    const key = parseKey(opts.key);
-    const measures =
-      opts.length === "long"
-        ? (opts.character === "ricercar" ? 28 : 32)
-        : (opts.character === "ricercar" ? 18 : 22);
-    const bpm =
-      opts.character === "stretto" ? (opts.length === "long" ? 96 : 102) :
-      opts.character === "toccatina" ? (opts.length === "long" ? 92 : 98) :
-      opts.character === "ricercar" ? (opts.length === "long" ? 68 : 74) :
-      (opts.length === "long" ? 84 : 90);
-
-    const progression = buildProgression(key, opts.character, measures);
-    const subject = buildSubject(key, opts.character);
-    const answer = tonalAnswer(subject, key);
-    const counterSubject = fitToHarmony(
-      invertAround(subject.slice(0, Math.max(5, subject.length-1)), subject[0].midi + 3),
-      romanChord(key, progression[0]),
-      52, 76,
-      64
-    ).map(n => ({...n, tag:"countersubject"}));
-    const countersubject2 = diminish(retrograde(counterSubject), 0.75).map(n => ({...n, tag:"counter2"}));
-    const episodeA = sequentialEpisode(subject, key, 2, 4, opts.character === "ricercar" ? 3 : 2);
-    const episodeB = sequentialEpisode(answer, key, 5, 4, opts.character === "stretto" ? 1.5 : 2);
-    const bass = makeBassLine(key, progression, measures, opts.character);
-
-    const voices = Array.from({length: opts.voices}, () => []);
-    const ranges = opts.voices === 4
-      ? [[64,88],[56,78],[48,70],[36,57]]
-      : [[64,88],[52,76],[36,57]];
-
-    const expositionOrder = Array.from({length:opts.voices}, (_,i)=>i);
-    let t = 0;
-    const entryGap =
-      opts.character === "stretto" ? 2 :
-      opts.character === "toccatina" ? 2.5 :
-      opts.character === "ricercar" ? 4 : 3;
-
-    const planLines = [];
-    // Exposition
-    expositionOrder.forEach((voiceIndex, i) => {
-      const mat = i % 2 === 0 ? subject : answer;
-      const lo = ranges[voiceIndex][0], hi = ranges[voiceIndex][1];
-      const entry = fitSegmentByMeasure(remapTimes(mat, t), progression, key, lo, hi, i===0 ? degreeMidi(key,1,5) : degreeMidi(key,5,4));
-      voices[voiceIndex].push(...entry.map(n => ({...n, label:i===0?"subject":"answer"})));
-      planLines.push(`Exposition entry ${i+1}: voice ${voiceIndex+1} ${i%2===0?"subject":"answer"} @ beat ${t.toFixed(1)}`);
-      // Overlay countersubject in previous voices
-      for(let j=0;j<i;j++){
-        const csBase = j % 2 === 0 ? counterSubject : countersubject2;
-        const lo2 = ranges[j][0], hi2 = ranges[j][1];
-        const cs = fitSegmentByMeasure(remapTimes(csBase, t), progression, key, lo2, hi2, voices[j].length ? voices[j][voices[j].length-1].midi : (lo2+hi2)/2);
-        voices[j].push(...cs.map(n => ({...n, label:"countersubject"})));
-      }
-      t += entryGap;
-    });
-
-    // Middle section: episodes + reentries
-    let cursor = t + 2;
-    const sectionCount = opts.length === "long" ? 6 : 4;
-    for(let s=0;s<sectionCount;s++){
-      const kind = rand(["episodeA","episodeB","subject","answer","inv","aug"]);
-      if(kind === "episodeA" || kind === "episodeB"){
-        const epSrc = kind === "episodeA" ? episodeA : episodeB;
-        for(let v=0; v<opts.voices-1; v++){
-          const lo = ranges[v][0], hi = ranges[v][1];
-          const base = v % 2 === 0 ? epSrc : retrograde(epSrc);
-          const ep = fitSegmentByMeasure(remapTimes(base, cursor + v*0.5), progression, key, lo, hi, lo+8);
-          voices[v].push(...ep.map(n => ({...n, label:"episode"})));
+      // ============================================================
+      // contrapuntal validator
+      // ============================================================
+      function expandTimeline(notes, step = 0.5) {
+        const end = Math.max(...notes.map(n => n.startBeat + n.durBeat), 0);
+        const voices = [...new Set(notes.map(n => n.voice))];
+        const grid = [];
+        for (let t = 0; t < end; t += step) {
+          const frame = { t, pitches: {} };
+          for (const v of voices) {
+            const n = notes.find(x => x.voice === v && x.startBeat <= t + 1e-9 && x.startBeat + x.durBeat > t + 1e-9);
+            if (n) frame.pitches[v] = n.midi;
+          }
+          grid.push(frame);
         }
-        planLines.push(`Episode ${s+1}: sequential fragmenting episode around beat ${cursor.toFixed(1)}`);
-        cursor += kind === "episodeA" ? totalBeats(epSrc) : totalBeats(epSrc) + 1.5;
-      } else {
-        const overlapping = opts.character === "stretto" ? [0,1.5,3,4.5] : [0,2.5,5,7];
-        for(let v=0; v<opts.voices; v++){
-          const lo = ranges[v][0], hi = ranges[v][1];
-          let mat;
-          if(kind === "subject") mat = subject;
-          else if(kind === "answer") mat = answer;
-          else if(kind === "inv") mat = invertAround(subject, subject[0].midi + (v%2===0 ? 0 : 3));
-          else mat = augment(subject, 1.5);
-          const entryTime = cursor + overlapping[v];
-          const fitted = fitSegmentByMeasure(remapTimes(mat, entryTime), progression, key, lo, hi, lo + 6);
-          voices[v].push(...fitted.map(n => ({...n, label:kind})));
+        return grid;
+      }
+      function countParallels(notes) {
+        const grid = expandTimeline(notes, 0.5);
+        let p5 = 0, p8 = 0, contrary = 0, totalMotion = 0, unisons = 0, overlaps = 0;
+        for (let i = 1; i < grid.length; i++) {
+          const prev = grid[i - 1].pitches, curr = grid[i].pitches;
+          const voices = Object.keys(curr).map(Number);
+          for (let a = 0; a < voices.length; a++) for (let b = a + 1; b < voices.length; b++) {
+            const va = voices[a], vb = voices[b];
+            if (prev[va] == null || prev[vb] == null || curr[va] == null || curr[vb] == null) continue;
+            const ip = intervalClass(prev[va], prev[vb]), ic = intervalClass(curr[va], curr[vb]);
+            const ma = Math.sign(curr[va] - prev[va]), mb = Math.sign(curr[vb] - prev[vb]);
+            if (ma !== 0 || mb !== 0) totalMotion++;
+            if (ma === -mb && ma !== 0) contrary++;
+            if (ic === 0) unisons++;
+            if ((ip === 7 || ip === 0) && ic === ip && ma === mb && ma !== 0) { if (ic === 7) p5++; else p8++; }
+            if (curr[va] <= curr[vb] && va > vb) overlaps++; // voice crossing proxy
+          }
         }
-        planLines.push(`Reentry block ${s+1}: ${kind} entries with overlap starting @ beat ${cursor.toFixed(1)}`);
-        cursor += kind === "aug" ? 12 : 10;
+        return { p5, p8, contrary, totalMotion, unisons, overlaps };
       }
-    }
-
-    // Final stretto and cadence
-    const finalStart = Math.max(cursor, measures*4 - 14);
-    const offsets = opts.character === "stretto" ? [0,1,2,3] : [0,2,4,6];
-    for(let v=0; v<opts.voices; v++){
-      const lo = ranges[v][0], hi = ranges[v][1];
-      const mat = v % 2 === 0 ? subject : answer;
-      const fitted = fitSegmentByMeasure(remapTimes(diminish(mat, 0.75), finalStart + offsets[v]), progression, key, lo, hi, lo+10);
-      voices[v].push(...fitted.map(n => ({...n, label:"final-stretto"})));
-    }
-    planLines.push(`Final stretto near cadence @ beat ${finalStart.toFixed(1)}`);
-
-    // Bass always present as last voice
-    voices[opts.voices-1] = bass;
-
-    // Sort and clean
-    for(let v=0; v<opts.voices-1; v++){
-      voices[v].sort((a,b)=>a.time-b.time);
-      voices[v] = insertPassingTones(voices[v], ranges[v][0], ranges[v][1]);
-    }
-
-    let finalVoices = refineRegistral(voices);
-    cadenceAdjust(finalVoices, key);
-
-    const beats = Math.max(...finalVoices.map(v => totalBeats(v)));
-    const flat = [];
-    finalVoices.forEach((voice, vi) => {
-      voice.forEach(n => flat.push({
-        ...n,
-        voice: vi,
-        note: midiToNote(n.midi),
-        velocity: vi === finalVoices.length-1 ? 0.76 : vi === 0 ? 0.72 : 0.62
-      }));
-    });
-    flat.sort((a,b)=>a.time-b.time || a.voice-b.voice);
-
-    const analysis = [
-      `Key: ${opts.key}`,
-      `Character: ${opts.character}`,
-      `Voices: ${opts.voices}`,
-      `Tempo: ${bpm} BPM`,
-      `Estimated duration: ${(beats * 60 / bpm).toFixed(1)} s`,
-      ``,
-      `Subject: ${subject.map(n => midiToNote(n.midi) + `(${n.dur})`).join("  ")}`,
-      `Answer:  ${answer.map(n => midiToNote(n.midi) + `(${n.dur})`).join("  ")}`,
-      `Countersubject basis: ${counterSubject.map(n => midiToNote(n.midi) + `(${n.dur})`).join("  ")}`,
-      ``,
-      `Plan:`,
-      ...planLines,
-      ``,
-      `Counterpoint metrics:`,
-      `- Outer-voice parallel perfects: ${parallelCount(finalVoices[0], finalVoices[finalVoices.length-1])}`,
-      `- Outer-voice contrary motions: ${contraryScore(finalVoices[0], finalVoices[finalVoices.length-1])}`,
-      `- Global vertical dissonance penalty: ${verticalPenalty(finalVoices).toFixed(1)}`
-    ].join("\n");
-
-    return {key, opts, bpm, measures, beats, progression, subject, answer, voices: finalVoices, notes: flat, analysis};
-  }
-
-  function disposeAudio(){
-    cancelAnimationFrame(rafId);
-    rafId = null;
-    parts.forEach(p => p.dispose());
-    parts = [];
-    synths.forEach(s => s.dispose());
-    synths = [];
-    if(filter){ filter.dispose(); filter = null; }
-    if(reverb){ reverb.dispose(); reverb = null; }
-    Tone.Transport.cancel();
-    Tone.Transport.stop();
-    Tone.Transport.position = 0;
-  }
-
-  function setupAudio(piece){
-    disposeAudio();
-    Tone.Transport.bpm.value = piece.bpm;
-    filter = new Tone.Filter(1900, "lowpass").toDestination();
-    reverb = new Tone.Reverb({decay:2.6, wet:0.18}).connect(filter);
-
-    const beatToSec = (beats) => beats * 60 / piece.bpm;
-
-    for(let i=0;i<piece.voices.length;i++){
-      const synth = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: i === piece.voices.length-1 ? "square4" : (i === 0 ? "triangle4" : "sawtooth3") },
-        envelope: { attack:0.01, decay:0.15, sustain:i===piece.voices.length-1 ? 0.34 : 0.16, release:0.18 }
-      }).connect(reverb);
-      synth.volume.value = i === piece.voices.length-1 ? -6 : i === 0 ? -7 : -10;
-      synths.push(synth);
-    }
-
-    for(let vi=0; vi<piece.voices.length; vi++){
-      const events = piece.notes.filter(n => n.voice === vi).map(n => ({
-        timeSec: beatToSec(n.time),
-        note:n.note,
-        durSec: Math.max(0.05, beatToSec(n.dur)),
-        velocity:n.velocity
-      }));
-      const part = new Tone.Part((time, val) => {
-        synths[vi].triggerAttackRelease(val.note, val.durSec, time, val.velocity);
-      }, events.map(e => [e.timeSec, e])).start(0);
-      parts.push(part);
-    }
-
-    function frame(){
-      if(currentPiece){
-        const playBeat = Tone.Transport.seconds * currentPiece.bpm / 60;
-        drawPianoRoll(currentPiece, playBeat);
+      function melodicLeapPenalty(notes) {
+        let penalty = 0;
+        const byVoice = groupByVoice(notes);
+        for (const arr of Object.values(byVoice)) {
+          for (let i = 1; i < arr.length; i++) {
+            const leap = Math.abs(arr[i].midi - arr[i - 1].midi);
+            if (leap > 7) penalty += leap - 7;
+            if (i >= 2) {
+              const prev = arr[i - 1].midi - arr[i - 2].midi;
+              const cur = arr[i].midi - arr[i - 1].midi;
+              if (Math.abs(prev) > 5 && Math.sign(prev) === Math.sign(cur) && Math.abs(cur) > 2) penalty += 3;
+            }
+          }
+        }
+        return penalty;
       }
-      rafId = requestAnimationFrame(frame);
-    }
-    frame();
-  }
-
-  function drawPianoRoll(piece, playBeat=0){
-    const w = canvas.width, h = canvas.height;
-    const leftPad = 46, topPad = 12, innerW = w - leftPad - 10, innerH = h - topPad - 24;
-    const minMidi = 36, maxMidi = 88, span = maxMidi - minMidi + 1;
-
-    ctx.clearRect(0,0,w,h);
-    ctx.fillStyle = "#0b0b0d";
-    ctx.fillRect(0,0,w,h);
-
-    const beatsVisible = 16;
-    const centerBeat = Math.max(0, playBeat);
-    const startBeat = Math.max(0, centerBeat - beatsVisible * 0.35);
-    const endBeat = startBeat + beatsVisible;
-
-    for(let m=minMidi; m<=maxMidi; m++){
-      const y = topPad + innerH - ((m - minMidi + 1) / span) * innerH;
-      const black = [1,3,6,8,10].includes(mod(m,12));
-      ctx.fillStyle = black ? "rgba(255,255,255,0.035)" : "rgba(255,255,255,0.016)";
-      ctx.fillRect(leftPad, y, innerW, innerH/span + 1);
-    }
-
-    for(let beat=Math.floor(startBeat); beat<=endBeat+0.001; beat+=1){
-      const x = leftPad + ((beat - startBeat) / beatsVisible) * innerW;
-      const isMeasure = beat % 4 === 0;
-      ctx.strokeStyle = isMeasure ? "rgba(214,181,107,0.36)" : "rgba(255,255,255,0.08)";
-      ctx.lineWidth = isMeasure ? 1.15 : 0.6;
-      ctx.beginPath(); ctx.moveTo(x, topPad); ctx.lineTo(x, topPad + innerH); ctx.stroke();
-      if(isMeasure){
-        ctx.fillStyle = "rgba(255,240,210,0.60)";
-        ctx.font = "12px Georgia";
-        ctx.fillText(String(beat/4 + 1), x + 4, topPad + 14);
+      function cadenceStrength(notes, totalBeats, ctx) {
+        const tail = notes.filter(n => n.startBeat >= totalBeats - 4);
+        const tonic = ctx.tonicPc, dom = (ctx.tonicPc + 7) % 12;
+        let tonicHits = 0, domHits = 0, bassCad = 0;
+        for (const n of tail) {
+          const pc = (n.midi % 12 + 12) % 12;
+          if (pc === tonic) tonicHits++;
+          if (pc === dom) domHits++;
+          if (n.voice === Math.max(...tail.map(x => x.voice)) && (pc === tonic || pc === dom)) bassCad++;
+        }
+        return tonicHits * 2 + domHits + bassCad * 2;
       }
-    }
+      function harmonicCoherence(notes, plan, ctx) {
+        let ok = 0, total = 0;
+        for (const m of plan) {
+          const chord = chordPcsForFunction(ctx, m.fn);
+          const span = notes.filter(n => n.startBeat >= m.measure * 4 && n.startBeat < (m.measure + 1) * 4);
+          for (const n of span) {
+            total++;
+            if (chord.includes((n.midi % 12 + 12) % 12)) ok++;
+          }
+        }
+        return total ? ok / total : 0;
+      }
+      function subjectRecurrence(notes) {
+        return notes.filter(n => ['subject', 'answer', 'stretto'].includes(n.role)).length;
+      }
+      function groupByVoice(notes) {
+        const g = {};
+        for (const n of notes) { (g[n.voice] ||= []).push(n); }
+        Object.values(g).forEach(arr => arr.sort(byStart));
+        return g;
+      }
+      function scoreFugue(notes, plan, ctx) {
+        // These checks reflect Bachian discipline: independent motion, consonant framework, recurring subject, and firm cadence.
+        const par = countParallels(notes);
+        const leaps = melodicLeapPenalty(notes);
+        const totalBeats = Math.max(...notes.map(n => n.startBeat + n.durBeat), 0);
+        const cad = cadenceStrength(notes, totalBeats, ctx);
+        const harm = harmonicCoherence(notes, plan, ctx);
+        const subj = subjectRecurrence(notes);
+        const score = 100
+          - par.p5 * 8
+          - par.p8 * 10
+          - leaps * 1.2
+          - par.overlaps * 5
+          - par.unisons * 0.3
+          + (par.totalMotion ? (par.contrary / par.totalMotion) * 18 : 0)
+          + cad * 1.8
+          + harm * 25
+          + Math.min(subj, 70) * 0.35;
+        return { score, par, leaps, cad, harm, subj };
+      }
 
-    piece.notes.forEach(n => {
-      const noteEnd = n.time + n.dur;
-      if(noteEnd < startBeat || n.time > endBeat) return;
-      const x = leftPad + ((n.time - startBeat) / beatsVisible) * innerW;
-      const width = Math.max(4, (n.dur / beatsVisible) * innerW - 1);
-      const y = topPad + innerH - ((n.midi - minMidi + 1) / span) * innerH;
-      const nh = Math.max(5, innerH/span - 1);
-      ctx.fillStyle = COLORS[n.voice % COLORS.length];
-      ctx.fillRect(x, y, width, nh);
-      ctx.strokeStyle = "rgba(0,0,0,0.30)";
-      ctx.strokeRect(x, y, width, nh);
-    });
+      // ============================================================
+      // repair / scoring pass
+      // ============================================================
+      function noteAt(arr, t) { return arr.find(n => n.startBeat <= t + 1e-9 && n.startBeat + n.durBeat > t + 1e-9); }
+      function repairScore(notes, ctx, plan) {
+        // Bach principle: repair tries to restore contrary motion, reduce bare parallels, and protect cadence.
+        const byVoice = groupByVoice(notes);
+        const voices = Object.keys(byVoice).map(Number).sort((a, b) => a - b);
+        for (let pass = 0; pass < 3; pass++) {
+          const grid = expandTimeline(notes, 0.5);
+          for (let i = 1; i < grid.length; i++) {
+            for (let a = 0; a < voices.length; a++) for (let b = a + 1; b < voices.length; b++) {
+              const va = voices[a], vb = voices[b];
+              const p0 = grid[i - 1].pitches[va], q0 = grid[i - 1].pitches[vb], p1 = grid[i].pitches[va], q1 = grid[i].pitches[vb];
+              if ([p0, q0, p1, q1].some(v => v == null)) continue;
+              const ip = intervalClass(p0, q0), ic = intervalClass(p1, q1);
+              const ma = Math.sign(p1 - p0), mb = Math.sign(q1 - q0);
+              if ((ip === 7 || ip === 0) && ic === ip && ma === mb && ma !== 0) {
+                const targetVoice = vb;
+                const note = noteAt(byVoice[targetVoice], grid[i].t);
+                if (note) {
+                  const nudges = [-2, 2, -1, 1, 3, -3];
+                  for (const d of nudges) {
+                    const cand = fitToScale(ctx, note.midi + d);
+                    const old = note.midi; note.midi = cand;
+                    const scNew = scoreFugue(notes, plan, ctx).score;
+                    note.midi = old;
+                    const scOld = scoreFugue(notes, plan, ctx).score;
+                    if (scNew > scOld) { note.midi = cand; break; }
+                  }
+                }
+              }
+            }
+          }
+          // smooth large leaps
+          for (const v of voices) {
+            const arr = byVoice[v];
+            for (let i = 1; i < arr.length; i++) {
+              const leap = Math.abs(arr[i].midi - arr[i - 1].midi);
+              if (leap > 9) arr[i].midi = fitToScale(ctx, arr[i - 1].midi + Math.sign(arr[i].midi - arr[i - 1].midi) * 7);
+            }
+          }
+        }
+        return notes.sort(byStart);
+      }
 
-    for(let m=36; m<=84; m+=12){
-      const y = topPad + innerH - ((m - minMidi + 1) / span) * innerH + 3;
-      ctx.fillStyle = "rgba(255,240,210,0.60)";
-      ctx.font = "11px Georgia";
-      ctx.fillText(noteNameNoOct(m), 8, y);
-    }
+      // ============================================================
+      // fugue planner
+      // ============================================================
+      function buildEpisodeForVoice(ctx, frag, startBeat, voice, regBase, rng, label = 'episode') {
+        const seq = sequenceFragment(ctx, frag, 4, choice(rng, [-2, 2, -5, 5]), 0.75);
+        return seq.map(n => ({ ...n, voice, startBeat: n.startBeat + startBeat, midi: fitToScale(ctx, n.midi + regBase), role: label }));
+      }
+      function fitRegister(midi, voice, voices) {
+        const registers3 = [76, 64, 50];
+        const registers4 = [79, 69, 59, 47];
+        const target = (voices === 3 ? registers3 : registers4)[voice];
+        while (midi - target > 8) midi -= 12;
+        while (target - midi > 8) midi += 12;
+        return midi;
+      }
+      function overlaySegment(base, seg) { seg.forEach(n => base.push(n)); }
+      function fillRestWithCounter(baseNotes, occupied, voice, startBeat, endBeat, counter, ctx, voices, rng, role = 'free') {
+        let t = startBeat, idx = 0;
+        while (t < endBeat - 1e-9) {
+          const slice = occupied.filter(n => n.startBeat < t + 0.001 && n.startBeat + n.durBeat > t + 0.001 && n.voice !== voice);
+          const src = counter[idx % counter.length] || { midi: scaleMidi(ctx, 1, 4), durBeat: 1, startBeat: 0 };
+          let dur = Math.min(src.durBeat, endBeat - t);
+          if (dur <= 0) break;
+          let midi = fitRegister(src.midi + choice(rng, [-12, 0, 12]), voice, voices);
+          if (slice.length) {
+            const pcs = slice.map(n => n.midi);
+            for (const d of [0, 2, -2, 4, -4, 7, -7]) {
+              const cand = fitToScale(ctx, midi + d);
+              if (pcs.every(p => isConsonantInterval(cand - p) || dur <= 0.5)) { midi = cand; break; }
+            }
+          }
+          baseNotes.push({ voice, midi, startBeat: t, durBeat: dur, role });
+          t += dur;
+          idx++;
+        }
+      }
+      function planStructure(totalMeasures, voices, character) {
+        const events = [];
+        const subjectGap = character === 'stretto-driven fugue' ? 3 : 4;
+        // exposition
+        for (let v = 0; v < voices; v++) {
+          events.push({ type: v % 2 === 0 ? 'subject' : 'answer', voice: v, measure: v * subjectGap / 2, label: 'exposition' });
+        }
+        events.push({ type: 'episode', measure: Math.ceil((voices * subjectGap / 2)) + 1, label: 'episode1' });
+        events.push({ type: 'middleEntry', voice: voices - 1, measure: Math.ceil((voices * subjectGap / 2)) + 3, label: 'middle1' });
+        events.push({ type: 'middleEntry', voice: Math.max(0, voices - 2), measure: Math.ceil((voices * subjectGap / 2)) + 5, label: 'middle2' });
+        events.push({ type: 'episode', measure: Math.ceil((voices * subjectGap / 2)) + 7, label: 'episode2' });
+        events.push({ type: 'middleEntry', voice: 0, measure: Math.ceil((voices * subjectGap / 2)) + 9, label: 'middle3' });
+        if (totalMeasures > 18) events.push({ type: 'episode', measure: Math.floor(totalMeasures * 0.65), label: 'episode3' });
+        const closeStart = totalMeasures - 4;
+        if (character === 'stretto-driven fugue' || character === 'compact fugue') {
+          for (let v = 0; v < voices; v++) events.push({ type: 'stretto', voice: v, measure: closeStart + v * 0.5, label: 'closing' });
+        } else {
+          events.push({ type: 'pedal', voice: voices - 1, measure: closeStart, label: 'closing' });
+          events.push({ type: 'middleEntry', voice: 1, measure: closeStart, label: 'closingEntry' });
+        }
+        return events;
+      }
 
-    const playheadX = leftPad + ((centerBeat - startBeat) / beatsVisible) * innerW;
-    ctx.strokeStyle = "rgba(255,90,90,0.95)";
-    ctx.lineWidth = 2.2;
-    ctx.beginPath();
-    ctx.moveTo(playheadX, topPad);
-    ctx.lineTo(playheadX, topPad + innerH);
-    ctx.stroke();
+      // ============================================================
+      // symbolic score assembly
+      // ============================================================
+      function generateFugue(config) {
+        const ctx = makeKeyContext(config.key);
+        const rng = mulberry32(hashString(String(config.seed)));
+        const plan = buildHarmonicPlan(ctx, config.length, config.character);
+        const totalMeasures = plan.length;
+        const totalBeats = totalMeasures * 4;
+        const subjectObj = generateSubject(ctx, rng, config.character, config.complexity);
+        const subject = subjectObj.notes.map(n => ({ ...n, midi: fitRegister(n.midi, 0, config.voices) }));
+        const countersubject = buildCountersubject(ctx, subject, rng);
+        const subjectDur = subjectObj.totalBeats;
+        const fragment = fragmentNotes(subject, 0, Math.min(subjectDur, 2));
+        const structure = planStructure(totalMeasures, config.voices, config.character);
+        let bestNotes = null, bestScore = -Infinity, bestMeta = null;
 
-    ctx.strokeStyle = "rgba(214,181,107,0.28)";
-    ctx.strokeRect(leftPad, topPad, innerW, innerH);
-  }
+        for (let attempt = 0; attempt < 10; attempt++) {
+          const notes = [];
+          const analysis = [];
+          const regOffsets = range(config.voices).map(v => fitRegister(scaleMidi(ctx, 1, 5 - v), v, config.voices) - scaleMidi(ctx, 1, 4));
+          for (const ev of structure) {
+            const startBeat = ev.measure * 4;
+            if (ev.type === 'subject' || ev.type === 'answer' || ev.type === 'middleEntry') {
+              let seg;
+              if (ev.type === 'answer') {
+                // Bach principle: tonal answer reshapes exact intervallic copy to preserve dominant reply without overmodulating.
+                seg = transformSubject(subject, { transpose: 7, tonalAdjust: true, ctx });
+              } else if (ev.type === 'middleEntry') {
+                const styles = ['subject', 'answer', 'inversion', 'augmentation', 'diminution'];
+                const st = choice(rng, styles);
+                if (st === 'answer') seg = transformSubject(subject, { transpose: 7, tonalAdjust: true, ctx });
+                else if (st === 'inversion') seg = transformSubject(subject, { invertAround: fitRegister(scaleMidi(ctx, 5, 5), ev.voice, config.voices), ctx });
+                else if (st === 'augmentation') seg = transformSubject(subject, { augment: 2, ctx });
+                else if (st === 'diminution') seg = transformSubject(subject, { diminish: 2, ctx });
+                else seg = transformSubject(subject, { transpose: choice(rng, [0, 7, -5, 2]), ctx });
+              } else {
+                seg = transformSubject(subject, { ctx });
+              }
+              seg = seg.map(n => ({ ...n, voice: ev.voice, startBeat: n.startBeat + startBeat, midi: fitRegister(n.midi, ev.voice, config.voices), role: ev.type === 'answer' ? 'answer' : 'subject' }));
+              overlaySegment(notes, seg);
+              analysis.push(`${ev.label}: ${ev.type} in voice ${ev.voice + 1} at m.${(startBeat / 4).toFixed(1)}`);
 
-  async function ensureAudio(){
-    if(!audioStarted){
-      await Tone.start();
-      audioStarted = true;
-    }
-  }
+              for (let v = 0; v < config.voices; v++) if (v !== ev.voice) {
+                const role = (startBeat < totalBeats * 0.4) ? 'countersubject' : 'free';
+                fillRestWithCounter(notes, notes, v, startBeat, startBeat + Math.max(...seg.map(n => n.startBeat + n.durBeat)) - startBeat, countersubject, ctx, config.voices, rng, role);
+              }
+            }
+            if (ev.type === 'episode') {
+              for (let v = 0; v < config.voices; v++) {
+                const reg = (v === config.voices - 1 ? -12 : (v * 2));
+                const ep = buildEpisodeForVoice(ctx, fragment, startBeat + v * 0.25, v, reg, rng);
+                overlaySegment(notes, ep.map(n => ({ ...n, midi: fitRegister(n.midi, v, config.voices) })));
+              }
+              analysis.push(`${ev.label}: sequential episode derived from subject head at m.${(startBeat / 4).toFixed(1)}`);
+            }
+            if (ev.type === 'stretto') {
+              let seg = transformSubject(subject, { diminish: 2, ctx });
+              seg = seg.map(n => ({ ...n, voice: ev.voice, startBeat: n.startBeat + startBeat, midi: fitRegister(n.midi, ev.voice, config.voices), role: 'stretto' }));
+              overlaySegment(notes, seg);
+              analysis.push(`closing stretto overlap in voice ${ev.voice + 1} at m.${(startBeat / 4).toFixed(1)}`);
+            }
+            if (ev.type === 'pedal') {
+              const bassPc = degreePc(ctx, 5);
+              for (let t = startBeat; t < totalBeats; t += 2) {
+                notes.push({ voice: ev.voice, midi: fitRegister(36 + ((t >= totalBeats - 2) ? (ctx.tonicPc - bassPc) : 0) + bassPc, ev.voice, config.voices), startBeat: t, durBeat: 2, role: 'pedal' });
+              }
+              analysis.push(`dominant pedal moving to tonic in bass from m.${(startBeat / 4).toFixed(1)}`);
+            }
+          }
 
-  function generate(){
-    cleanupBlobUrls();
-    currentPiece = buildPiece({
-      key:keySel.value,
-      length:lengthSel.value,
-      voices:+voicesSel.value,
-      character:charSel.value
-    });
-    analysisEl.textContent = currentPiece.analysis;
-    drawPianoRoll(currentPiece, 0);
-    setupAudio(currentPiece);
-    setStatus("Generated new fugue.");
-  }
+          // fill remaining gaps by measure according to harmonic plan
+          for (let v = 0; v < config.voices; v++) {
+            const arr = notes.filter(n => n.voice === v).sort(byStart);
+            let t = 0;
+            while (t < totalBeats - 1e-9) {
+              const n = arr.find(x => x.startBeat <= t + 1e-9 && x.startBeat + x.durBeat > t + 1e-9);
+              if (n) { t = n.startBeat + n.durBeat; continue; }
+              const m = Math.floor(t / 4);
+              const fn = plan[m]?.fn || 'T';
+              const chord = chordPcsForFunction(ctx, fn);
+              const dur = coin(rng, 0.65) ? 1 : 0.5;
+              let base = fitRegister(scaleMidi(ctx, 1 + (v * 2) % 7, 5 - Math.floor(v * 0.8)), v, config.voices);
+              const choices = [];
+              for (let shift = -12; shift <= 12; shift++) for (const pc of chord) for (let oct = 2; oct <= 7; oct++) {
+                const m0 = 12 * (oct + 1) + pc;
+                const mm = fitRegister(m0 + shift, v, config.voices);
+                if (mm >= 33 && mm <= 92) choices.push(mm);
+              }
+              let midi = choices.length ? choice(rng, choices) : fitRegister(base, v, config.voices);
+              if (arr.length) {
+                const prev = [...arr].filter(x => x.startBeat < t).sort(byStart).pop();
+                if (prev && choices.length) {
+                  choices.sort((a, b) => Math.abs(a - prev.midi) - Math.abs(b - prev.midi));
+                  midi = choices[0];
+                }
+              }
+              notes.push({ voice: v, midi, startBeat: t, durBeat: Math.min(dur, totalBeats - t), role: 'free' });
+              arr.push(notes[notes.length - 1]); arr.sort(byStart);
+              t += dur;
+            }
+          }
 
-  function cleanupBlobUrls(){
-    if(midiBlobUrl){ URL.revokeObjectURL(midiBlobUrl); midiBlobUrl = null; }
-    if(wavBlobUrl){ URL.revokeObjectURL(wavBlobUrl); wavBlobUrl = null; }
-  }
+          // repair and score
+          notes.forEach(n => n.midi = clamp(n.midi, 33, 92));
+          repairScore(notes, ctx, plan);
+          notes.sort(byStart);
+          const sc = scoreFugue(notes, plan, ctx);
+          if (Number.isFinite(sc.score) && sc.score > bestScore) {
+            bestScore = sc.score;
+            bestNotes = deepCopy(notes);
+            bestMeta = { analysis, subject, countersubject, plan, score: sc, ctx };
+          }
+        }
+        if (!bestNotes) {
+          const notes = [];
+          const score = scoreFugue(notes, plan, ctx);
+          return {
+            notes,
+            totalBeats,
+            analysis: ['Generation fell back to an empty score.'],
+            subject,
+            countersubject,
+            plan,
+            score,
+            ctx
+          };
+        }
+        return { notes: bestNotes, totalBeats, ...bestMeta };
+      }
 
-  function writeVarLen(value){
-    let buffer = value & 0x7F;
-    const out = [];
-    while((value >>= 7)){
-      buffer <<= 8;
-      buffer |= ((value & 0x7F) | 0x80);
-    }
-    while(true){
-      out.push(buffer & 0xFF);
-      if(buffer & 0x80) buffer >>= 8;
-      else break;
-    }
-    return out;
-  }
+      // ============================================================
+      // Tone.js playback engine
+      // ============================================================
+      let currentPiece = null;
+      let transportPart = null;
+      let synths = [];
+      let playing = false;
+      function currentTransportBeat() {
+        const running = typeof Tone !== 'undefined' && Tone.Transport.state === 'started';
+        return running ? Tone.Transport.seconds * (Tone.Transport.bpm.value / 60) : 0;
+      }
+      async function ensureAudio() {
+        await Tone.start();
+        Tone.Destination.volume.value = -6;
+      }
+      function makeVoiceSynth() {
+        return new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'custom', partials: [1, 0.7, 0.5, 0.3, 0.15] },
+          envelope: { attack: 0.005, decay: 0.08, sustain: 0.65, release: 0.1 }
+        }).connect(new Tone.Filter(2400, 'lowpass')).toDestination();
+      }
+      function stopPlayback() {
+        Tone.Transport.stop();
+        Tone.Transport.cancel();
+        if (transportPart) { transportPart.dispose(); transportPart = null; }
+        synths.forEach(s => s.dispose());
+        synths = [];
+        playing = false;
+      }
+      function schedulePlayback(piece, tempo) {
+        stopPlayback();
+        Tone.Transport.bpm.value = tempo;
+        const voices = Math.max(...piece.notes.map(n => n.voice)) + 1;
+        synths = range(voices).map(() => makeVoiceSynth());
+        const events = piece.notes.map(n => ({ time: n.startBeat, note: n }));
+        transportPart = new Tone.Part((time, ev) => {
+          const n = ev.note;
+          synths[n.voice].triggerAttackRelease(Tone.Frequency(n.midi, 'midi'), Tone.Time(n.durBeat + 'n').toSeconds ? Tone.Time((n.durBeat * 0.5) + 'm').toSeconds() : (60 / tempo) * n.durBeat, time, 0.85);
+        }, events).start(0);
+        Tone.Transport.start('+0.05');
+        playing = true;
+      }
 
-  function midiBytes(piece){
-    // Symbolic export: one track with tempo and all note events.
-    const events = [];
-    const usPerQuarter = Math.round(60000000 / piece.bpm);
-    events.push({tick:0, bytes:[0xFF,0x51,0x03,(usPerQuarter>>16)&255,(usPerQuarter>>8)&255,usPerQuarter&255]});
-    events.push({tick:0, bytes:[0xFF,0x58,0x04,4,2,24,8]});
+      // ============================================================
+      // scrolling piano roll renderer
+      // ============================================================
+      const canvas = document.getElementById('roll');
+      const ctx2d = canvas.getContext('2d');
+      function noteColor(v) { return ['#7e3b2e', '#336699', '#5f7c2f', '#7a4da3'][v % 4]; }
+      function renderRoll(piece) {
+        const W = canvas.width, H = canvas.height;
+        ctx2d.clearRect(0, 0, W, H);
+        ctx2d.fillStyle = '#fbfaf6'; ctx2d.fillRect(0, 0, W, H);
+        if (!piece) return;
+        const nowBeat = currentTransportBeat();
+        const pxPerBeat = 44;
+        const scrollX = Math.max(0, nowBeat * pxPerBeat - W * 0.28);
+        const minMidi = 33, maxMidi = 92;
+        const keyH = H / (maxMidi - minMidi + 1);
+        for (let m = minMidi; m <= maxMidi; m++) {
+          const y = H - (m - minMidi + 1) * keyH;
+          ctx2d.fillStyle = [1, 3, 6, 8, 10].includes(m % 12) ? '#f2eee6' : '#faf8f2';
+          ctx2d.fillRect(0, y, W, keyH + 1);
+        }
+        for (let b = 0; b <= piece.totalBeats; b++) {
+          const x = b * pxPerBeat - scrollX;
+          if (x < 0 || x > W) continue;
+          ctx2d.strokeStyle = b % 4 === 0 ? '#c1b39e' : '#e1d8ca';
+          ctx2d.beginPath(); ctx2d.moveTo(x, 0); ctx2d.lineTo(x, H); ctx2d.stroke();
+        }
+        for (const n of piece.notes) {
+          const x = n.startBeat * pxPerBeat - scrollX;
+          const w = n.durBeat * pxPerBeat;
+          const y = H - (n.midi - minMidi + 1) * keyH;
+          if (x + w < 0 || x > W) continue;
+          const active = nowBeat >= n.startBeat && nowBeat < n.startBeat + n.durBeat;
+          ctx2d.fillStyle = active ? '#f2c14e' : noteColor(n.voice);
+          ctx2d.fillRect(x, y, w, Math.max(4, keyH - 1));
+          if (active) {
+            ctx2d.strokeStyle = '#fff7d6';
+            ctx2d.lineWidth = 1.5;
+            ctx2d.strokeRect(x + 0.5, y + 0.5, Math.max(1, w - 1), Math.max(3, keyH - 2));
+            ctx2d.globalAlpha = 0.35;
+            ctx2d.fillStyle = '#fff7d6';
+            ctx2d.fillRect(x, y, Math.max(4, w), Math.max(4, keyH - 1));
+            ctx2d.globalAlpha = 1;
+          } else {
+            ctx2d.globalAlpha = 0.15;
+            ctx2d.fillStyle = '#fff';
+            ctx2d.fillRect(x, y, w, 2);
+            ctx2d.globalAlpha = 1;
+          }
+        }
+        const playX = clamp(nowBeat * pxPerBeat - scrollX, 0, Math.max(0, piece.totalBeats * pxPerBeat - scrollX));
+        ctx2d.strokeStyle = '#111'; ctx2d.lineWidth = 2;
+        ctx2d.beginPath(); ctx2d.moveTo(playX, 0); ctx2d.lineTo(playX, H); ctx2d.stroke();
+      }
+      function animationLoop() { renderRoll(currentPiece); requestAnimationFrame(animationLoop); }
 
-    piece.notes.forEach(n => {
-      const ch = Math.min(n.voice, 3);
-      const start = Math.round(n.time * PPQ);
-      const end = Math.round((n.time + n.dur) * PPQ);
-      const vel = clamp(Math.round(n.velocity * 110), 35, 110);
-      events.push({tick:start, bytes:[0x90 | ch, n.midi, vel]});
-      events.push({tick:end, bytes:[0x80 | ch, n.midi, 0]});
-    });
-    events.sort((a,b) => a.tick - b.tick || a.bytes[0] - b.bytes[0]);
+      // ============================================================
+      // MIDI exporter
+      // ============================================================
+      function vlq(n) {
+        let bytes = [n & 0x7F];
+        while ((n >>= 7)) bytes.unshift((n & 0x7F) | 0x80);
+        return Uint8Array.from(bytes);
+      }
+      function strBytes(s) { return Uint8Array.from([...s].map(c => c.charCodeAt(0))); }
+      function concatBytes(arrs) { const total = arrs.reduce((a, b) => a + b.length, 0); const out = new Uint8Array(total); let o = 0; arrs.forEach(a => { out.set(a, o); o += a.length; }); return out; }
+      function u16(n) { return Uint8Array.from([(n >> 8) & 255, n & 255]); }
+      function u32(n) { return Uint8Array.from([(n >> 24) & 255, (n >> 16) & 255, (n >> 8) & 255, n & 255]); }
+      function exportMIDI(piece, tempo) {
+        const tpq = 480;
+        const voices = Math.max(...piece.notes.map(n => n.voice)) + 1;
+        const tracks = [];
+        for (let v = 0; v < voices; v++) {
+          const events = [];
+          const vn = piece.notes.filter(n => n.voice === v);
+          vn.forEach(n => {
+            const st = Math.round(n.startBeat * tpq), en = Math.round((n.startBeat + n.durBeat) * tpq);
+            events.push({ tick: st, bytes: [0x90 | v, n.midi, 80] });
+            events.push({ tick: en, bytes: [0x80 | v, n.midi, 64] });
+          });
+          events.sort((a, b) => a.tick - b.tick || a.bytes[0] - b.bytes[0]);
+          let prev = 0; const body = [];
+          if (v === 0) {
+            const mpqn = Math.round(60000000 / tempo);
+            body.push(vlq(0), Uint8Array.from([0xFF, 0x51, 0x03, (mpqn >> 16) & 255, (mpqn >> 8) & 255, mpqn & 255]));
+            body.push(vlq(0), Uint8Array.from([0xFF, 0x03, 0x06, ...strBytes('Fugue ')]));
+          }
+          for (const e of events) { body.push(vlq(e.tick - prev), Uint8Array.from(e.bytes)); prev = e.tick; }
+          body.push(vlq(0), Uint8Array.from([0xFF, 0x2F, 0x00]));
+          const data = concatBytes(body);
+          tracks.push(concatBytes([strBytes('MTrk'), u32(data.length), data]));
+        }
+        const header = concatBytes([strBytes('MThd'), u32(6), u16(1), u16(tracks.length), u16(tpq)]);
+        const file = concatBytes([header, ...tracks]);
+        downloadBlob(new Blob([file], { type: 'audio/midi' }), 'fugue.mid');
+      }
 
-    const track = [];
-    let prevTick = 0;
-    events.forEach(e => {
-      const delta = e.tick - prevTick;
-      track.push(...writeVarLen(delta), ...e.bytes);
-      prevTick = e.tick;
-    });
-    track.push(0x00, 0xFF, 0x2F, 0x00);
-
-    const header = [
-      0x4d,0x54,0x68,0x64, 0x00,0x00,0x00,0x06,
-      0x00,0x00, 0x00,0x01,
-      (PPQ>>8)&255, PPQ&255
-    ];
-    const len = track.length;
-    const trkHeader = [0x4d,0x54,0x72,0x6b, (len>>24)&255, (len>>16)&255, (len>>8)&255, len&255];
-    return new Uint8Array([...header, ...trkHeader, ...track]);
-  }
-
-  function downloadBytes(bytes, filename, mime){
-    const blob = new Blob([bytes], {type:mime});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    return url;
-  }
-
-  function floatTo16BitPCM(view, offset, input){
-    for(let i=0;i<input.length;i++, offset+=2){
-      let s = Math.max(-1, Math.min(1, input[i]));
-      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-    }
-  }
-
-  function audioBufferToWav(buffer){
-    const numCh = buffer.numberOfChannels;
-    const sampleRate = buffer.sampleRate;
-    const samples = buffer.length;
-    const bytesPerSample = 2;
-    const blockAlign = numCh * bytesPerSample;
-    const dataSize = samples * blockAlign;
-    const out = new ArrayBuffer(44 + dataSize);
-    const view = new DataView(out);
-
-    function writeString(off, str){
-      for(let i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i));
-    }
-
-    writeString(0, "RIFF");
-    view.setUint32(4, 36 + dataSize, true);
-    writeString(8, "WAVE");
-    writeString(12, "fmt ");
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true);
-    view.setUint16(22, numCh, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * blockAlign, true);
-    view.setUint16(32, blockAlign, true);
-    view.setUint16(34, 16, true);
-    writeString(36, "data");
-    view.setUint32(40, dataSize, true);
-
-    if(numCh === 1){
-      floatTo16BitPCM(view, 44, buffer.getChannelData(0));
-    } else {
-      let offset = 44;
-      const chans = [];
-      for(let c=0;c<numCh;c++) chans.push(buffer.getChannelData(c));
-      for(let i=0;i<samples;i++){
-        for(let c=0;c<numCh;c++){
+      // ============================================================
+      // WAV exporter
+      // ============================================================
+      function audioBufferToWav(buffer) {
+        const numCh = buffer.numberOfChannels, sampleRate = buffer.sampleRate, len = buffer.length;
+        const bytesPerSample = 2, blockAlign = numCh * bytesPerSample, dataSize = len * blockAlign;
+        const ab = new ArrayBuffer(44 + dataSize), dv = new DataView(ab);
+        let o = 0;
+        const ws = s => { for (let i = 0; i < s.length; i++) dv.setUint8(o++, s.charCodeAt(i)); };
+        ws('RIFF'); dv.setUint32(o, 36 + dataSize, true); o += 4; ws('WAVE'); ws('fmt ');
+        dv.setUint32(o, 16, true); o += 4; dv.setUint16(o, 1, true); o += 2; dv.setUint16(o, numCh, true); o += 2;
+        dv.setUint32(o, sampleRate, true); o += 4; dv.setUint32(o, sampleRate * blockAlign, true); o += 4; dv.setUint16(o, blockAlign, true); o += 2; dv.setUint16(o, 16, true); o += 2;
+        ws('data'); dv.setUint32(o, dataSize, true); o += 4;
+        const chans = range(numCh).map(i => buffer.getChannelData(i));
+        for (let i = 0; i < len; i++) for (let c = 0; c < numCh; c++) {
           let s = Math.max(-1, Math.min(1, chans[c][i]));
-          view.setInt16(offset, s < 0 ? s*0x8000 : s*0x7FFF, true);
-          offset += 2;
+          dv.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7FFF, true); o += 2;
         }
+        return new Blob([ab], { type: 'audio/wav' });
       }
-    }
-    return new Uint8Array(out);
-  }
-
-  async function exportMidi(){
-    if(!currentPiece) return;
-    const bytes = midiBytes(currentPiece);
-    midiBlobUrl = downloadBytes(bytes, "bach_fugue_generator.mid", "audio/midi");
-    setStatus("Exported MIDI.");
-  }
-
-  async function exportWav(){
-    if(!currentPiece) return;
-    setStatus("Rendering WAV offline...");
-    const durationSec = currentPiece.beats * 60 / currentPiece.bpm + 1.2;
-    const bpm = currentPiece.bpm;
-    const piece = currentPiece;
-    const rendered = await Tone.Offline(({transport}) => {
-      const f = new Tone.Filter(1900, "lowpass").toDestination();
-      const r = new Tone.Reverb({decay:2.6, wet:0.18}).connect(f);
-      const localSynths = [];
-      for(let i=0;i<piece.voices.length;i++){
-        const s = new Tone.PolySynth(Tone.Synth, {
-          oscillator: { type: i === piece.voices.length-1 ? "square4" : (i === 0 ? "triangle4" : "sawtooth3") },
-          envelope: { attack:0.01, decay:0.15, sustain:i===piece.voices.length-1 ? 0.34 : 0.16, release:0.18 }
-        }).connect(r);
-        s.volume.value = i === piece.voices.length-1 ? -6 : i === 0 ? -7 : -10;
-        localSynths.push(s);
+      async function exportWAV(piece, tempo) {
+        const durSec = piece.totalBeats * (60 / tempo) + 1.2;
+        const rendered = await Tone.Offline(({ transport }) => {
+          transport.bpm.value = tempo;
+          const voices = Math.max(...piece.notes.map(n => n.voice)) + 1;
+          const synths = range(voices).map(() => new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'custom', partials: [1, 0.7, 0.45, 0.28, 0.12] },
+            envelope: { attack: 0.005, decay: 0.08, sustain: 0.65, release: 0.12 }
+          }).toDestination());
+          for (const n of piece.notes) {
+            const when = n.startBeat * (60 / tempo);
+            const dur = n.durBeat * (60 / tempo);
+            synths[n.voice].triggerAttackRelease(Tone.Frequency(n.midi, 'midi'), dur, when, 0.82);
+          }
+          transport.start(0);
+        }, durSec);
+        downloadBlob(audioBufferToWav(rendered), 'fugue.wav');
       }
-      transport.bpm.value = bpm;
-      piece.notes.forEach(n => {
-        const when = n.time * 60 / bpm;
-        const dur = n.dur * 60 / bpm;
-        localSynths[n.voice].triggerAttackRelease(n.note, dur, when, n.velocity);
+
+      // ============================================================
+      // UI wiring
+      // ============================================================
+      const keySel = document.getElementById('keySel');
+      const lengthSel = document.getElementById('lengthSel');
+      const voicesSel = document.getElementById('voicesSel');
+      const charSel = document.getElementById('charSel');
+      const complexitySel = document.getElementById('complexitySel');
+      const tempoSel = document.getElementById('tempoSel');
+      const seedBox = document.getElementById('seedBox');
+      const analysisBox = document.getElementById('analysisBox');
+      const summary = document.getElementById('summary');
+      KEYS.forEach(k => { const o = document.createElement('option'); o.textContent = k; keySel.appendChild(o); });
+      keySel.value = 'C';
+      let seed = Math.floor(Math.random() * 1e9);
+      function currentConfig() {
+        return {
+          key: keySel.value,
+          length: lengthSel.value,
+          voices: +voicesSel.value,
+          character: charSel.value,
+          complexity: +complexitySel.value,
+          tempo: +tempoSel.value,
+          seed
+        };
+      }
+      function describePiece(piece, cfg) {
+        const notes = Array.isArray(piece?.notes) ? piece.notes : [];
+        const s = piece?.score || { score: 0, par: { p5: 0, p8: 0, contrary: 0, totalMotion: 0 }, harm: 0, cad: 0, leaps: 0, subj: 0 };
+        const sections = [];
+        const hasStretto = notes.some(n => n.role === 'stretto');
+        const hasPedal = notes.some(n => n.role === 'pedal');
+        sections.push(`${cfg.voices} voices in ${cfg.key}, ${cfg.character}`);
+        sections.push(`score ${s.score.toFixed(1)} | parallels 5ths ${s.par.p5}, octaves ${s.par.p8}`);
+        sections.push(`contrary motion ${(s.par.totalMotion ? 100 * s.par.contrary / s.par.totalMotion : 0).toFixed(0)}%`);
+        sections.push(`harmonic coherence ${(s.harm * 100).toFixed(0)}% | cadence ${s.cad.toFixed(1)}`);
+        sections.push(`${hasStretto ? 'stretto present' : 'no stretto'} | ${hasPedal ? 'pedal point present' : 'no pedal point'}`);
+        summary.innerHTML = sections.join('<br>');
+        const subject = Array.isArray(piece?.subject) ? piece.subject : [];
+        const plan = Array.isArray(piece?.plan) ? piece.plan : [];
+        const analysis = Array.isArray(piece?.analysis) ? piece.analysis : [];
+        const subjText = subject.length ? subject.map(n => `${midiToName(n.midi)}(${n.durBeat})`).join(' ') : 'Unavailable';
+        const planText = plan.length ? plan.map(m => `m${m.measure + 1}:${m.fn}/${m.region}`).join(', ') : 'Unavailable';
+        analysisBox.value =
+          `Seed: ${cfg.seed}
+Subject: ${subjText}
+
+Harmonic plan:
+${planText}
+
+Generated structure:
+- Exposition with alternating subject and tonal answer entries
+- Recurring countersubject under later entries
+- Sequential episode from subject head fragment
+- Middle entries with inversion, augmentation, or diminution variants
+- Final return to tonic with ${hasStretto ? 'stretto' : 'pedal-point'} closure
+
+Scoring:
+Parallel fifths: ${s.par.p5}
+Parallel octaves: ${s.par.p8}
+Contrary motion ratio: ${(s.par.totalMotion ? s.par.contrary / s.par.totalMotion : 0).toFixed(3)}
+Melodic leap penalty: ${s.leaps.toFixed(1)}
+Cadence strength: ${s.cad.toFixed(1)}
+Harmonic coherence: ${(s.harm * 100).toFixed(1)}%
+Subject recurrence notes: ${s.subj}
+
+Event log:
+${analysis.map(x => '• ' + x).join('\n')}`;
+      }
+      function doGenerate() {
+        currentPiece = generateFugue(currentConfig());
+        seedBox.textContent = 'Seed: ' + seed;
+        describePiece(currentPiece, currentConfig());
+        renderRoll(currentPiece);
+      }
+
+      document.getElementById('genBtn').onclick = doGenerate;
+      document.getElementById('newSeedBtn').onclick = () => { seed = Math.floor(Math.random() * 1e9); doGenerate(); };
+      document.getElementById('startBtn').onclick = async () => {
+        if (!currentPiece) doGenerate();
+        await ensureAudio();
+        schedulePlayback(currentPiece, currentConfig().tempo);
+      };
+      document.getElementById('stopBtn').onclick = () => stopPlayback();
+      document.getElementById('midiBtn').onclick = () => { if (!currentPiece) doGenerate(); exportMIDI(currentPiece, currentConfig().tempo); };
+      document.getElementById('wavBtn').onclick = async () => { if (!currentPiece) doGenerate(); await ensureAudio(); await exportWAV(currentPiece, currentConfig().tempo); };
+      ['change', 'input'].forEach(ev => {
+        [keySel, lengthSel, voicesSel, charSel, complexitySel, tempoSel].forEach(el => el.addEventListener(ev, () => { doGenerate(); }));
       });
-      transport.start(0);
-    }, durationSec);
 
-    const wavBytes = audioBufferToWav(rendered);
-    wavBlobUrl = downloadBytes(wavBytes, "bach_fugue_generator.wav", "audio/wav");
-    setStatus("Exported WAV.");
-  }
-
-  generateBtn.addEventListener("click", async () => {
-    await ensureAudio();
-    generate();
-  });
-
-  startBtn.addEventListener("click", async () => {
-    await ensureAudio();
-    if(!currentPiece) generate();
-    if(synths[0]){
-      try {
-        synths[0].triggerAttackRelease("C5", 0.08, Tone.now(), 0.001);
-      } catch (e) {}
-    }
-    Tone.Transport.start();
-    setStatus("Playback started.");
-  });
-
-  stopBtn.addEventListener("click", () => {
-    Tone.Transport.stop();
-    Tone.Transport.position = 0;
-    if(currentPiece) drawPianoRoll(currentPiece, 0);
-    setStatus("Playback stopped.");
-  });
-
-  midiBtn.addEventListener("click", exportMidi);
-  wavBtn.addEventListener("click", exportWav);
-
-  window.addEventListener("beforeunload", cleanupBlobUrls);
-  window.addEventListener("resize", () => {
-    if(currentPiece){
-      const beat = Tone.Transport.state === "started" ? (Tone.Transport.seconds / 60) * currentPiece.bpm : 0;
-      drawPianoRoll(currentPiece, beat);
-    }
-  });
-
-  generate();
-})();
-</script>
+      animationLoop();
+      doGenerate();
+    })();
+  </script>
 </body>
+
 </html>
