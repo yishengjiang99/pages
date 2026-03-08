@@ -78,10 +78,35 @@
       border: 1px solid #8f765d;
       background: #efe2cc;
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
     button:hover {
       background: #e6d4b8;
+    }
+
+    button:disabled {
+      cursor: progress;
+      opacity: 0.85;
+    }
+
+    button.is-loading::before {
+      content: '';
+      width: 0.9em;
+      height: 0.9em;
+      border-radius: 50%;
+      border: 2px solid rgba(106, 76, 46, 0.25);
+      border-top-color: var(--accent);
+      animation: spin 0.75s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     .actions {
@@ -919,9 +944,12 @@
       const seedBox = document.getElementById('seedBox');
       const analysisBox = document.getElementById('analysisBox');
       const summary = document.getElementById('summary');
+      const genBtn = document.getElementById('genBtn');
+      const newSeedBtn = document.getElementById('newSeedBtn');
       KEYS.forEach(k => { const o = document.createElement('option'); o.textContent = k; keySel.appendChild(o); });
       keySel.value = 'C';
       let seed = Math.floor(Math.random() * 1e9);
+      let generationTask = null;
       function currentConfig() {
         return {
           key: keySel.value,
@@ -976,29 +1004,49 @@ Subject recurrence notes: ${s.subj}
 Event log:
 ${analysis.map(x => '• ' + x).join('\n')}`;
       }
-      function doGenerate() {
-        currentPiece = generateFugue(currentConfig());
-        seedBox.textContent = 'Seed: ' + seed;
-        describePiece(currentPiece, currentConfig());
-        renderRoll(currentPiece);
+      function setGeneratingState(isGenerating) {
+        genBtn.classList.toggle('is-loading', isGenerating);
+        genBtn.disabled = isGenerating;
+        newSeedBtn.disabled = isGenerating;
+        genBtn.textContent = isGenerating ? 'Generating' : 'Generate';
+      }
+      async function doGenerate() {
+        if (generationTask) return generationTask;
+        const cfg = currentConfig();
+        generationTask = (async () => {
+          setGeneratingState(true);
+          await new Promise(resolve => requestAnimationFrame(resolve));
+          const piece = generateFugue(cfg);
+          currentPiece = piece;
+          seedBox.textContent = 'Seed: ' + cfg.seed;
+          describePiece(piece, cfg);
+          renderRoll(piece);
+          return piece;
+        })();
+        try {
+          return await generationTask;
+        } finally {
+          setGeneratingState(false);
+          generationTask = null;
+        }
       }
 
-      document.getElementById('genBtn').onclick = doGenerate;
-      document.getElementById('newSeedBtn').onclick = () => { seed = Math.floor(Math.random() * 1e9); doGenerate(); };
+      genBtn.onclick = () => { void doGenerate(); };
+      newSeedBtn.onclick = () => { seed = Math.floor(Math.random() * 1e9); void doGenerate(); };
       document.getElementById('startBtn').onclick = async () => {
-        if (!currentPiece) doGenerate();
+        if (!currentPiece) await doGenerate();
         await ensureAudio();
         schedulePlayback(currentPiece, currentConfig().tempo);
       };
       document.getElementById('stopBtn').onclick = () => stopPlayback();
-      document.getElementById('midiBtn').onclick = () => { if (!currentPiece) doGenerate(); exportMIDI(currentPiece, currentConfig().tempo); };
-      document.getElementById('wavBtn').onclick = async () => { if (!currentPiece) doGenerate(); await ensureAudio(); await exportWAV(currentPiece, currentConfig().tempo); };
+      document.getElementById('midiBtn').onclick = async () => { if (!currentPiece) await doGenerate(); exportMIDI(currentPiece, currentConfig().tempo); };
+      document.getElementById('wavBtn').onclick = async () => { if (!currentPiece) await doGenerate(); await ensureAudio(); await exportWAV(currentPiece, currentConfig().tempo); };
       ['change', 'input'].forEach(ev => {
-        [keySel, lengthSel, voicesSel, charSel, complexitySel, tempoSel].forEach(el => el.addEventListener(ev, () => { doGenerate(); }));
+        [keySel, lengthSel, voicesSel, charSel, complexitySel, tempoSel].forEach(el => el.addEventListener(ev, () => { void doGenerate(); }));
       });
 
       animationLoop();
-      doGenerate();
+      void doGenerate();
     })();
   </script>
 </body>
