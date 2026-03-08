@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>J.S. Bach Reincarnated: Two-Part Invention Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --panel-bg: #1e1e1e;
+            --text-color: #e0e0e0;
+            --accent-color: #d4af37; /* Gold for a Baroque feel */
+            --voice1-color: #4da6ff;
+            --voice2-color: #ff6666;
+        }
+        body {
+            font-family: 'Georgia', serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: var(--accent-color);
+            text-align: center;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 10px;
+        }
+        .controls {
+            background-color: var(--panel-bg);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+        }
+        button {
+            background-color: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-family: 'Georgia', serif;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: transform 0.1s, opacity 0.2s;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        canvas {
+            background-color: var(--panel-bg);
+            border: 2px solid #333;
+            border-radius: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.5);
+            max-width: 100%;
+        }
+        .legend {
+            margin-top: 10px;
+            display: flex;
+            gap: 20px;
+            font-size: 14px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .color-box {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Algorithmic Invention in D Minor</h1>
+    
+    <div class="controls">
+        <button id="generateBtn">Generate New Motif & Structure</button>
+        <button id="playBtn" disabled>Play</button>
+        <button id="stopBtn" disabled>Stop</button>
+    </div>
+
+    <canvas id="pianoRoll" width="800" height="400"></canvas>
+    
+    <div class="legend">
+        <div class="legend-item">
+            <div class="color-box" style="background: var(--voice1-color);"></div> Dux (Voice 1 - Soprano)
+        </div>
+        <div class="legend-item">
+            <div class="color-box" style="background: var(--voice2-color);"></div> Comes (Voice 2 - Bass)
+        </div>
+    </div>
+
+    <script>
+        // --- 1. HARMONIC & THEORETICAL FOUNDATION ---
+        // Principle 3: Harmonic Foundation - Mapping diatonic functional harmony
+        // D Harmonic Minor scale mapped to MIDI notes. Base octave (0) is D4.
+        const dMinorScale = [62, 64, 65, 67, 69, 70, 73]; 
+
+        // Convert a diatonic scale degree to a MIDI note, preserving key signature.
+        function degreeToMidi(degree) {
+            const octaves = Math.floor(degree / 7);
+            const scaleDegree = ((degree % 7) + 7) % 7;
+            return dMinorScale[scaleDegree] + (octaves * 12);
+        }
+
+        // --- 2. SYNTHESIS SETUP ---
+        // Emulating a two-manual harpsichord/organ using Tone.js
+        const synthConfig = {
+            oscillator: { type: "sawtooth" },
+            envelope: { attack: 0.005, decay: 0.2, sustain: 0.15, release: 0.5 }
+        };
+        const voice1Synth = new Tone.PolySynth(Tone.Synth, synthConfig).toDestination();
+        const voice2Synth = new Tone.PolySynth(Tone.Synth, synthConfig).toDestination();
+        voice1Synth.volume.value = -6;
+        voice2Synth.volume.value = -4; // Bass slightly louder for balance
+
+        let currentParts = [];
+        let generatedVoices = { voice1: [], voice2: [] };
+
+        // --- 3. MOTIVIC DEVELOPMENT ENGINE (The "Organicism") ---
+        // Principle 2: Organicism - Building entirely from one concise seed.
+        
+        // Generates a short 1-measure motif (Subject/Dux)
+        function generateSeedMotif() {
+            // Rhythmic cell: 8th, 16th, 16th, 8th, 8th
+            const rhythm = [0.5, 0.25, 0.25, 0.5, 0.5]; 
+            const motif = [];
+            let currentBeat = 0;
+            
+            // Start on tonic (0), third (2), or fifth (4)
+            let degree = [0, 2, 4][Math.floor(Math.random() * 3)]; 
+            
+            for (let i = 0; i < rhythm.length; i++) {
+                motif.push({
+                    degree: degree,
+                    timeOffset: currentBeat,
+                    duration: rhythm[i] * 0.9 // Legato/staccato feel
+                });
+                currentBeat += rhythm[i];
+                // Stepwise motion or small leaps for vocal voice-leading
+                degree += (Math.random() > 0.5 ? 1 : -1) * Math.floor(Math.random() * 3 + 1);
+            }
+            return motif;
+        }
+
+        // Principle 4: Mathematical Symmetry - Motif Inversion
+        function invertMotif(motif) {
+            const firstDegree = motif[0].degree;
+            return motif.map(note => ({
+                degree: firstDegree - (note.degree - firstDegree),
+                timeOffset: note.timeOffset,
+                duration: note.duration
+            }));
+        }
+
+        // Transposes motif by diatonic steps
+        function transposeMotif(motif, degreeOffset) {
+            return motif.map(note => ({
+                degree: note.degree + degreeOffset,
+                timeOffset: note.timeOffset,
+                duration: note.duration
+            }));
+        }
+
+        // Generates a simple continuous counter-subject (flowing 8th notes)
+        // Principle 1: Counterpoint Mastery - Contrary/oblique motion implied
+        function generateCounterSubject(startDegree, lengthInBeats) {
+            const cs = [];
+            let currentDegree = startDegree;
+            for(let beat = 0; beat < lengthInBeats; beat += 0.5) {
+                cs.push({
+                    degree: currentDegree,
+                    timeOffset: beat,
+                    duration: 0.45
+                });
+                // Walk down or up the scale
+                currentDegree += (Math.random() > 0.4 ? -1 : 1); 
+            }
+            return cs;
+        }
+
+        // --- 4. STRUCTURAL BAROQUE SYNTHESIS ---
+        // Principle 5: Form - Exposition, sequence/episode, cadence.
+        function generateInvention() {
+            const voice1 = [];
+            const voice2 = [];
+            const motif = generateSeedMotif();
+            const invMotif = invertMotif(motif);
+            
+            // Measure length in beats (4/4 time = 4 beats)
+            const m = 4; 
+
+            // Measure 1: Exposition (Tonic)
+            // Voice 1 (Soprano) states the Subject (Dux). Voice 2 rests/pedals.
+            motif.forEach(n => voice1.push({...n, time: n.timeOffset}));
+            voice2.push({degree: -7, time: 0, duration: 2.0}); // Tonic pedal in bass (D3)
+
+            // Measure 2: Answer (Dominant)
+            // Voice 2 (Bass) states the Answer (Comes) a 5th down (-3 diatonic steps).
+            const answer = transposeMotif(motif, -3);
+            answer.forEach(n => voice2.push({...n, time: n.timeOffset + m}));
+            // Voice 1 plays a counter-subject a 3rd/6th above.
+            const cs = generateCounterSubject(2, 4); // Start on F4
+            cs.forEach(n => voice1.push({...n, time: n.timeOffset + m}));
+
+            // Measure 3-4: Episode (Sequence & Inversion through Circle of Fifths logic)
+            // Implied harmony: iv -> VII -> III -> VI
+            const sequenceOffsets = [3, -1, 1, -2]; // Scale degree shifts
+            for(let i=0; i<4; i++) {
+                const beatStart = (m * 2) + (i * 2); // Two beats per sequence leg
+                // Voice 1 plays inverted motif fragment
+                const v1Frag = transposeMotif(invMotif.slice(0, 3), sequenceOffsets[i]);
+                v1Frag.forEach(n => voice1.push({...n, time: n.timeOffset + beatStart}));
+                
+                // Voice 2 plays original motif fragment (stretto-like interaction)
+                const v2Frag = transposeMotif(motif.slice(0, 3), sequenceOffsets[i] - 7);
+                v2Frag.forEach(n => voice2.push({...n, time: n.timeOffset + beatStart}));
+            }
+
+            // Measure 5: Final Cadence (V -> i)
+            const cadTime = m * 4;
+            // Voice 1: Trill/Suspension on dominant (C#5 -> D5)
+            voice1.push({degree: 6, time: cadTime, duration: 1.0}); // C#5
+            voice1.push({degree: 7, time: cadTime + 1, duration: 2.5}); // D5 (Resolved)
+            
+            // Voice 2: Cadential bass motion (A2 -> D3)
+            voice2.push({degree: -10, time: cadTime, duration: 1.0}); // A2 (Dominant root)
+            voice2.push({degree: -7, time: cadTime + 1, duration: 2.5}); // D3 (Tonic root)
+
+            // Map all diatonic degrees to literal MIDI/Tone.js pitches
+            return {
+                voice1: voice1.map(n => ({ pitch: Tone.Frequency(degreeToMidi(n.degree), "midi").toNote(), time: n.time, duration: n.duration })),
+                voice2: voice2.map(n => ({ pitch: Tone.Frequency(degreeToMidi(n.degree), "midi").toNote(), time: n.time, duration: n.duration }))
+            };
+        }
+
+        // --- 5. UI, PLAYBACK & VISUALIZATION ---
+
+        const canvas = document.getElementById('pianoRoll');
+        const ctx = canvas.getContext('2d');
+        let animationFrameId;
+
+        function drawPianoRoll(voices, playhead = 0) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const totalBeats = 20; // 5 measures * 4 beats
+            const pixelsPerBeat = canvas.width / totalBeats;
+            const minMidi = 40; // E2
+            const maxMidi = 85; // C#6
+            const pixelsPerPitch = canvas.height / (maxMidi - minMidi);
+
+            // Draw grid
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            for(let i=0; i<totalBeats; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * pixelsPerBeat, 0);
+                ctx.lineTo(i * pixelsPerBeat, canvas.height);
+                ctx.stroke();
+            }
+
+            // Function to draw notes
+            function drawNotes(voiceData, color) {
+                ctx.fillStyle = color;
+                voiceData.forEach(note => {
+                    const midi = Tone.Frequency(note.pitch).toMidi();
+                    const x = note.time * pixelsPerBeat;
+                    const y = canvas.height - ((midi - minMidi) * pixelsPerPitch);
+                    const width = note.duration * pixelsPerBeat;
+                    const height = Math.max(pixelsPerPitch - 2, 4);
+                    
+                    // Highlight notes currently playing
+                    if (playhead >= note.time && playhead <= note.time + note.duration) {
+                        ctx.fillStyle = '#ffffff';
+                    } else {
+                        ctx.fillStyle = color;
+                    }
+                    
+                    ctx.fillRect(x, y - height/2, width - 1, height);
+                });
+            }
+
+            drawNotes(voices.voice2, getComputedStyle(document.body).getPropertyValue('--voice2-color').trim());
+            drawNotes(voices.voice1, getComputedStyle(document.body).getPropertyValue('--voice1-color').trim());
+
+            // Draw playhead line
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            const playheadX = playhead * pixelsPerBeat;
+            ctx.beginPath();
+            ctx.moveTo(playheadX, 0);
+            ctx.lineTo(playheadX, canvas.height);
+            ctx.stroke();
+        }
+
+        function animate() {
+            if (Tone.Transport.state === "started") {
+                // Transport.position format is "Bars:Beats:Sixteenths", we convert seconds to beats
+                const currentBeat = Tone.Transport.seconds * (Tone.Transport.bpm.value / 60);
+                drawPianoRoll(generatedVoices, currentBeat);
+                
+                // Auto-stop at end
+                if (currentBeat >= 20) {
+                    stopMusic();
+                }
+            }
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        function stopMusic() {
+            Tone.Transport.stop();
+            Tone.Transport.position = 0;
+            drawPianoRoll(generatedVoices, 0);
+            document.getElementById('playBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        }
+
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            await Tone.start(); // Required by browsers to start audio context
+            Tone.Transport.bpm.value = 90; // Stately Baroque tempo
+            
+            generatedVoices = generateInvention();
+            drawPianoRoll(generatedVoices, 0);
+
+            // Clear old parts
+            currentParts.forEach(part => part.dispose());
+            currentParts = [];
+
+            // Load new parts into Tone.js
+            const part1 = new Tone.Part(((time, value) => {
+                voice1Synth.triggerAttackRelease(value.pitch, value.duration, time);
+            }), generatedVoices.voice1).start(0);
+            
+            const part2 = new Tone.Part(((time, value) => {
+                voice2Synth.triggerAttackRelease(value.pitch, value.duration, time);
+            }), generatedVoices.voice2).start(0);
+
+            currentParts.push(part1, part2);
+
+            document.getElementById('playBtn').disabled = false;
+            stopMusic(); // Reset playhead
+        });
+
+        document.getElementById('playBtn').addEventListener('click', () => {
+            Tone.Transport.start();
+            document.getElementById('playBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+            cancelAnimationFrame(animationFrameId);
+            animate();
+        });
+
+        document.getElementById('stopBtn').addEventListener('click', stopMusic);
+
+        // Initial draw
+        drawPianoRoll(generatedVoices, 0);
+
+    </script>
+</body>
+</html>
