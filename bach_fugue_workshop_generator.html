@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bach Fugue Workshop Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+<style>
+  :root{
+    --bg:#0d0d0f;
+    --panel:#17171b;
+    --panel2:#202028;
+    --text:#efe6cf;
+    --muted:#bcae8a;
+    --line:#4c4128;
+    --accent:#d6b56b;
+    --red:#e57373;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:Georgia,"Times New Roman",serif;}
+  .wrap{max-width:1200px;margin:0 auto;padding:16px;}
+  h1{margin:0 0 8px;font-size:30px}
+  .subtitle{color:var(--muted);line-height:1.35;margin-bottom:14px}
+  .controls{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;
+    background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;
+  }
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+  select,button{
+    width:100%;padding:10px;border-radius:8px;border:1px solid #5a4a2f;background:var(--panel2);color:var(--text);
+    box-sizing:border-box;font-size:14px;
+  }
+  button{cursor:pointer;background:linear-gradient(180deg,#3b2e19,#2d2417)}
+  button:hover{filter:brightness(1.08)}
+  .actions{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;grid-column:1/-1}
+  .canvasWrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px}
+  canvas{display:block;width:100%;height:420px;background:#0b0b0d;border-radius:8px}
+  .info{display:grid;grid-template-columns:1.15fr 1fr;gap:12px;margin-top:12px}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .box h2{margin:0 0 8px;font-size:18px}
+  pre{margin:0;white-space:pre-wrap;word-break:break-word;color:#e5dcc7;line-height:1.35;font-size:13px}
+  .small{font-size:13px;line-height:1.42;color:var(--muted)}
+  .status{margin-top:8px;font-size:13px;color:var(--muted)}
+  @media (max-width: 860px){
+    .info{grid-template-columns:1fr}
+    canvas{height:320px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Bach Fugue Workshop Generator</h1>
+  <div class="subtitle">
+    A stricter, longer contrapuntal engine: subject, answer, countersubject, episodic sequence, stretto-like overlap, cadential planning, and scrolling piano-roll playback.
+  </div>
+
+  <div class="controls">
+    <div>
+      <label for="keySel">Key</label>
+      <select id="keySel">
+        <option>C</option><option>G</option><option>D</option><option>F</option><option>Bb</option><option>A</option><option>E</option>
+        <option>Am</option><option>Em</option><option>Dm</option><option>Gm</option><option>Cm</option>
+      </select>
+    </div>
+    <div>
+      <label for="lengthSel">Length</label>
+      <select id="lengthSel">
+        <option value="medium">Medium fugue (35–60s)</option>
+        <option value="long">Long fugue (60–100s)</option>
+      </select>
+    </div>
+    <div>
+      <label for="voicesSel">Voices</label>
+      <select id="voicesSel">
+        <option value="3">3 voices</option>
+        <option value="4">4 voices</option>
+      </select>
+    </div>
+    <div>
+      <label for="charSel">Character</label>
+      <select id="charSel">
+        <option value="fugue">Fugue exposition</option>
+        <option value="stretto">Dense stretto fugue</option>
+        <option value="ricercar">Severe ricercar</option>
+        <option value="toccatina">Fugue with toccata episodes</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button id="generateBtn">Generate</button>
+      <button id="startBtn">Start / Resume</button>
+      <button id="stopBtn">Stop</button>
+      <button id="midiBtn">Export MIDI</button>
+      <button id="wavBtn">Export WAV</button>
+    </div>
+  </div>
+
+  <div class="canvasWrap">
+    <canvas id="roll" width="1160" height="420"></canvas>
+  </div>
+
+  <div class="info">
+    <div class="box">
+      <h2>Fugal Plan</h2>
+      <pre id="analysis"></pre>
+      <div class="status" id="status"></div>
+    </div>
+    <div class="box">
+      <h2>Engine Notes</h2>
+      <div class="small">
+        The generator now thinks more like a small fugue machine than a simple invention machine. It builds a subject, tonal answer, countersubject, later restatements, episodic sequential material, and overlapping entries. The piano roll scrolls with a centered playhead. MIDI export writes the symbolic score directly. WAV export renders the same score offline in the browser.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const keySel = document.getElementById('keySel');
+  const lengthSel = document.getElementById('lengthSel');
+  const voicesSel = document.getElementById('voicesSel');
+  const charSel = document.getElementById('charSel');
+  const generateBtn = document.getElementById('generateBtn');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const midiBtn = document.getElementById('midiBtn');
+  const wavBtn = document.getElementById('wavBtn');
+  const analysisEl = document.getElementById('analysis');
+  const statusEl = document.getElementById('status');
+  const canvas = document.getElementById('roll');
+  const ctx = canvas.getContext('2d');
+
+  let currentPiece = null;
+  let synths = [];
+  let parts = [];
+  let filter = null;
+  let reverb = null;
+  let audioStarted = false;
+  let rafId = null;
+  let midiBlobUrl = null;
+  let wavBlobUrl = null;
+
+  const NOTE_TO_PC = {C:0,"C#":1,Db:1,D:2,"D#":3,Eb:3,E:4,F:5,"F#":6,Gb:6,G:7,"G#":8,Ab:8,A:9,"A#":10,Bb:10,B:11};
+  const MAJOR = [0,2,4,5,7,9,11];
+  const MINOR = [0,2,3,5,7,8,10];
+  const HMIN7 = 11;
+  const COLORS = ["rgba(214,181,107,0.90)","rgba(126,177,227,0.88)","rgba(182,132,214,0.88)","rgba(125,203,160,0.88)"];
+  const PPQ = 480;
+
+  function rand(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+  function chance(p){ return Math.random() < p; }
+  function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
+  function mod(n,m){ return ((n % m) + m) % m; }
+  function midiToNote(m){ return Tone.Frequency(m, "midi").toNote(); }
+  function noteNameNoOct(m){ return midiToNote(m).replace(/\d+/, ""); }
+
+  function setStatus(s){ statusEl.textContent = s; }
+
+  function parseKey(name){
+    const isMinor = name.endsWith('m');
+    const tonic = isMinor ? name.slice(0,-1) : name;
+    return { tonic, tonicPc: NOTE_TO_PC[tonic], isMinor };
+  }
+
+  function degreePc(key, degree, harmonic=false){
+    const i = mod(degree - 1, 7);
+    if(key.isMinor){
+      const s = MINOR.slice();
+      if(harmonic) s[6] = HMIN7;
+      return mod(key.tonicPc + s[i], 12);
+    }
+    return mod(key.tonicPc + MAJOR[i], 12);
+  }
+
+  function degreeMidi(key, degree, octave, harmonic=false){
+    return 12 * (octave + 1) + degreePc(key, degree, harmonic);
+  }
+
+  function nearestMidiForPc(pc, around, lo, hi){
+    let best = lo, bestD = Infinity;
+    for(let m=lo; m<=hi; m++){
+      if(mod(m,12) === mod(pc,12)){
+        const d = Math.abs(m-around);
+        if(d < bestD){ best = m; bestD = d; }
+      }
+    }
+    return best;
+  }
+
+  function romanChord(key, roman){
+    const map = {
+      I:[1,3,5], ii:[2,4,6], iii:[3,5,7], IV:[4,6,1], V:[5,7,2], vi:[6,1,3], vii:[7,2,4],
+      i:[1,3,5], iio:[2,4,6], III:[3,5,7], iv:[4,6,1], v:[5,7,2], VI:[6,1,3], VII:[7,2,4]
+    };
+    const harmonic = roman === "V" || roman === "v" || roman === "vii" || roman === "iio";
+    return (map[roman] || [1,3,5]).map(d => degreePc(key, d, harmonic));
+  }
+
+  function bassRoot(key, roman){
+    const map = {I:1,ii:2,iii:3,IV:4,V:5,vi:6,vii:7,i:1,iio:2,III:3,iv:4,v:5,VI:6,VII:7};
+    const deg = map[roman] || 1;
+    return degreeMidi(key, deg, 3, roman === "V" || roman === "v" || roman === "vii");
+  }
+
+  function buildProgression(key, character, measures){
+    const major = {
+      fugue: ["I","V","vi","ii","V","I","IV","ii","V","I","vi","ii","V","I"],
+      stretto: ["I","V","vi","iii","IV","ii","V","I","ii","V","I","IV","V","I"],
+      ricercar: ["I","IV","ii","V","I","vi","ii","V","I","IV","ii","V","I"],
+      toccatina: ["I","V","vi","ii","V","I","IV","V","I","vi","IV","ii","V","I"]
+    };
+    const minor = {
+      fugue: ["i","V","VI","iv","V","i","iv","iio","V","i","VI","iv","V","i"],
+      stretto: ["i","V","VI","III","iv","iio","V","i","iv","V","i","VI","V","i"],
+      ricercar: ["i","iv","iio","V","i","VI","iv","V","i","iv","iio","V","i"],
+      toccatina: ["i","V","VI","iv","V","i","iv","V","i","VI","iv","V","i"]
+    };
+    const base = (key.isMinor ? minor : major)[character] || (key.isMinor ? minor.fugue : major.fugue);
+    const out = [];
+    while(out.length < measures){
+      for(const r of base){
+        out.push(r);
+        if(out.length >= measures) break;
+      }
+    }
+    out[out.length-2] = "V";
+    out[out.length-1] = key.isMinor ? "i" : "I";
+    return out;
+  }
+
+  function totalBeats(notes){
+    return notes.reduce((m,n) => Math.max(m, n.time + n.dur), 0);
+  }
+
+  function cloneNotes(notes){ return notes.map(n => ({...n})); }
+
+  function remapTimes(notes, offset=0){
+    return notes.map(n => ({...n, time:n.time + offset}));
+  }
+
+  function subjectSkeleton(character){
+    const variants = {
+      fugue: [
+        {deg:[1,5,4,3,2,1,7,1], dur:[0.5,0.5,0.5,0.5,0.5,0.5,1,1]},
+        {deg:[1,2,3,5,4,3,2,1], dur:[0.5,0.5,0.5,0.5,0.5,0.5,1,1]},
+        {deg:[5,6,5,4,3,2,7,1], dur:[0.5,0.5,0.5,0.5,0.5,0.5,1,1]}
+      ],
+      stretto: [
+        {deg:[1,2,3,5,4,3,2,1,7], dur:[0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,1]},
+        {deg:[5,4,3,2,1,2,3,4,5], dur:[0.5,0.5,0.5,0.5,0.5,0.5,0.5,0.5,1]}
+      ],
+      ricercar: [
+        {deg:[1,2,3,2,1,7,1], dur:[1,1,0.5,0.5,1,1,1]},
+        {deg:[5,4,3,2,3,4,5], dur:[1,1,0.5,0.5,1,1,1]}
+      ],
+      toccatina: [
+        {deg:[1,2,3,5,4,3,2,1,2,3], dur:[0.25,0.25,0.5,0.5,0.25,0.25,0.5,0.5,0.5,0.5]},
+        {deg:[5,6,5,4,3,2,1,7,1,2], dur:[0.25,0.25,0.5,0.5,0.25,0.25,0.5,0.5,0.5,0.5]}
+      ]
+    };
+    return rand(variants[character] || variants.fugue);
+  }
+
+  function buildSubject(key, character){
+    // Single seed subject. Everything else grows from this.
+    const sk = subjectSkeleton(character);
+    const notes = [];
+    let t = 0;
+    let prev = degreeMidi(key, sk.deg[0], 5, false);
+    for(let i=0;i<sk.deg.length;i++){
+      let m = degreeMidi(key, sk.deg[i], 5, i === sk.deg.length-1);
+      if(Math.abs(m-prev) > 7) m += (m < prev ? 12 : -12);
+      m = clamp(m, 60, 84);
+      notes.push({time:t, dur:sk.dur[i], midi:m, tag:"subject"});
+      prev = m;
+      t += sk.dur[i];
+    }
+    return notes;
+  }
+
+  function tonalAnswer(subject, key){
+    // Simple tonal answer approximation: dominant leaning, but preserve shape.
+    const firstPc = mod(subject[0].midi,12);
+    const fifthPc = degreePc(key, 5, true);
+    const trans = mod(fifthPc - firstPc, 12);
+    return subject.map((n, i) => {
+      let m = n.midi + trans;
+      if(i === 0) m = nearestMidiForPc(fifthPc, n.midi + 7, 55, 86);
+      if(i > 0 && Math.abs(m - (subject[i-1].midi + trans)) > 9) m += (m < subject[i-1].midi + trans ? 12 : -12);
+      return {...n, midi:clamp(m, 52, 86), tag:"answer"};
+    });
+  }
+
+  function invertAround(notes, axis){
+    return notes.map(n => ({...n, midi: axis - (n.midi - axis), tag:(n.tag || "") + "-inv"}));
+  }
+
+  function retrograde(notes){
+    let t = 0;
+    return notes.slice().reverse().map(n => {
+      const out = {...n, time:t, tag:(n.tag || "") + "-retro"};
+      t += n.dur;
+      return out;
+    });
+  }
+
+  function augment(notes, factor){
+    let t = 0;
+    return notes.map(n => {
+      const out = {...n, dur:n.dur*factor, time:t, tag:(n.tag || "") + "-aug"};
+      t += out.dur;
+      return out;
+    });
+  }
+
+  function diminish(notes, factor){
+    let t = 0;
+    return notes.map(n => {
+      const out = {...n, dur:n.dur*factor, time:t, tag:(n.tag || "") + "-dim"};
+      t += out.dur;
+      return out;
+    });
+  }
+
+  function sequentialEpisode(subject, key, startDegree=2, steps=4, unitBeats=2){
+    // Episode from subject fragments by descending / ascending sequence.
+    const frag = subject.slice(0, Math.min(4, subject.length)).map(n => ({...n}));
+    const out = [];
+    let t = 0;
+    const seqDegrees = [];
+    for(let i=0;i<steps;i++) seqDegrees.push(startDegree + i);
+    const basePc = mod(frag[0].midi,12);
+    seqDegrees.forEach((deg, idx) => {
+      const targetPc = degreePc(key, mod(deg-1,7)+1, idx % 2 === 1);
+      const trans = mod(targetPc - basePc, 12);
+      let localT = t;
+      frag.forEach(n => {
+        const scaledDur = unitBeats / frag.reduce((s,x)=>s+x.dur,0) * n.dur;
+        let m = n.midi + trans + (idx % 2 === 1 ? -12 : 0);
+        m = clamp(m, 50, 82);
+        out.push({time:localT, dur:scaledDur, midi:m, tag:"episode"});
+        localT += scaledDur;
+      });
+      t += unitBeats;
+    });
+    return out;
+  }
+
+  function makeBassLine(key, progression, measures, character){
+    const notes = [];
+    let time = 0;
+    let prev = bassRoot(key, progression[0]);
+    for(let m=0;m<measures;m++){
+      const roman = progression[m];
+      const nextRoman = progression[Math.min(measures-1,m+1)];
+      const root = bassRoot(key, roman);
+      const nextRoot = bassRoot(key, nextRoman);
+      const pattern =
+        character === "ricercar" ? [2,1,1] :
+        character === "toccatina" ? [1,1,1,1] :
+        chance(0.6) ? [2,1,1] : [1,1,1,1];
+      let localTime = time;
+      let curr = nearestMidiForPc(mod(root,12), prev, 36, 56);
+      pattern.forEach((d, idx) => {
+        const strong = idx === 0 || idx === pattern.length-1;
+        const pcChoices = strong
+          ? [mod(root,12)]
+          : [mod(root,12), mod(root+7,12), mod(root+4,12), mod(nextRoot,12)];
+        const pc = rand(pcChoices);
+        const m2 = nearestMidiForPc(pc, curr + rand([-2,-1,0,1,2]), 36, 56);
+        notes.push({time:localTime, dur:d, midi:m2, tag:"bass"});
+        curr = m2;
+        localTime += d;
+      });
+      prev = curr;
+      time += 4;
+    }
+    return notes;
+  }
+
+  function fitToHarmony(notes, chordPcs, lo, hi, preferFrom){
+    // Strong beats forced toward harmonic support. Weak beats may decorate.
+    let prev = preferFrom ?? notes[0].midi;
+    return notes.map(n => {
+      const strong = Math.round(n.time * 2) % 2 === 0;
+      const cands = [];
+      for(let m=lo;m<=hi;m++){
+        const chord = chordPcs.includes(mod(m,12));
+        if(strong && !chord) continue;
+        cands.push(m);
+      }
+      let best = cands.length ? cands[0] : clamp(prev, lo, hi);
+      let bestScore = Infinity;
+      (cands.length ? cands : [best]).forEach(m => {
+        let score = Math.abs(m-prev);
+        if(strong && chordPcs.includes(mod(m,12))) score -= 1.1;
+        if(Math.abs(m-prev) > 7) score += 4;
+        if(Math.abs(m-prev) === 6) score += 1.2;
+        if(score < bestScore){ best = m; bestScore = score; }
+      });
+      prev = best;
+      return {...n, midi:best};
+    });
+  }
+
+  function getActiveAt(voice, t){
+    for(let i=0;i<voice.length;i++){
+      const n = voice[i];
+      if(t >= n.time && t < n.time + n.dur) return n;
+    }
+    return null;
+  }
+
+  function boundaryTimes(voices){
+    const s = new Set([0]);
+    voices.forEach(v => v.forEach(n => {
+      s.add(+n.time.toFixed(4));
+      s.add(+(n.time+n.dur).toFixed(4));
+    }));
+    return Array.from(s).sort((a,b)=>a-b);
+  }
+
+  function motion(a1,a2,b1,b2){
+    const da = Math.sign(a2-a1);
+    const db = Math.sign(b2-b1);
+    if(da === 0 || db === 0) return "oblique";
+    return da === db ? "similar" : "contrary";
+  }
+
+  function isConsonant(iv){
+    const ic = mod(Math.abs(iv),12);
+    return [0,3,4,7,8,9].includes(ic);
+  }
+
+  function parallelCount(v1, v2){
+    const ts = boundaryTimes([v1,v2]);
+    let bad = 0;
+    for(let i=0;i<ts.length-2;i++){
+      const t1 = ts[i] + 0.0001;
+      const t2 = ts[i+1] + 0.0001;
+      const a1 = getActiveAt(v1,t1), b1 = getActiveAt(v2,t1), a2 = getActiveAt(v1,t2), b2 = getActiveAt(v2,t2);
+      if(!a1 || !b1 || !a2 || !b2) continue;
+      if(a1.midi === a2.midi && b1.midi === b2.midi) continue;
+      const i1 = mod(a1.midi - b1.midi, 12), i2 = mod(a2.midi - b2.midi, 12);
+      if(motion(a1.midi,a2.midi,b1.midi,b2.midi) === "similar" && ((i1===7&&i2===7)||(i1===0&&i2===0))) bad++;
+    }
+    return bad;
+  }
+
+  function contraryScore(v1, v2){
+    const ts = boundaryTimes([v1,v2]);
+    let score = 0;
+    for(let i=0;i<ts.length-2;i++){
+      const t1 = ts[i] + 0.0001;
+      const t2 = ts[i+1] + 0.0001;
+      const a1 = getActiveAt(v1,t1), b1 = getActiveAt(v2,t1), a2 = getActiveAt(v1,t2), b2 = getActiveAt(v2,t2);
+      if(!a1 || !b1 || !a2 || !b2) continue;
+      if(motion(a1.midi,a2.midi,b1.midi,b2.midi) === "contrary") score++;
+    }
+    return score;
+  }
+
+  function melodicPenalty(voice){
+    let p = 0;
+    for(let i=1;i<voice.length;i++){
+      const leap = Math.abs(voice[i].midi - voice[i-1].midi);
+      if(leap > 12) p += 10;
+      else if(leap > 7) p += 4;
+      else if(leap === 6) p += 1;
+      if(i<voice.length-1 && leap >= 7){
+        const d1 = Math.sign(voice[i].midi - voice[i-1].midi);
+        const d2 = Math.sign(voice[i+1].midi - voice[i].midi);
+        if(d1 === d2) p += 3;
+      }
+    }
+    return p;
+  }
+
+  function verticalPenalty(voices){
+    let p = 0;
+    const ts = boundaryTimes(voices);
+    for(let i=0;i<ts.length-1;i++){
+      const t = ts[i] + 0.0001;
+      const active = voices.map(v => getActiveAt(v,t)).filter(Boolean);
+      for(let a=0;a<active.length;a++){
+        for(let b=a+1;b<active.length;b++){
+          if(!isConsonant(active[a].midi - active[b].midi)) p += 0.7;
+        }
+      }
+    }
+    return p;
+  }
+
+  function insertPassingTones(voice, lo, hi){
+    const out = [];
+    for(let i=0;i<voice.length;i++){
+      const n = {...voice[i]};
+      out.push(n);
+      if(i<voice.length-1){
+        const next = voice[i+1];
+        const leap = next.midi - n.midi;
+        if(n.dur >= 1 && Math.abs(leap) >= 3 && Math.abs(leap) <= 5 && chance(0.38)){
+          out[out.length-1].dur = n.dur/2;
+          out.push({
+            time:n.time+n.dur/2,
+            dur:n.dur/2,
+            midi:clamp(n.midi + Math.sign(leap)*(Math.abs(leap)===4?2:1), lo, hi),
+            tag:(n.tag||"") + "-pass"
+          });
+        } else if(n.dur >= 1 && chance(0.16)) {
+          out[out.length-1].dur = n.dur/2;
+          out.push({
+            time:n.time+n.dur/2,
+            dur:n.dur/2,
+            midi:clamp(n.midi + rand([-1,1]), lo, hi),
+            tag:(n.tag||"") + "-nbr"
+          });
+        }
+      }
+    }
+    return out.sort((a,b)=>a.time-b.time);
+  }
+
+  function refineRegistral(voices){
+    // Try octave placements to reduce parallels and harsh spacing.
+    const shifts = [0,12,-12];
+    let best = voices.map(v => cloneNotes(v));
+    let bestScore = Infinity;
+    const recurse = (idx, current) => {
+      if(idx === current.length-1){
+        const score =
+          current.slice(0,-1).reduce((s,v)=>s + parallelCount(v,current[current.length-1])*18 + melodicPenalty(v)*1.2,0) +
+          verticalPenalty(current)*1.4 -
+          contraryScore(current[0], current[current.length-1])*0.4;
+        if(score < bestScore){
+          bestScore = score;
+          best = current.map(v => cloneNotes(v));
+        }
+        return;
+      }
+      for(const sh of shifts){
+        const nv = current[idx].map(n => ({...n, midi:clamp(n.midi + sh, idx===0?60:48, idx===0?88:78)}));
+        const next = current.map((v,i)=>i===idx?nv:v);
+        recurse(idx+1, next);
+      }
+    };
+    recurse(0, voices.map(v => cloneNotes(v)));
+    return best;
+  }
+
+  function cadenceAdjust(voices, key){
+    const endBeat = Math.max(...voices.map(v=>totalBeats(v)));
+    const finalWindow = endBeat - 3;
+    voices.forEach((v, idx) => {
+      v.forEach(n => {
+        if(n.time >= finalWindow){
+          if(idx === 0){
+            n.midi = nearestMidiForPc(degreePc(key,1,true), n.midi, 67, 86);
+          } else if(idx === voices.length-1){
+            n.midi = nearestMidiForPc(degreePc(key,1,true), n.midi, 36, 57);
+          } else {
+            n.midi = nearestMidiForPc(chance(0.5)?degreePc(key,3,true):degreePc(key,5,true), n.midi, 50, 74);
+          }
+        }
+      });
+    });
+  }
+
+  function findMeasureAtBeat(beat){
+    return Math.floor(beat / 4);
+  }
+
+  function fitSegmentByMeasure(notes, progression, key, lo, hi, fromMidi){
+    // Use measure-local chord support for each note.
+    let prev = fromMidi ?? (notes[0] ? notes[0].midi : 60);
+    return notes.map(n => {
+      const chord = romanChord(key, progression[Math.min(progression.length-1, findMeasureAtBeat(n.time))]);
+      const strong = Math.round(n.time * 2) % 2 === 0;
+      let best = clamp(prev, lo, hi), bestScore = Infinity;
+      for(let m=lo;m<=hi;m++){
+        if(strong && !chord.includes(mod(m,12))) continue;
+        let score = Math.abs(m-prev);
+        if(strong && chord.includes(mod(m,12))) score -= 1.3;
+        if(Math.abs(m-prev) > 7) score += 4;
+        if(score < bestScore){ best = m; bestScore = score; }
+      }
+      prev = best;
+      return {...n, midi:best};
+    });
+  }
+
+  function buildPiece(opts){
+    const key = parseKey(opts.key);
+    const measures =
+      opts.length === "long"
+        ? (opts.character === "ricercar" ? 28 : 32)
+        : (opts.character === "ricercar" ? 18 : 22);
+    const bpm =
+      opts.character === "stretto" ? (opts.length === "long" ? 96 : 102) :
+      opts.character === "toccatina" ? (opts.length === "long" ? 92 : 98) :
+      opts.character === "ricercar" ? (opts.length === "long" ? 68 : 74) :
+      (opts.length === "long" ? 84 : 90);
+
+    const progression = buildProgression(key, opts.character, measures);
+    const subject = buildSubject(key, opts.character);
+    const answer = tonalAnswer(subject, key);
+    const counterSubject = fitToHarmony(
+      invertAround(subject.slice(0, Math.max(5, subject.length-1)), subject[0].midi + 3),
+      romanChord(key, progression[0]),
+      52, 76,
+      64
+    ).map(n => ({...n, tag:"countersubject"}));
+    const countersubject2 = diminish(retrograde(counterSubject), 0.75).map(n => ({...n, tag:"counter2"}));
+    const episodeA = sequentialEpisode(subject, key, 2, 4, opts.character === "ricercar" ? 3 : 2);
+    const episodeB = sequentialEpisode(answer, key, 5, 4, opts.character === "stretto" ? 1.5 : 2);
+    const bass = makeBassLine(key, progression, measures, opts.character);
+
+    const voices = Array.from({length: opts.voices}, () => []);
+    const ranges = opts.voices === 4
+      ? [[64,88],[56,78],[48,70],[36,57]]
+      : [[64,88],[52,76],[36,57]];
+
+    const expositionOrder = Array.from({length:opts.voices}, (_,i)=>i);
+    let t = 0;
+    const entryGap =
+      opts.character === "stretto" ? 2 :
+      opts.character === "toccatina" ? 2.5 :
+      opts.character === "ricercar" ? 4 : 3;
+
+    const planLines = [];
+    // Exposition
+    expositionOrder.forEach((voiceIndex, i) => {
+      const mat = i % 2 === 0 ? subject : answer;
+      const lo = ranges[voiceIndex][0], hi = ranges[voiceIndex][1];
+      const entry = fitSegmentByMeasure(remapTimes(mat, t), progression, key, lo, hi, i===0 ? degreeMidi(key,1,5) : degreeMidi(key,5,4));
+      voices[voiceIndex].push(...entry.map(n => ({...n, label:i===0?"subject":"answer"})));
+      planLines.push(`Exposition entry ${i+1}: voice ${voiceIndex+1} ${i%2===0?"subject":"answer"} @ beat ${t.toFixed(1)}`);
+      // Overlay countersubject in previous voices
+      for(let j=0;j<i;j++){
+        const csBase = j % 2 === 0 ? counterSubject : countersubject2;
+        const lo2 = ranges[j][0], hi2 = ranges[j][1];
+        const cs = fitSegmentByMeasure(remapTimes(csBase, t), progression, key, lo2, hi2, voices[j].length ? voices[j][voices[j].length-1].midi : (lo2+hi2)/2);
+        voices[j].push(...cs.map(n => ({...n, label:"countersubject"})));
+      }
+      t += entryGap;
+    });
+
+    // Middle section: episodes + reentries
+    let cursor = t + 2;
+    const sectionCount = opts.length === "long" ? 6 : 4;
+    for(let s=0;s<sectionCount;s++){
+      const kind = rand(["episodeA","episodeB","subject","answer","inv","aug"]);
+      if(kind === "episodeA" || kind === "episodeB"){
+        const epSrc = kind === "episodeA" ? episodeA : episodeB;
+        for(let v=0; v<opts.voices-1; v++){
+          const lo = ranges[v][0], hi = ranges[v][1];
+          const base = v % 2 === 0 ? epSrc : retrograde(epSrc);
+          const ep = fitSegmentByMeasure(remapTimes(base, cursor + v*0.5), progression, key, lo, hi, lo+8);
+          voices[v].push(...ep.map(n => ({...n, label:"episode"})));
+        }
+        planLines.push(`Episode ${s+1}: sequential fragmenting episode around beat ${cursor.toFixed(1)}`);
+        cursor += kind === "episodeA" ? totalBeats(epSrc) : totalBeats(epSrc) + 1.5;
+      } else {
+        const overlapping = opts.character === "stretto" ? [0,1.5,3,4.5] : [0,2.5,5,7];
+        for(let v=0; v<opts.voices; v++){
+          const lo = ranges[v][0], hi = ranges[v][1];
+          let mat;
+          if(kind === "subject") mat = subject;
+          else if(kind === "answer") mat = answer;
+          else if(kind === "inv") mat = invertAround(subject, subject[0].midi + (v%2===0 ? 0 : 3));
+          else mat = augment(subject, 1.5);
+          const entryTime = cursor + overlapping[v];
+          const fitted = fitSegmentByMeasure(remapTimes(mat, entryTime), progression, key, lo, hi, lo + 6);
+          voices[v].push(...fitted.map(n => ({...n, label:kind})));
+        }
+        planLines.push(`Reentry block ${s+1}: ${kind} entries with overlap starting @ beat ${cursor.toFixed(1)}`);
+        cursor += kind === "aug" ? 12 : 10;
+      }
+    }
+
+    // Final stretto and cadence
+    const finalStart = Math.max(cursor, measures*4 - 14);
+    const offsets = opts.character === "stretto" ? [0,1,2,3] : [0,2,4,6];
+    for(let v=0; v<opts.voices; v++){
+      const lo = ranges[v][0], hi = ranges[v][1];
+      const mat = v % 2 === 0 ? subject : answer;
+      const fitted = fitSegmentByMeasure(remapTimes(diminish(mat, 0.75), finalStart + offsets[v]), progression, key, lo, hi, lo+10);
+      voices[v].push(...fitted.map(n => ({...n, label:"final-stretto"})));
+    }
+    planLines.push(`Final stretto near cadence @ beat ${finalStart.toFixed(1)}`);
+
+    // Bass always present as last voice
+    voices[opts.voices-1] = bass;
+
+    // Sort and clean
+    for(let v=0; v<opts.voices-1; v++){
+      voices[v].sort((a,b)=>a.time-b.time);
+      voices[v] = insertPassingTones(voices[v], ranges[v][0], ranges[v][1]);
+    }
+
+    let finalVoices = refineRegistral(voices);
+    cadenceAdjust(finalVoices, key);
+
+    const beats = Math.max(...finalVoices.map(v => totalBeats(v)));
+    const flat = [];
+    finalVoices.forEach((voice, vi) => {
+      voice.forEach(n => flat.push({
+        ...n,
+        voice: vi,
+        note: midiToNote(n.midi),
+        velocity: vi === finalVoices.length-1 ? 0.76 : vi === 0 ? 0.72 : 0.62
+      }));
+    });
+    flat.sort((a,b)=>a.time-b.time || a.voice-b.voice);
+
+    const analysis = [
+      `Key: ${opts.key}`,
+      `Character: ${opts.character}`,
+      `Voices: ${opts.voices}`,
+      `Tempo: ${bpm} BPM`,
+      `Estimated duration: ${(beats * 60 / bpm).toFixed(1)} s`,
+      ``,
+      `Subject: ${subject.map(n => midiToNote(n.midi) + `(${n.dur})`).join("  ")}`,
+      `Answer:  ${answer.map(n => midiToNote(n.midi) + `(${n.dur})`).join("  ")}`,
+      `Countersubject basis: ${counterSubject.map(n => midiToNote(n.midi) + `(${n.dur})`).join("  ")}`,
+      ``,
+      `Plan:`,
+      ...planLines,
+      ``,
+      `Counterpoint metrics:`,
+      `- Outer-voice parallel perfects: ${parallelCount(finalVoices[0], finalVoices[finalVoices.length-1])}`,
+      `- Outer-voice contrary motions: ${contraryScore(finalVoices[0], finalVoices[finalVoices.length-1])}`,
+      `- Global vertical dissonance penalty: ${verticalPenalty(finalVoices).toFixed(1)}`
+    ].join("\n");
+
+    return {key, opts, bpm, measures, beats, progression, subject, answer, voices: finalVoices, notes: flat, analysis};
+  }
+
+  function disposeAudio(){
+    cancelAnimationFrame(rafId);
+    rafId = null;
+    parts.forEach(p => p.dispose());
+    parts = [];
+    synths.forEach(s => s.dispose());
+    synths = [];
+    if(filter){ filter.dispose(); filter = null; }
+    if(reverb){ reverb.dispose(); reverb = null; }
+    Tone.Transport.cancel();
+    Tone.Transport.stop();
+    Tone.Transport.position = 0;
+  }
+
+  function setupAudio(piece){
+    disposeAudio();
+    Tone.Transport.bpm.value = piece.bpm;
+    filter = new Tone.Filter(1900, "lowpass").toDestination();
+    reverb = new Tone.Reverb({decay:2.6, wet:0.18}).connect(filter);
+
+    for(let i=0;i<piece.voices.length;i++){
+      const synth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: i === piece.voices.length-1 ? "square4" : (i === 0 ? "triangle4" : "sawtooth3") },
+        envelope: { attack:0.01, decay:0.15, sustain:i===piece.voices.length-1 ? 0.34 : 0.16, release:0.18 }
+      }).connect(reverb);
+      synth.volume.value = i === piece.voices.length-1 ? -6 : i === 0 ? -7 : -10;
+      synths.push(synth);
+    }
+
+    for(let vi=0; vi<piece.voices.length; vi++){
+      const events = piece.notes.filter(n => n.voice === vi).map(n => ({
+        time:n.time,
+        note:n.note,
+        durSec: Tone.Time(`${n.dur} * 4n`).toSeconds(),
+        velocity:n.velocity
+      }));
+      const part = new Tone.Part((time, val) => {
+        synths[vi].triggerAttackRelease(val.note, val.durSec, time, val.velocity);
+      }, events).start(0);
+      parts.push(part);
+    }
+
+    function frame(){
+      if(currentPiece){
+        drawPianoRoll(currentPiece, (Tone.Transport.seconds / 60) * currentPiece.bpm);
+      }
+      rafId = requestAnimationFrame(frame);
+    }
+    frame();
+  }
+
+  function drawPianoRoll(piece, playBeat=0){
+    const w = canvas.width, h = canvas.height;
+    const leftPad = 46, topPad = 12, innerW = w - leftPad - 10, innerH = h - topPad - 24;
+    const minMidi = 36, maxMidi = 88, span = maxMidi - minMidi + 1;
+
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = "#0b0b0d";
+    ctx.fillRect(0,0,w,h);
+
+    const beatsVisible = 16;
+    const centerBeat = Math.max(0, playBeat);
+    const startBeat = Math.max(0, centerBeat - beatsVisible * 0.35);
+    const endBeat = startBeat + beatsVisible;
+
+    for(let m=minMidi; m<=maxMidi; m++){
+      const y = topPad + innerH - ((m - minMidi + 1) / span) * innerH;
+      const black = [1,3,6,8,10].includes(mod(m,12));
+      ctx.fillStyle = black ? "rgba(255,255,255,0.035)" : "rgba(255,255,255,0.016)";
+      ctx.fillRect(leftPad, y, innerW, innerH/span + 1);
+    }
+
+    for(let beat=Math.floor(startBeat); beat<=endBeat+0.001; beat+=1){
+      const x = leftPad + ((beat - startBeat) / beatsVisible) * innerW;
+      const isMeasure = beat % 4 === 0;
+      ctx.strokeStyle = isMeasure ? "rgba(214,181,107,0.36)" : "rgba(255,255,255,0.08)";
+      ctx.lineWidth = isMeasure ? 1.15 : 0.6;
+      ctx.beginPath(); ctx.moveTo(x, topPad); ctx.lineTo(x, topPad + innerH); ctx.stroke();
+      if(isMeasure){
+        ctx.fillStyle = "rgba(255,240,210,0.60)";
+        ctx.font = "12px Georgia";
+        ctx.fillText(String(beat/4 + 1), x + 4, topPad + 14);
+      }
+    }
+
+    piece.notes.forEach(n => {
+      const noteEnd = n.time + n.dur;
+      if(noteEnd < startBeat || n.time > endBeat) return;
+      const x = leftPad + ((n.time - startBeat) / beatsVisible) * innerW;
+      const width = Math.max(4, (n.dur / beatsVisible) * innerW - 1);
+      const y = topPad + innerH - ((n.midi - minMidi + 1) / span) * innerH;
+      const nh = Math.max(5, innerH/span - 1);
+      ctx.fillStyle = COLORS[n.voice % COLORS.length];
+      ctx.fillRect(x, y, width, nh);
+      ctx.strokeStyle = "rgba(0,0,0,0.30)";
+      ctx.strokeRect(x, y, width, nh);
+    });
+
+    for(let m=36; m<=84; m+=12){
+      const y = topPad + innerH - ((m - minMidi + 1) / span) * innerH + 3;
+      ctx.fillStyle = "rgba(255,240,210,0.60)";
+      ctx.font = "11px Georgia";
+      ctx.fillText(noteNameNoOct(m), 8, y);
+    }
+
+    const playheadX = leftPad + ((centerBeat - startBeat) / beatsVisible) * innerW;
+    ctx.strokeStyle = "rgba(255,90,90,0.95)";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(playheadX, topPad);
+    ctx.lineTo(playheadX, topPad + innerH);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(214,181,107,0.28)";
+    ctx.strokeRect(leftPad, topPad, innerW, innerH);
+  }
+
+  async function ensureAudio(){
+    if(!audioStarted){
+      await Tone.start();
+      audioStarted = true;
+    }
+  }
+
+  function generate(){
+    cleanupBlobUrls();
+    currentPiece = buildPiece({
+      key:keySel.value,
+      length:lengthSel.value,
+      voices:+voicesSel.value,
+      character:charSel.value
+    });
+    analysisEl.textContent = currentPiece.analysis;
+    drawPianoRoll(currentPiece, 0);
+    setupAudio(currentPiece);
+    setStatus("Generated new fugue.");
+  }
+
+  function cleanupBlobUrls(){
+    if(midiBlobUrl){ URL.revokeObjectURL(midiBlobUrl); midiBlobUrl = null; }
+    if(wavBlobUrl){ URL.revokeObjectURL(wavBlobUrl); wavBlobUrl = null; }
+  }
+
+  function writeVarLen(value){
+    let buffer = value & 0x7F;
+    const out = [];
+    while((value >>= 7)){
+      buffer <<= 8;
+      buffer |= ((value & 0x7F) | 0x80);
+    }
+    while(true){
+      out.push(buffer & 0xFF);
+      if(buffer & 0x80) buffer >>= 8;
+      else break;
+    }
+    return out;
+  }
+
+  function midiBytes(piece){
+    // Symbolic export: one track with tempo and all note events.
+    const events = [];
+    const usPerQuarter = Math.round(60000000 / piece.bpm);
+    events.push({tick:0, bytes:[0xFF,0x51,0x03,(usPerQuarter>>16)&255,(usPerQuarter>>8)&255,usPerQuarter&255]});
+    events.push({tick:0, bytes:[0xFF,0x58,0x04,4,2,24,8]});
+
+    piece.notes.forEach(n => {
+      const ch = Math.min(n.voice, 3);
+      const start = Math.round(n.time * PPQ);
+      const end = Math.round((n.time + n.dur) * PPQ);
+      const vel = clamp(Math.round(n.velocity * 110), 35, 110);
+      events.push({tick:start, bytes:[0x90 | ch, n.midi, vel]});
+      events.push({tick:end, bytes:[0x80 | ch, n.midi, 0]});
+    });
+    events.sort((a,b) => a.tick - b.tick || a.bytes[0] - b.bytes[0]);
+
+    const track = [];
+    let prevTick = 0;
+    events.forEach(e => {
+      const delta = e.tick - prevTick;
+      track.push(...writeVarLen(delta), ...e.bytes);
+      prevTick = e.tick;
+    });
+    track.push(0x00, 0xFF, 0x2F, 0x00);
+
+    const header = [
+      0x4d,0x54,0x68,0x64, 0x00,0x00,0x00,0x06,
+      0x00,0x00, 0x00,0x01,
+      (PPQ>>8)&255, PPQ&255
+    ];
+    const len = track.length;
+    const trkHeader = [0x4d,0x54,0x72,0x6b, (len>>24)&255, (len>>16)&255, (len>>8)&255, len&255];
+    return new Uint8Array([...header, ...trkHeader, ...track]);
+  }
+
+  function downloadBytes(bytes, filename, mime){
+    const blob = new Blob([bytes], {type:mime});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return url;
+  }
+
+  function floatTo16BitPCM(view, offset, input){
+    for(let i=0;i<input.length;i++, offset+=2){
+      let s = Math.max(-1, Math.min(1, input[i]));
+      view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+    }
+  }
+
+  function audioBufferToWav(buffer){
+    const numCh = buffer.numberOfChannels;
+    const sampleRate = buffer.sampleRate;
+    const samples = buffer.length;
+    const bytesPerSample = 2;
+    const blockAlign = numCh * bytesPerSample;
+    const dataSize = samples * blockAlign;
+    const out = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(out);
+
+    function writeString(off, str){
+      for(let i=0;i<str.length;i++) view.setUint8(off+i, str.charCodeAt(i));
+    }
+
+    writeString(0, "RIFF");
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, "WAVE");
+    writeString(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, numCh, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * blockAlign, true);
+    view.setUint16(32, blockAlign, true);
+    view.setUint16(34, 16, true);
+    writeString(36, "data");
+    view.setUint32(40, dataSize, true);
+
+    if(numCh === 1){
+      floatTo16BitPCM(view, 44, buffer.getChannelData(0));
+    } else {
+      let offset = 44;
+      const chans = [];
+      for(let c=0;c<numCh;c++) chans.push(buffer.getChannelData(c));
+      for(let i=0;i<samples;i++){
+        for(let c=0;c<numCh;c++){
+          let s = Math.max(-1, Math.min(1, chans[c][i]));
+          view.setInt16(offset, s < 0 ? s*0x8000 : s*0x7FFF, true);
+          offset += 2;
+        }
+      }
+    }
+    return new Uint8Array(out);
+  }
+
+  async function exportMidi(){
+    if(!currentPiece) return;
+    const bytes = midiBytes(currentPiece);
+    midiBlobUrl = downloadBytes(bytes, "bach_fugue_generator.mid", "audio/midi");
+    setStatus("Exported MIDI.");
+  }
+
+  async function exportWav(){
+    if(!currentPiece) return;
+    setStatus("Rendering WAV offline...");
+    const durationSec = currentPiece.beats * 60 / currentPiece.bpm + 1.2;
+    const bpm = currentPiece.bpm;
+    const piece = currentPiece;
+    const rendered = await Tone.Offline(({transport}) => {
+      const f = new Tone.Filter(1900, "lowpass").toDestination();
+      const r = new Tone.Reverb({decay:2.6, wet:0.18}).connect(f);
+      const localSynths = [];
+      for(let i=0;i<piece.voices.length;i++){
+        const s = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: i === piece.voices.length-1 ? "square4" : (i === 0 ? "triangle4" : "sawtooth3") },
+          envelope: { attack:0.01, decay:0.15, sustain:i===piece.voices.length-1 ? 0.34 : 0.16, release:0.18 }
+        }).connect(r);
+        s.volume.value = i === piece.voices.length-1 ? -6 : i === 0 ? -7 : -10;
+        localSynths.push(s);
+      }
+      transport.bpm.value = bpm;
+      piece.notes.forEach(n => {
+        const when = n.time * 60 / bpm;
+        const dur = n.dur * 60 / bpm;
+        localSynths[n.voice].triggerAttackRelease(n.note, dur, when, n.velocity);
+      });
+      transport.start(0);
+    }, durationSec);
+
+    const wavBytes = audioBufferToWav(rendered.get());
+    wavBlobUrl = downloadBytes(wavBytes, "bach_fugue_generator.wav", "audio/wav");
+    setStatus("Exported WAV.");
+  }
+
+  generateBtn.addEventListener("click", async () => {
+    await ensureAudio();
+    generate();
+  });
+
+  startBtn.addEventListener("click", async () => {
+    await ensureAudio();
+    if(!currentPiece) generate();
+    Tone.Transport.start();
+    setStatus("Playback started.");
+  });
+
+  stopBtn.addEventListener("click", () => {
+    Tone.Transport.stop();
+    Tone.Transport.position = 0;
+    if(currentPiece) drawPianoRoll(currentPiece, 0);
+    setStatus("Playback stopped.");
+  });
+
+  midiBtn.addEventListener("click", exportMidi);
+  wavBtn.addEventListener("click", exportWav);
+
+  window.addEventListener("beforeunload", cleanupBlobUrls);
+  window.addEventListener("resize", () => {
+    if(currentPiece){
+      const beat = Tone.Transport.state === "started" ? (Tone.Transport.seconds / 60) * currentPiece.bpm : 0;
+      drawPianoRoll(currentPiece, beat);
+    }
+  });
+
+  generate();
+})();
+</script>
+</body>
+</html>
