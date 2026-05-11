@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Profile Image Generator — Tinted / Ring Clip</title>
+<title>Profile Image Decorator</title>
 <style>
   :root{ --preview-size:300px; }
   body{
@@ -13,6 +13,7 @@
     align-items:center;
     gap:12px;
     margin:24px;
+    color:#111;
   }
   canvas{ display:none; }
   #preview{
@@ -26,11 +27,33 @@
     -webkit-user-select:none;
     -webkit-tap-highlight-color:transparent;
     box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-    cursor: grab;
+    cursor: pointer;
   }
   .controls{ display:flex; flex-direction:column; gap:8px; align-items:center; }
   .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; }
   input[type="range"]{ width:var(--preview-size); }
+  .camera-panel{
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+  }
+  .camera-panel.open{ display:flex; }
+  #cameraPreview{
+    width:var(--preview-size);
+    max-width:90vw;
+    aspect-ratio:1;
+    border-radius:8px;
+    background:#111;
+    object-fit:cover;
+  }
+  #cameraStatus{
+    min-height:1.2em;
+    max-width:var(--preview-size);
+    font-size:13px;
+    color:#555;
+    text-align:center;
+  }
   button{
     padding:8px 14px;
     font-size:15px;
@@ -40,30 +63,38 @@
     cursor:pointer;
   }
   label{ font-size:13px; color:#333; }
+  @media (prefers-color-scheme: dark){
+    body{ color:#f2f2f2; }
+    label{ color:#d8d8d8; }
+    #cameraStatus{ color:#cfcfcf; }
+  }
 </style>
 </head>
 <body>
 
-<h3>Profile Image Generator</h3>
+<h3>Profile Image Decorator</h3>
 
-<input id="upload" type="file" accept="image/*">
-<img id="preview" alt="Profile preview">
+<div class="row">
+  <input id="upload" type="file" accept="image/*">
+  <button id="cameraBtn" type="button">Picture from Camera</button>
+</div>
+
+<div id="cameraPanel" class="camera-panel">
+  <video id="cameraPreview" autoplay playsinline muted></video>
+  <div class="row">
+    <button id="captureBtn" type="button">Use Photo</button>
+    <button id="closeCameraBtn" type="button">Close Camera</button>
+  </div>
+  <div id="cameraStatus" aria-live="polite"></div>
+</div>
+
+<img id="preview" alt="Profile preview" title="Choose a picture">
 
 <div class="controls">
-  <div class="row">
-    <label><input type="radio" name="mode" value="tint" checked> Tinted</label>
-    <label><input type="radio" name="mode" value="ring"> Ring Clip</label>
-  </div>
-
   <div class="row">
     <label for="borderWidthSlider">Border Thickness</label>
   </div>
   <input id="borderWidthSlider" type="range" min="0.5" max="2" step="0.01" value="1.3">
-
-  <div class="row">
-    <label for="tintOpacity">Tint opacity</label>
-    <input id="tintOpacity" type="range" min="0" max="1" step="0.01" value="0.4">
-  </div>
 
   <div class="row">
     <button id="downloadBtn">Download Image</button>
@@ -78,14 +109,18 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { alpha: false });
 const preview = document.getElementById('preview');
 const upload = document.getElementById('upload');
+const cameraBtn = document.getElementById('cameraBtn');
+const cameraPanel = document.getElementById('cameraPanel');
+const cameraPreview = document.getElementById('cameraPreview');
+const captureBtn = document.getElementById('captureBtn');
+const closeCameraBtn = document.getElementById('closeCameraBtn');
+const cameraStatus = document.getElementById('cameraStatus');
 const borderWidthSlider = document.getElementById('borderWidthSlider');
-const tintOpacityInput = document.getElementById('tintOpacity');
 const downloadBtn = document.getElementById('downloadBtn');
 const resetBtn = document.getElementById('resetBtn');
-const modeRadios = document.querySelectorAll('input[name="mode"]');
 
 const CANVAS_SIZE = canvas.width;
-const BASE_OUTER = 480;
+const BASE_OUTER = CANVAS_SIZE / 2;
 const BASE_THICKNESS = 80;
 
 const COLOR_BLACK = '#000000';
@@ -93,13 +128,12 @@ const COLOR_RED   = '#ff0000';
 const COLOR_GOLD  = '#ffd700';
 
 let uploadedImg = null;
+let cameraStream = null;
 let imgScale = 1.0;
 let offsetX = 0;
 let offsetY = 0;
 
 let borderScale = parseFloat(borderWidthSlider.value);
-let tintOpacity = parseFloat(tintOpacityInput.value);
-let mode = "tint";
 
 // --- Helpers ---
 function hexToRgb(hex){
@@ -128,14 +162,97 @@ function build7Colors(){
   colors.push(...stepsRG);
   return colors;
 }
+function useImage(img){
+  uploadedImg = img;
+  imgScale = 1;
+  offsetX = 0;
+  offsetY = 0;
+  drawCanvas();
+}
+function stopCamera(){
+  if (cameraStream){
+    cameraStream.getTracks().forEach(track => track.stop());
+    cameraStream = null;
+  }
+  cameraPreview.srcObject = null;
+  cameraPanel.classList.remove('open');
+  cameraStatus.textContent = '';
+}
+async function openCamera(){
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    cameraStatus.textContent = 'Camera capture is not available in this browser.';
+    cameraPanel.classList.add('open');
+    return;
+  }
+
+  stopCamera();
+  cameraPanel.classList.add('open');
+  cameraStatus.textContent = 'Opening camera...';
+
+  try {
+    cameraStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 1200 }, height: { ideal: 1200 } },
+      audio: false
+    });
+    cameraPreview.srcObject = cameraStream;
+    cameraStatus.textContent = '';
+  } catch (err) {
+    cameraStatus.textContent = 'Could not open the camera. Check browser permission or use file upload.';
+  }
+}
+function captureCameraPhoto(){
+  if (!cameraStream || !cameraPreview.videoWidth || !cameraPreview.videoHeight){
+    cameraStatus.textContent = 'Camera is still loading. Try again in a moment.';
+    return;
+  }
+
+  const size = Math.min(cameraPreview.videoWidth, cameraPreview.videoHeight);
+  const sx = (cameraPreview.videoWidth - size) / 2;
+  const sy = (cameraPreview.videoHeight - size) / 2;
+  const captureCanvas = document.createElement('canvas');
+  captureCanvas.width = size;
+  captureCanvas.height = size;
+  const captureCtx = captureCanvas.getContext('2d');
+  captureCtx.drawImage(cameraPreview, sx, sy, size, size, 0, 0, size, size);
+
+  const img = new Image();
+  img.onload = ()=>{
+    useImage(img);
+    stopCamera();
+  };
+  img.src = captureCanvas.toDataURL('image/png');
+}
+function drawSilhouette(innerR){
+  ctx.fillStyle = '#d7d7d7';
+  ctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+
+  ctx.fillStyle = '#9c9c9c';
+  ctx.beginPath();
+  ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2 - innerR*0.28, innerR*0.26, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.ellipse(
+    CANVAS_SIZE/2,
+    CANVAS_SIZE/2 + innerR*0.45,
+    innerR*0.58,
+    innerR*0.42,
+    0,
+    Math.PI,
+    Math.PI*2
+  );
+  ctx.lineTo(CANVAS_SIZE/2 + innerR*0.58, CANVAS_SIZE/2 + innerR);
+  ctx.lineTo(CANVAS_SIZE/2 - innerR*0.58, CANVAS_SIZE/2 + innerR);
+  ctx.closePath();
+  ctx.fill();
+}
 
 // --- Drawing ---
 function drawCanvas(){
   ctx.fillStyle = '#fff';
   ctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
 
-  let effectiveScale = (mode === "ring") ? borderScale : 0;
-  const innerR = Math.max(10, Math.round(BASE_OUTER - (BASE_THICKNESS * effectiveScale)));
+  const innerR = Math.max(10, Math.round(BASE_OUTER - (BASE_THICKNESS * borderScale)));
 
   // --- Draw photo clipped to inner circle ---
   ctx.save();
@@ -154,43 +271,28 @@ function drawCanvas(){
       (CANVAS_SIZE - drawSize)/2 + offsetY,
       drawSize, drawSize);
   } else {
-    ctx.fillStyle = '#ccc';
-    ctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
+    drawSilhouette(innerR);
   }
 
-  if (mode === "tint"){
-    const colors = build7Colors();
-    const bandHeight = (innerR*2) / colors.length;
-    ctx.globalAlpha = tintOpacity;
-    for (let i=0; i<colors.length; i++){
-      ctx.fillStyle = colors[i];
-      ctx.fillRect(CANVAS_SIZE/2 - innerR, CANVAS_SIZE/2 - innerR + i*bandHeight, innerR*2, bandHeight);
-    }
-    ctx.globalAlpha = 1.0;
-  }
   ctx.restore();
 
-  // --- Draw ring (only in ring mode) ---
-  if (mode === "ring"){
-    const colors = build7Colors();
-    const outerR = BASE_OUTER;
-    const bandHeight = (outerR*2) / colors.length;
+  // --- Draw ring ---
+  const colors = build7Colors();
+  const outerR = BASE_OUTER;
+  const bandHeight = (outerR*2) / colors.length;
 
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, outerR, 0, Math.PI*2);
-    ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, innerR, 0, Math.PI*2, true);
-    ctx.closePath();
-    ctx.clip();
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, outerR, 0, Math.PI*2);
+  ctx.arc(CANVAS_SIZE/2, CANVAS_SIZE/2, innerR, 0, Math.PI*2, true);
+  ctx.closePath();
+  ctx.clip();
 
-    ctx.globalAlpha = tintOpacity;
-    for (let i=0; i<colors.length; i++){
-      ctx.fillStyle = colors[i];
-      ctx.fillRect(CANVAS_SIZE/2 - outerR, CANVAS_SIZE/2 - outerR + i*bandHeight, outerR*2, bandHeight);
-    }
-    ctx.globalAlpha = 1.0;
-    ctx.restore();
+  for (let i=0; i<colors.length; i++){
+    ctx.fillStyle = colors[i];
+    ctx.fillRect(CANVAS_SIZE/2 - outerR, CANVAS_SIZE/2 - outerR + i*bandHeight, outerR*2, bandHeight);
   }
+  ctx.restore();
 
   preview.src = canvas.toDataURL('image/png');
 }
@@ -199,15 +301,25 @@ function drawCanvas(){
 let dragging = false;
 let lastX = 0, lastY = 0;
 let lastDist = null;
+let pointerStartX = 0;
+let pointerStartY = 0;
+let pointerMoved = false;
 
 preview.addEventListener('pointerdown', e=>{
   dragging = true;
   lastX = e.clientX;
   lastY = e.clientY;
+  pointerStartX = e.clientX;
+  pointerStartY = e.clientY;
+  pointerMoved = false;
   preview.setPointerCapture(e.pointerId);
 });
 preview.addEventListener('pointermove', e=>{
   if (!dragging) return;
+  const totalDx = e.clientX - pointerStartX;
+  const totalDy = e.clientY - pointerStartY;
+  if (Math.hypot(totalDx, totalDy) > 5) pointerMoved = true;
+  if (!uploadedImg) return;
   if (e.pointerType === 'touch' || e.pointerType === 'pen' || e.pointerType === 'mouse'){
     if (e.pressure && e.pressure>0 && e.touches && e.touches.length === 2){
       // ignore here; handled in touchmove
@@ -225,9 +337,11 @@ preview.addEventListener('pointermove', e=>{
 preview.addEventListener('pointerup', e=>{
   dragging = false;
   lastDist = null;
+  if (!pointerMoved) upload.click();
   preview.releasePointerCapture(e.pointerId);
 });
 preview.addEventListener('wheel', e=>{
+  if (!uploadedImg) return;
   e.preventDefault();
   imgScale *= e.deltaY<0 ? 1.05 : 0.95;
   drawCanvas();
@@ -242,6 +356,7 @@ preview.addEventListener('touchstart', e=>{
   }
 });
 preview.addEventListener('touchmove', e=>{
+  if (!uploadedImg) return;
   if (e.touches.length === 2){
     e.preventDefault();
     const [t1, t2] = e.touches;
@@ -278,12 +393,17 @@ upload.addEventListener('change', e=>{
   const file = e.target.files[0];
   if (!file) return;
   const img = new Image();
-  img.onload = ()=>{ uploadedImg = img; imgScale=1; offsetX=0; offsetY=0; drawCanvas(); };
-  img.src = URL.createObjectURL(file);
+  const objectUrl = URL.createObjectURL(file);
+  img.onload = ()=>{
+    useImage(img);
+    URL.revokeObjectURL(objectUrl);
+  };
+  img.src = objectUrl;
 });
+cameraBtn.addEventListener('click', openCamera);
+captureBtn.addEventListener('click', captureCameraPhoto);
+closeCameraBtn.addEventListener('click', stopCamera);
 borderWidthSlider.addEventListener('input', e=>{ borderScale=parseFloat(e.target.value); drawCanvas(); });
-tintOpacityInput.addEventListener('input', e=>{ tintOpacity=parseFloat(e.target.value); drawCanvas(); });
-modeRadios.forEach(r=> r.addEventListener('change', e=>{ mode=e.target.value; drawCanvas(); }));
 downloadBtn.addEventListener('click', ()=>{
   const a=document.createElement('a');
   a.download='profile-image.png';
