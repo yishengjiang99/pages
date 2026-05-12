@@ -25,6 +25,7 @@
     touch-action:none;
     user-select:none;
     -webkit-user-select:none;
+    -webkit-touch-callout:default;
     -webkit-tap-highlight-color:transparent;
     box-shadow: 0 6px 18px rgba(0,0,0,0.12);
     cursor: pointer;
@@ -32,28 +33,7 @@
   .controls{ display:flex; flex-direction:column; gap:8px; align-items:center; }
   .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; }
   input[type="range"]{ width:var(--preview-size); }
-  .camera-panel{
-    display:none;
-    flex-direction:column;
-    align-items:center;
-    gap:8px;
-  }
-  .camera-panel.open{ display:flex; }
-  #cameraPreview{
-    width:var(--preview-size);
-    max-width:90vw;
-    aspect-ratio:1;
-    border-radius:8px;
-    background:#111;
-    object-fit:cover;
-  }
-  #cameraStatus{
-    min-height:1.2em;
-    max-width:var(--preview-size);
-    font-size:13px;
-    color:#555;
-    text-align:center;
-  }
+  .hidden-input{ display:none; }
   button{
     padding:8px 14px;
     font-size:15px;
@@ -66,7 +46,6 @@
   @media (prefers-color-scheme: dark){
     body{ color:#f2f2f2; }
     label{ color:#d8d8d8; }
-    #cameraStatus{ color:#cfcfcf; }
   }
 </style>
 </head>
@@ -76,16 +55,8 @@
 
 <div class="row">
   <input id="upload" type="file" accept="image/*">
+  <input id="cameraUpload" class="hidden-input" type="file" accept="image/*" capture="user">
   <button id="cameraBtn" type="button">Picture from Camera</button>
-</div>
-
-<div id="cameraPanel" class="camera-panel">
-  <video id="cameraPreview" autoplay playsinline muted></video>
-  <div class="row">
-    <button id="captureBtn" type="button">Use Photo</button>
-    <button id="closeCameraBtn" type="button">Close Camera</button>
-  </div>
-  <div id="cameraStatus" aria-live="polite"></div>
 </div>
 
 <img id="preview" alt="Profile preview" title="Choose a picture">
@@ -109,12 +80,8 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { alpha: false });
 const preview = document.getElementById('preview');
 const upload = document.getElementById('upload');
+const cameraUpload = document.getElementById('cameraUpload');
 const cameraBtn = document.getElementById('cameraBtn');
-const cameraPanel = document.getElementById('cameraPanel');
-const cameraPreview = document.getElementById('cameraPreview');
-const captureBtn = document.getElementById('captureBtn');
-const closeCameraBtn = document.getElementById('closeCameraBtn');
-const cameraStatus = document.getElementById('cameraStatus');
 const borderWidthSlider = document.getElementById('borderWidthSlider');
 const downloadBtn = document.getElementById('downloadBtn');
 const resetBtn = document.getElementById('resetBtn');
@@ -128,7 +95,6 @@ const COLOR_RED   = '#ff0000';
 const COLOR_GOLD  = '#ffd700';
 
 let uploadedImg = null;
-let cameraStream = null;
 let imgScale = 1.0;
 let offsetX = 0;
 let offsetY = 0;
@@ -169,58 +135,20 @@ function useImage(img){
   offsetY = 0;
   drawCanvas();
 }
-function stopCamera(){
-  if (cameraStream){
-    cameraStream.getTracks().forEach(track => track.stop());
-    cameraStream = null;
-  }
-  cameraPreview.srcObject = null;
-  cameraPanel.classList.remove('open');
-  cameraStatus.textContent = '';
+function loadImageFromInput(input){
+  const file = input.files[0];
+  if (!file) return;
+  loadImageFromFile(file, ()=>{ input.value = ''; });
 }
-async function openCamera(){
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-    cameraStatus.textContent = 'Camera capture is not available in this browser.';
-    cameraPanel.classList.add('open');
-    return;
-  }
-
-  stopCamera();
-  cameraPanel.classList.add('open');
-  cameraStatus.textContent = 'Opening camera...';
-
-  try {
-    cameraStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 1200 }, height: { ideal: 1200 } },
-      audio: false
-    });
-    cameraPreview.srcObject = cameraStream;
-    cameraStatus.textContent = '';
-  } catch (err) {
-    cameraStatus.textContent = 'Could not open the camera. Check browser permission or use file upload.';
-  }
-}
-function captureCameraPhoto(){
-  if (!cameraStream || !cameraPreview.videoWidth || !cameraPreview.videoHeight){
-    cameraStatus.textContent = 'Camera is still loading. Try again in a moment.';
-    return;
-  }
-
-  const size = Math.min(cameraPreview.videoWidth, cameraPreview.videoHeight);
-  const sx = (cameraPreview.videoWidth - size) / 2;
-  const sy = (cameraPreview.videoHeight - size) / 2;
-  const captureCanvas = document.createElement('canvas');
-  captureCanvas.width = size;
-  captureCanvas.height = size;
-  const captureCtx = captureCanvas.getContext('2d');
-  captureCtx.drawImage(cameraPreview, sx, sy, size, size, 0, 0, size, size);
-
+function loadImageFromFile(file, onLoad){
   const img = new Image();
+  const objectUrl = URL.createObjectURL(file);
   img.onload = ()=>{
     useImage(img);
-    stopCamera();
+    URL.revokeObjectURL(objectUrl);
+    if (onLoad) onLoad();
   };
-  img.src = captureCanvas.toDataURL('image/png');
+  img.src = objectUrl;
 }
 function drawSilhouette(innerR){
   ctx.fillStyle = '#d7d7d7';
@@ -304,6 +232,7 @@ let lastDist = null;
 let pointerStartX = 0;
 let pointerStartY = 0;
 let pointerMoved = false;
+let suppressNextPicker = false;
 
 preview.addEventListener('pointerdown', e=>{
   dragging = true;
@@ -337,8 +266,12 @@ preview.addEventListener('pointermove', e=>{
 preview.addEventListener('pointerup', e=>{
   dragging = false;
   lastDist = null;
-  if (!pointerMoved) upload.click();
+  if (!pointerMoved && !suppressNextPicker) upload.click();
+  suppressNextPicker = false;
   preview.releasePointerCapture(e.pointerId);
+});
+preview.addEventListener('contextmenu', ()=>{
+  suppressNextPicker = true;
 });
 preview.addEventListener('wheel', e=>{
   if (!uploadedImg) return;
@@ -389,20 +322,19 @@ preview.addEventListener('touchstart', e=>{
 });
 
 // --- Other Events ---
-upload.addEventListener('change', e=>{
-  const file = e.target.files[0];
+upload.addEventListener('change', e=> loadImageFromInput(e.target));
+cameraUpload.addEventListener('change', e=> loadImageFromInput(e.target));
+cameraBtn.addEventListener('click', ()=> cameraUpload.click());
+window.addEventListener('paste', e=>{
+  const items = e.clipboardData && Array.from(e.clipboardData.items || []);
+  const imageItem = items.find(item => item.type.startsWith('image/'));
+  if (!imageItem) return;
+
+  const file = imageItem.getAsFile();
   if (!file) return;
-  const img = new Image();
-  const objectUrl = URL.createObjectURL(file);
-  img.onload = ()=>{
-    useImage(img);
-    URL.revokeObjectURL(objectUrl);
-  };
-  img.src = objectUrl;
+  e.preventDefault();
+  loadImageFromFile(file);
 });
-cameraBtn.addEventListener('click', openCamera);
-captureBtn.addEventListener('click', captureCameraPhoto);
-closeCameraBtn.addEventListener('click', stopCamera);
 borderWidthSlider.addEventListener('input', e=>{ borderScale=parseFloat(e.target.value); drawCanvas(); });
 downloadBtn.addEventListener('click', ()=>{
   const a=document.createElement('a');
