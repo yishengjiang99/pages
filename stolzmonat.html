@@ -28,7 +28,7 @@
     -webkit-touch-callout:default;
     -webkit-tap-highlight-color:transparent;
     box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-    cursor: pointer;
+    cursor: grab;
   }
   .controls{ display:flex; flex-direction:column; gap:8px; align-items:center; }
   .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:center; }
@@ -59,7 +59,7 @@
   <button id="cameraBtn" type="button">Picture from Camera</button>
 </div>
 
-<img id="preview" alt="Profile preview" title="Choose a picture">
+<img id="preview" alt="Profile preview">
 
 <div class="controls">
   <div class="row">
@@ -128,9 +128,16 @@ function build7Colors(){
   colors.push(...stepsRG);
   return colors;
 }
+function getInnerRadius(){
+  return Math.max(10, Math.round(BASE_OUTER - (BASE_THICKNESS * borderScale)));
+}
+function getDefaultImageScale(img){
+  const baseSize = Math.min(img.width, img.height);
+  return (getInnerRadius() * 2) / baseSize;
+}
 function useImage(img){
   uploadedImg = img;
-  imgScale = 1;
+  imgScale = getDefaultImageScale(img);
   offsetX = 0;
   offsetY = 0;
   drawCanvas();
@@ -180,7 +187,7 @@ function drawCanvas(){
   ctx.fillStyle = '#fff';
   ctx.fillRect(0,0,CANVAS_SIZE,CANVAS_SIZE);
 
-  const innerR = Math.max(10, Math.round(BASE_OUTER - (BASE_THICKNESS * borderScale)));
+  const innerR = getInnerRadius();
 
   // --- Draw photo clipped to inner circle ---
   ctx.save();
@@ -229,25 +236,15 @@ function drawCanvas(){
 let dragging = false;
 let lastX = 0, lastY = 0;
 let lastDist = null;
-let pointerStartX = 0;
-let pointerStartY = 0;
-let pointerMoved = false;
-let suppressNextPicker = false;
 
 preview.addEventListener('pointerdown', e=>{
   dragging = true;
   lastX = e.clientX;
   lastY = e.clientY;
-  pointerStartX = e.clientX;
-  pointerStartY = e.clientY;
-  pointerMoved = false;
   preview.setPointerCapture(e.pointerId);
 });
 preview.addEventListener('pointermove', e=>{
   if (!dragging) return;
-  const totalDx = e.clientX - pointerStartX;
-  const totalDy = e.clientY - pointerStartY;
-  if (Math.hypot(totalDx, totalDy) > 5) pointerMoved = true;
   if (!uploadedImg) return;
   if (e.pointerType === 'touch' || e.pointerType === 'pen' || e.pointerType === 'mouse'){
     if (e.pressure && e.pressure>0 && e.touches && e.touches.length === 2){
@@ -266,12 +263,7 @@ preview.addEventListener('pointermove', e=>{
 preview.addEventListener('pointerup', e=>{
   dragging = false;
   lastDist = null;
-  if (!pointerMoved && !suppressNextPicker) upload.click();
-  suppressNextPicker = false;
   preview.releasePointerCapture(e.pointerId);
-});
-preview.addEventListener('contextmenu', ()=>{
-  suppressNextPicker = true;
 });
 preview.addEventListener('wheel', e=>{
   if (!uploadedImg) return;
@@ -342,7 +334,12 @@ downloadBtn.addEventListener('click', ()=>{
   a.href=canvas.toDataURL('image/png');
   a.click();
 });
-resetBtn.addEventListener('click', ()=>{ offsetX=0; offsetY=0; imgScale=1; drawCanvas(); });
+resetBtn.addEventListener('click', ()=>{
+  offsetX = 0;
+  offsetY = 0;
+  if (uploadedImg) imgScale = getDefaultImageScale(uploadedImg);
+  drawCanvas();
+});
 
 drawCanvas();
 </script>
