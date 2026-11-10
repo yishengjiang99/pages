@@ -1,0 +1,22 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sandbox</title>
+<style>html body{margin:0;overflow:hidden;background:#1d1a2f;font-family:system-ui,sans-serif;touch-action:none}canvas{display:block;width:100vw;height:100vh;image-rendering:pixelated}
+.t{position:fixed;top:12px;left:50%;transform:translateX(-50%);display:flex;gap:6px;background:#0007;padding:6px;border-radius:30px;backdrop-filter:blur(6px)}
+.t button{border:0;border-radius:20px;padding:6px 12px;font:600 13px system-ui;cursor:pointer;color:#111}.t button.on{outline:3px solid #fff}</style></head><body>
+<canvas id="c"></canvas><div class="t" id="t"></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),S=4;let W,H,g,img;
+const M={sand:{c:[[230,190,110],[215,170,90],[240,205,130]],b:'#e6be6e'},water:{c:[[60,140,230],[70,150,240]],b:'#4c96ee'},stone:{c:[[110,110,120],[95,95,105]],b:'#7a7a88'},lava:{c:[[255,90,30],[255,140,40]],b:'#ff7a28'},erase:{b:'#eee'}};
+const ID={sand:1,water:2,stone:3,lava:4,erase:0},rev=[null,'sand','water','stone','lava'];let cur='sand',down=false,px=0,py=0;
+const tb=document.getElementById('t');Object.keys(M).forEach(k=>{const b=document.createElement('button');b.textContent=k;b.style.background=M[k].b;b.onclick=()=>{cur=k;[...tb.children].forEach(q=>q.classList.toggle('on',q===b))};if(k==='sand')b.classList.add('on');tb.appendChild(b)});
+function init(){W=innerWidth/S|0;H=innerHeight/S|0;c.width=W;c.height=H;g=new Uint8Array(W*H);img=x.createImageData(W,H);for(let i=0;i<W;i+=1){const h=H-6-Math.abs(Math.sin(i/20))*10|0;for(let y=h;y<H;y++)g[y*W+i]=3}}init();addEventListener('resize',init);
+c.addEventListener('pointerdown',e=>{down=true;px=e.clientX;py=e.clientY});addEventListener('pointerup',()=>down=false);c.addEventListener('pointermove',e=>{px=e.clientX;py=e.clientY});
+const sw=(a,b)=>{const t=g[a];g[a]=g[b];g[b]=t};
+function step(){for(let y=H-2;y>=0;y--){const dir=Math.random()<.5?1:-1;for(let k=0;k<W;k++){const X=dir>0?k:W-1-k,i=y*W+X,v=g[i];if(!v||v===3)continue;const b=i+W;
+if(v===1){if(!g[b]||g[b]===2)sw(i,b);else{const d=Math.random()<.5?1:-1;if(X+d>=0&&X+d<W&&(!g[b+d]||g[b+d]===2))sw(i,b+d)}}
+else if(v===2||v===4){if(v===4&&Math.random()<.5)continue;if(!g[b])sw(i,b);else{const d=Math.random()<.5?1:-1;if(X+d>=0&&X+d<W&&!g[b+d])sw(i,b+d);else if(X+d>=0&&X+d<W&&!g[i+d])sw(i,i+d)}
+if(v===4)for(const n of [i-1,i+1,i-W,i+W])if(g[n]===2){g[n]=3;g[i]=3}}}}}
+function draw(){const d=img.data;for(let i=0;i<g.length;i++){const v=g[i],k=i*4;if(!v){d[k]=29;d[k+1]=26;d[k+2]=47}else{const cs=M[rev[v]].c,cc=cs[(i*7+(i>>3))%cs.length];d[k]=cc[0];d[k+1]=cc[1];d[k+2]=cc[2]}d[k+3]=255}x.putImageData(img,0,0)}
+(function f(){if(down){const cx=px/S|0,cy=py/S|0;for(let j=-3;j<=3;j++)for(let i=-3;i<=3;i++){if(i*i+j*j>9||Math.random()<.4&&cur!=='erase'&&cur!=='stone')continue;const X=cx+i,Y=cy+j;if(X>=0&&Y>=0&&X<W&&Y<H)g[Y*W+X]=ID[cur]}}
+step();draw();requestAnimationFrame(f)})();
+let auto=0;const ai=setInterval(()=>{if(++auto>120){clearInterval(ai);return}const X=W/2+Math.sin(auto/10)*W/4|0;for(let i=0;i<3;i++)if(!g[2*W+X+i])g[2*W+X+i]=1},30);
+</script></body></html>

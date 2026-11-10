@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Paper Valley</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#fbe3c4;font-family:Fraunces,serif}
+svg{position:absolute;bottom:0;left:0;width:100%;height:100%}
+.l{filter:drop-shadow(0 -6px 8px rgba(80,30,0,.28));transition:transform .3s ease-out}
+h1{position:absolute;top:10vh;width:100%;text-align:center;color:#7a2e12;font-size:clamp(36px,8vw,96px);margin:0;letter-spacing:-.02em;z-index:5;text-shadow:0 3px 0 #fff6}
+.sun{position:absolute;left:50%;top:28vh;width:22vmin;height:22vmin;margin-left:-11vmin;border-radius:50%;background:#ffb04f;box-shadow:0 0 0 3vmin #ffc87a,0 0 0 6vmin #ffd9a066}</style></head><body>
+<div class="sun"></div><h1>Paper Valley</h1>
+<svg viewBox="0 0 1200 800" preserveAspectRatio="none" id="s"></svg>
+<script>
+const s=document.getElementById('s'),cols=['#f7b67a','#ee8d5a','#d9663f','#b7462d','#8c2f22','#5e1f1a'];
+cols.forEach((c,i)=>{let y=380+i*70,d=`M0 800 L0 ${y}`;for(let x=0;x<=1200;x+=40){d+=` L${x} ${y+Math.sin(x/(120+i*30)+i*2)*(40-i*3)+Math.sin(x/37+i)*8}`}d+=' L1200 800Z';
+const p=document.createElementNS('http://www.w3.org/2000/svg','path');p.setAttribute('d',d);p.setAttribute('fill',c);p.setAttribute('class','l');p.dataset.k=i+1;s.appendChild(p);
+if(i===3)for(let t=0;t<14;t++){const x=40+t*85+Math.random()*30,yy=y+Math.sin(x/(120+i*30)+i*2)*(40-i*3)+10,h=60+Math.random()*50;const tr=document.createElementNS('http://www.w3.org/2000/svg','path');tr.setAttribute('d',`M${x} ${yy-h} L${x-18} ${yy} L${x+18} ${yy}Z`);tr.setAttribute('fill','#7a3324');tr.setAttribute('class','l');tr.dataset.k=4;s.insertBefore(tr,p)}});
+addEventListener('pointermove',e=>{const dx=(e.clientX/innerWidth-.5),dy=(e.clientY/innerHeight-.5);s.querySelectorAll('.l').forEach(p=>p.style.transform=`translate(${dx*p.dataset.k*-8}px,${dy*p.dataset.k*-4}px)`)});
+</script></body></html>

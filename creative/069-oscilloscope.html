@@ -1,0 +1,14 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lissajous</title>
+<style>html body{margin:0;min-height:100vh;background:#1a1d1f;display:flex;align-items:center;justify-content:center;font-family:ui-monospace,monospace;color:#9fe8a8}
+.o{background:linear-gradient(#5a6066,#3a3f44);padding:22px;border-radius:14px;box-shadow:0 20px 40px #000a;display:flex;gap:20px;flex-wrap:wrap;justify-content:center}
+.scr{background:#061006;border-radius:12px;padding:6px;box-shadow:inset 0 0 20px #000}canvas{width:min(80vw,440px);aspect-ratio:1;display:block;border-radius:8px}
+.p{display:flex;flex-direction:column;gap:16px;justify-content:center;color:#ddd;font-size:12px}.p label{display:block}.p input{width:150px;accent-color:#9fe8a8}.p b{color:#9fe8a8}.br{font-size:16px;color:#eee;letter-spacing:.2em}</style></head><body>
+<div class="o"><div class="scr"><canvas id="c" width="600" height="600"></canvas></div><div class="p"><div class="br">TEK-2465</div>
+<label>CH-X FREQ <b id="va">3</b><input type="range" id="a" min="1" max="9" value="3"></label><label>CH-Y FREQ <b id="vb">2</b><input type="range" id="b" min="1" max="9" value="2"></label>
+<label>PHASE DRIFT <b id="vp">0.5</b><input type="range" id="p" min="0" max="20" value="5"></label><label>PERSISTENCE <b id="vs">0.10</b><input type="range" id="s" min="2" max="40" value="10"></label></div></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),q=i=>document.getElementById(i);let ph=0;
+(function f(){const a=+q('a').value,b=+q('b').value,dp=q('p').value/10000,ps=q('s').value/100;q('va').textContent=a;q('vb').textContent=b;q('vp').textContent=(dp*1000).toFixed(1);q('vs').textContent=ps.toFixed(2);
+x.fillStyle=`rgba(6,16,6,${ps})`;x.fillRect(0,0,600,600);x.strokeStyle='#1d3a1d';x.lineWidth=1;for(let i=0;i<=10;i++){x.beginPath();x.moveTo(i*60,0);x.lineTo(i*60,600);x.moveTo(0,i*60);x.lineTo(600,i*60);x.stroke()}
+x.strokeStyle='#9fe8a8';x.shadowColor='#5fff70';x.shadowBlur=14;x.lineWidth=2.2;x.beginPath();for(let t=0;t<=Math.PI*2+.01;t+=.004){const X=300+250*Math.sin(a*t+ph),Y=300+250*Math.sin(b*t);t?x.lineTo(X,Y):x.moveTo(X,Y)}x.stroke();x.shadowBlur=0;ph+=dp*60;requestAnimationFrame(f)})();
+</script></body></html>

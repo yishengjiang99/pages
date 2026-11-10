@@ -1,0 +1,19 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Departures</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@700&family=Inter:wght@800&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#111;color:#f2f2f2;font-family:'Roboto Mono',monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;gap:14px}
+.hd{width:min(96vw,980px);display:flex;justify-content:space-between;align-items:end;font-family:Inter,sans-serif}.hd b{font-size:clamp(22px,5vw,44px);color:#ffcc00}.hd span{font-size:clamp(18px,3vw,28px)}
+.b{background:#1c1c1c;padding:10px;border-radius:6px;box-shadow:inset 0 0 0 2px #000;width:min(96vw,980px);overflow-x:auto}.row{display:flex;gap:clamp(6px,1.4vw,16px);margin:5px 0;white-space:nowrap}.row.h{font-size:11px;color:#888;font-family:Inter;letter-spacing:.15em}
+.f{display:flex;gap:2px}.ch{width:clamp(14px,2.4vw,26px);height:clamp(22px,3.6vw,38px);background:linear-gradient(#2a2a2a 49%,#000 49% 51%,#222 51%);border-radius:3px;display:grid;place-items:center;font-size:clamp(12px,2.2vw,22px);color:#f2f2f2;position:relative}
+.ch.fl{animation:fl .08s linear}@keyframes fl{50%{transform:scaleY(.2)}}.y{color:#ffcc00}</style></head><body>
+<div class="hd"><b>DEPARTURES</b><span id="clk"></span></div><div class="b" id="b"></div>
+<script>
+const D=[['08:15','ATLANTIS','A12','ON TIME'],['08:40','EL DORADO','B07','BOARDING'],['09:05','SHANGRI-LA','C03','DELAYED'],['09:30','AVALON','A01','ON TIME'],['10:10','NARNIA','D99','GATE CHG'],['10:45','GOTHAM','B13','CANCELLED'],['11:20','HOGSMEADE','9¾','ON TIME'],['12:00','THE MOON','Z00','FINAL CALL']];
+const W=[5,11,4,10],A=' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789:-¾',b=document.getElementById('b');
+b.innerHTML='<div class="row h"><div style="width:'+(W[0]*2.6)+'em">TIME</div><div style="width:'+(W[1]*2.6)+'em">DESTINATION</div><div style="width:'+(W[2]*2.6)+'em">GATE</div><div>STATUS</div></div>';
+const cells=D.map(r=>{const row=document.createElement('div');row.className='row';const cs=r.map((v,k)=>{const f=document.createElement('div');f.className='f';const arr=[];for(let i=0;i<W[k];i++){const c=document.createElement('div');c.className='ch';c.textContent=' ';f.appendChild(c);arr.push(c)}row.appendChild(f);return arr});b.appendChild(row);return cs});
+function set(ri,k,str){str=str.padEnd(W[k]).slice(0,W[k]);cells[ri][k].forEach((c,i)=>{const tgt=str[i];let n=0,steps=4+Math.random()*12|0;const go=()=>{c.classList.remove('fl');void c.offsetWidth;c.classList.add('fl');
+c.textContent=n>=steps?tgt:A[Math.random()*A.length|0];c.classList.toggle('y',k===3&&/DELAY|CANCEL|FINAL|GATE/.test(str));if(n++<steps)setTimeout(go,60)};setTimeout(go,i*30+ri*80)})}
+D.forEach((r,i)=>r.forEach((v,k)=>set(i,k,v)));
+setInterval(()=>{const i=Math.random()*D.length|0,st=['ON TIME','BOARDING','DELAYED','GATE CHG','FINAL CALL','DEPARTED'];set(i,3,st[Math.random()*st.length|0])},2500);
+setInterval(()=>document.getElementById('clk').textContent=new Date().toTimeString().slice(0,5),1000);
+</script></body></html>

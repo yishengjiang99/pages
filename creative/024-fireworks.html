@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hanabi</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@700&display=swap" rel="stylesheet">
+<style>html body{margin:0;overflow:hidden;background:#04030c}canvas{display:block}
+.t{position:fixed;right:5vw;top:8vh;writing-mode:vertical-rl;font:700 clamp(32px,7vw,72px) 'Shippori Mincho',serif;color:#f6e7c1;letter-spacing:.3em;opacity:.85}
+.city{position:fixed;bottom:0;left:0;right:0;height:14vh;background:#04030c;clip-path:polygon(0 60%,5% 60%,5% 30%,9% 30%,9% 50%,14% 50%,14% 10%,17% 10%,17% 45%,24% 45%,24% 25%,30% 25%,30% 55%,38% 55%,38% 15%,41% 0,44% 15%,44% 50%,52% 50%,52% 35%,60% 35%,60% 60%,66% 60%,66% 20%,72% 20%,72% 45%,80% 45%,80% 30%,86% 30%,86% 55%,93% 55%,93% 35%,100% 35%,100% 100%,0 100%)}</style></head><body>
+<canvas id="c"></canvas><div class="t">花火大会</div><div class="city"></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,R=[],P=[];function rs(){W=c.width=innerWidth;H=c.height=innerHeight}rs();addEventListener('resize',rs);
+function launch(tx,ty){R.push({x:W*(.2+Math.random()*.6),y:H,tx:tx??W*(.15+Math.random()*.7),ty:ty??H*(.1+Math.random()*.35),h:Math.random()*360})}
+function burst(r){const n=80+Math.random()*80|0,type=Math.random()*3|0;for(let i=0;i<n;i++){const a=i/n*Math.PI*2,s=type===1?3+Math.sin(a*5)*1.5:2+Math.random()*3;
+P.push({x:r.x,y:r.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,l:1,h:type===2?(r.h+i*3)%360:r.h,tw:Math.random()<.3})}}
+addEventListener('pointerdown',e=>launch(e.clientX,e.clientY));setInterval(()=>Math.random()<.7&&launch(),700);
+function f(){x.globalCompositeOperation='source-over';x.fillStyle='rgba(4,3,12,.22)';x.fillRect(0,0,W,H);x.globalCompositeOperation='lighter';
+R=R.filter(r=>{const dx=r.tx-r.x,dy=r.ty-r.y;r.x+=dx*.06;r.y+=dy*.06;x.fillStyle=`hsl(${r.h},100%,80%)`;x.fillRect(r.x-1,r.y-1,2,4);if(Math.abs(dy)<4){burst(r);return false}return true});
+P=P.filter(p=>{p.vx*=.98;p.vy=p.vy*.98+.04;p.x+=p.vx;p.y+=p.vy;p.l-=.011;if(p.tw&&Math.random()<.3)return p.l>0;x.fillStyle=`hsla(${p.h},100%,${50+p.l*30}%,${p.l})`;x.beginPath();x.arc(p.x,p.y,1.6,0,7);x.fill();return p.l>0});
+requestAnimationFrame(f)}f();launch();
+</script></body></html>

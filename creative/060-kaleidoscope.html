@@ -1,0 +1,13 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Kaleidoscope</title>
+<style>html body{margin:0;overflow:hidden;background:#000;touch-action:none}canvas{display:block}
+.t{position:fixed;bottom:16px;width:100%;text-align:center;color:#fff8;font:12px system-ui;letter-spacing:.3em;pointer-events:none}</style></head><body>
+<canvas id="c"></canvas><div class="t">DRAW · 12-FOLD MIRROR · DOUBLE-TAP TO CLEAR</div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,last=null,hue=0;const N=12;
+function rs(){W=c.width=innerWidth;H=c.height=innerHeight;x.fillStyle='#000';x.fillRect(0,0,W,H)}rs();addEventListener('resize',rs);addEventListener('dblclick',rs);
+function seg(a,b){const cx=W/2,cy=H/2;x.lineCap='round';for(let i=0;i<N;i++){for(const m of [1,-1]){x.save();x.translate(cx,cy);x.rotate(i*Math.PI*2/N);x.scale(1,m);
+x.strokeStyle=`hsl(${hue},90%,60%)`;x.shadowColor=x.strokeStyle;x.shadowBlur=10;x.lineWidth=2+Math.hypot(b[0]-a[0],b[1]-a[1])*.08;x.beginPath();x.moveTo(a[0]-cx,a[1]-cy);x.lineTo(b[0]-cx,b[1]-cy);x.stroke();x.restore()}}hue=(hue+1.2)%360}
+c.addEventListener('pointerdown',e=>last=[e.clientX,e.clientY]);addEventListener('pointerup',()=>last=null);c.addEventListener('pointermove',e=>{if(!last)return;const p=[e.clientX,e.clientY];seg(last,p);last=p});
+let t=0,auto=true;c.addEventListener('pointerdown',()=>auto=false,{once:true});
+(function f(){if(auto&&t<500){const r=Math.min(W,H)*.35,a=t*.05,p=[W/2+Math.cos(a*1.3)*r*Math.sin(a*.37),H/2+Math.sin(a)*r*Math.cos(a*.23)];if(last===null&&t>0)seg(f.p||p,p);f.p=p;t++}requestAnimationFrame(f)})();
+</script></body></html>

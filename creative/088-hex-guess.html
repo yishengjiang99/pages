@@ -1,0 +1,13 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>#HEX? — guess the color</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;font-family:'JetBrains Mono',monospace;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#111;color:#eee;transition:background .6s;padding:20px;box-sizing:border-box}
+.sw{width:min(70vw,320px);aspect-ratio:1;border-radius:50%;box-shadow:0 20px 60px #0008,inset 0 0 0 6px #fff2}h1{margin:0;font-weight:800;font-size:clamp(28px,6vw,48px)}
+.o{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:min(90vw,420px)}.o button{font:800 clamp(16px,4vw,22px) 'JetBrains Mono';padding:14px;border-radius:12px;border:2px solid #fff3;background:#fff1;color:#fff;cursor:pointer}
+.o button.ok{background:#2ecc71;border-color:#2ecc71}.o button.no{background:#e74c3c;border-color:#e74c3c}.sc{opacity:.7}</style></head><body>
+<h1>#HEX?</h1><div class="sw" id="sw"></div><div class="o" id="o"></div><div class="sc">score <b id="s">0</b> · streak <b id="k">0</b></div>
+<script>
+let s=0,k=0,ans,lock=false;const hx=()=>'#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0').toUpperCase();
+function round(){lock=false;ans=hx();document.getElementById('sw').style.background=ans;document.body.style.background=`linear-gradient(${ans}22,#111 60%)`;const opts=[ans];while(opts.length<4)opts.push(hx());opts.sort(()=>Math.random()-.5);
+const o=document.getElementById('o');o.innerHTML='';opts.forEach(h=>{const b=document.createElement('button');b.textContent=h;b.onclick=()=>{if(lock)return;lock=true;if(h===ans){s++;k++;b.classList.add('ok')}else{k=0;b.classList.add('no');[...o.children].find(q=>q.textContent===ans).classList.add('ok')}
+document.getElementById('s').textContent=s;document.getElementById('k').textContent=k;setTimeout(round,1100)};o.appendChild(b)})}round();
+</script></body></html>

@@ -1,0 +1,13 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>∞ — The Hundredth Page</title>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@900&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#000;font-family:'Big Shoulders Display',sans-serif}canvas{display:block}
+.t{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;color:#fff;font-size:clamp(80px,22vw,280px);mix-blend-mode:difference;letter-spacing:-.02em}</style></head><body>
+<canvas id="c"></canvas><div class="t">100</div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H;function rs(){W=c.width=innerWidth;H=c.height=innerHeight}rs();addEventListener('resize',rs);
+const pal=['#ff595e','#ffca3a','#8ac926','#1982c4','#6a4c93','#f72585','#4cc9f0','#fefae0'];let sp=1;addEventListener('pointerdown',()=>sp=sp===1?4:1);
+(function f(ms){const t=ms/1000*sp*.6,K=1.35,base=Math.max(W,H)*1.6;x.fillStyle='#000';x.fillRect(0,0,W,H);x.save();x.translate(W/2,H/2);
+const frac=t%1,idx=Math.floor(t);for(let i=0;i<26;i++){const s=base*Math.pow(K,-(i-frac));if(s<2)break;const k=i+idx;x.save();x.rotate((k*12)*Math.PI/180+Math.sin(t*.3)*.2);x.fillStyle=pal[k%pal.length];
+if(k%3===0){x.fillRect(-s/2,-s/2,s,s)}else if(k%3===1){x.beginPath();for(let j=0;j<6;j++){const a=j*Math.PI/3;x.lineTo(Math.cos(a)*s*.55,Math.sin(a)*s*.55)}x.fill()}else{x.beginPath();x.arc(0,0,s*.5,0,7);x.fill()}x.restore()}
+x.restore();requestAnimationFrame(f)})(0);
+</script></body></html>

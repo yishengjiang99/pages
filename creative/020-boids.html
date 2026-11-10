@@ -1,0 +1,20 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Murmuration</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital@1&display=swap" rel="stylesheet">
+<style>html body{margin:0;overflow:hidden;background:linear-gradient(#f9d3a5,#e98a6b 55%,#6d4c6f)}canvas{display:block}
+.q{position:fixed;left:6vw;bottom:8vh;font:italic clamp(18px,3vw,30px) Lora,serif;color:#3b2338;max-width:22ch}.q small{display:block;font-size:.5em;margin-top:8px;letter-spacing:.2em;font-style:normal;opacity:.7}</style></head><body>
+<canvas id="c"></canvas><div class="q">Ten thousand starlings, no conductor.<small>MOVE TO SCATTER THEM</small></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,B=[],mx=-999,my=-999;
+function rs(){W=c.width=innerWidth;H=c.height=innerHeight}rs();addEventListener('resize',rs);
+const N=Math.min(450,W*H/2500|0);for(let i=0;i<N;i++)B.push({x:Math.random()*W,y:Math.random()*H*.6,vx:Math.random()*2-1,vy:Math.random()*2-1});
+addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY});
+const G=60;function f(){x.clearRect(0,0,W,H);const grid=new Map();for(const b of B){const k=(b.x/G|0)+','+(b.y/G|0);(grid.get(k)||grid.set(k,[]).get(k)).push(b)}
+x.fillStyle='#2b1830';for(const b of B){let ax=0,ay=0,cx=0,cy=0,sx=0,sy=0,n=0;const gx=b.x/G|0,gy=b.y/G|0;
+for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){const a=grid.get((gx+i)+','+(gy+j));if(a)for(const o of a){if(o===b)continue;const dx=o.x-b.x,dy=o.y-b.y,d=dx*dx+dy*dy;if(d<2500){n++;ax+=o.vx;ay+=o.vy;cx+=dx;cy+=dy;if(d<300){sx-=dx/d*10;sy-=dy/d*10}}}}
+if(n){b.vx+=(ax/n-b.vx)*.05+cx/n*.002+sx*.05;b.vy+=(ay/n-b.vy)*.05+cy/n*.002+sy*.05}
+const dx=b.x-mx,dy=b.y-my,d=dx*dx+dy*dy;if(d<15000){b.vx+=dx/Math.sqrt(d)*.6;b.vy+=dy/Math.sqrt(d)*.6}
+if(b.x<50)b.vx+=.15;if(b.x>W-50)b.vx-=.15;if(b.y<50)b.vy+=.15;if(b.y>H*.75)b.vy-=.15;
+const s=Math.hypot(b.vx,b.vy),m=Math.min(Math.max(s,1.5),3.5);b.vx=b.vx/s*m;b.vy=b.vy/s*m;b.x+=b.vx;b.y+=b.vy;
+const a=Math.atan2(b.vy,b.vx);x.save();x.translate(b.x,b.y);x.rotate(a);x.beginPath();x.moveTo(4,0);x.lineTo(-3,2.4);x.lineTo(-1.5,0);x.lineTo(-3,-2.4);x.fill();x.restore()}
+requestAnimationFrame(f)}f();
+</script></body></html>

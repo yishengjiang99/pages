@@ -1,0 +1,24 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PLAY-BOY</title>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@500&family=Nunito:wght@900&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;display:grid;place-items:center;background:#e4dccf;font-family:Nunito,sans-serif;touch-action:none}
+.gb{width:min(88vw,340px);background:#c9c4bb;border-radius:14px 14px 60px 14px;padding:22px 22px 36px;box-shadow:inset -6px -6px 0 #aaa59c,0 20px 40px #0004}
+.bz{background:#5a5d6b;border-radius:10px 10px 40px 10px;padding:18px 26px 10px}.bz small{display:flex;gap:6px;align-items:center;color:#c9c4bb;font-size:8px;letter-spacing:.1em;margin-bottom:6px}.bz small i{width:6px;height:6px;border-radius:50%;background:#e33}
+canvas{display:block;width:100%;aspect-ratio:10/9;background:#9bbc0f;image-rendering:pixelated}.lg{font:900 italic 18px Nunito;color:#2e3192;margin:12px 0 22px}.lg span{font-weight:500;font-family:'Pixelify Sans'}
+.ct{display:flex;justify-content:space-between;align-items:center}.dp{width:96px;height:96px;position:relative}.dp b{position:absolute;background:#222;border-radius:3px}.dp .h{left:0;right:0;top:33%;height:34%}.dp .v{top:0;bottom:0;left:33%;width:34%}
+.ab{display:flex;gap:14px;transform:rotate(-25deg)}.ab button{width:46px;height:46px;border-radius:50%;border:0;background:#9a2257;color:#c9c4bb;font:900 14px Nunito;box-shadow:0 3px 0 #6a1238}
+.dz{position:absolute;width:33%;height:33%;background:none;border:0;padding:0}.dz.u{left:33%;top:0}.dz.d{left:33%;bottom:0}</style></head><body>
+<div class="gb"><div class="bz"><small><i></i>BATTERY</small><canvas id="c" width="160" height="144"></canvas></div><div class="lg">Play-Boy <span>COLOUR-ISH</span></div>
+<div class="ct"><div class="dp"><b class="h"></b><b class="v"></b><button class="dz u" data-d="-1"></button><button class="dz d" data-d="1"></button></div><div class="ab"><button id="bb">B</button><button id="ba">A</button></div></div></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let py=60,ay=60,bx=80,by=72,vx=1.6,vy=1.1,sp=0,sa=0,mv=0,started=false;
+const C=['#9bbc0f','#8bac0f','#306230','#0f380f'];
+addEventListener('keydown',e=>{if(e.key==='ArrowUp'||e.key==='w')mv=-1;if(e.key==='ArrowDown'||e.key==='s')mv=1;started=true});addEventListener('keyup',()=>mv=0);
+document.querySelectorAll('.dz').forEach(b=>{b.onpointerdown=()=>{mv=+b.dataset.d;started=true};b.onpointerup=b.onpointerleave=()=>mv=0});
+c.addEventListener('pointermove',e=>{const r=c.getBoundingClientRect();py=(e.clientY-r.top)/r.height*144-12;started=true});document.getElementById('ba').onclick=document.getElementById('bb').onclick=()=>started=true;
+(function f(){x.fillStyle=C[0];x.fillRect(0,0,160,144);x.fillStyle=C[1];for(let y=0;y<144;y+=8)x.fillRect(79,y,2,4);
+if(started){py=Math.max(0,Math.min(120,py+mv*2.4));ay+=Math.sign(by-12-ay)*Math.min(1.25,Math.abs(by-12-ay));bx+=vx;by+=vy;if(by<2||by>140)vy*=-1;
+if(bx<10&&bx>4&&by>py-2&&by<py+26){vx=Math.abs(vx)*1.05;vy+=(by-py-12)*.08}if(bx>148&&bx<154&&by>ay-2&&by<ay+26){vx=-Math.abs(vx)*1.05}
+if(bx<0){sa++;bx=80;by=72;vx=1.6}if(bx>160){sp++;bx=80;by=72;vx=-1.6}}
+x.fillStyle=C[3];x.fillRect(6,py,4,24);x.fillRect(150,ay,4,24);x.fillRect(bx-2,by-2,4,4);x.fillStyle=C[2];x.font='16px "Pixelify Sans",monospace';x.textAlign='center';x.fillText(sp,60,18);x.fillText(sa,100,18);
+if(!started){x.fillStyle=C[3];x.font='12px "Pixelify Sans",monospace';x.fillText('PRESS A TO START',80,100)}requestAnimationFrame(f)})();
+</script></body></html>

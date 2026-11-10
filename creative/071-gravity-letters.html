@@ -1,0 +1,19 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gravity</title>
+<link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#e8e4ff;font-family:'Dela Gothic One',sans-serif;touch-action:none;user-select:none}
+.l{position:absolute;left:0;top:0;display:grid;place-items:center;font-size:var(--s);width:var(--s);height:var(--s);border-radius:18%;color:#fff;cursor:grab;box-shadow:0 8px 0 #0002;will-change:transform}
+.h{position:fixed;top:20px;left:0;right:0;text-align:center;color:#5b4bdb;font-size:13px;letter-spacing:.3em;font-family:system-ui}</style></head><body>
+<div class="h">TAP ANYWHERE TO SWITCH ON GRAVITY · THEN DRAG &amp; FLING</div>
+<script>
+const word='GRAVITY IS A HABIT',cols=['#ff5d8f','#5b4bdb','#ffb800','#00c2a8','#ff7a00','#2d2d2d'];let W=innerWidth,H=innerHeight,gx=0,gy=0,on=false;const s=Math.max(44,Math.min(90,W/12)),B=[];
+[...word].forEach((ch,i)=>{if(ch===' ')return;const e=document.createElement('div');e.className='l';e.textContent=ch;e.style.setProperty('--s',s+'px');e.style.background=cols[i%cols.length];document.body.appendChild(e);
+const words=word.split(' '),pre=word.slice(0,i),row=pre.split(' ').length-1,ci=pre.length-pre.lastIndexOf(' ')-1,len=words[row].length;const b={e,x:W/2+(ci-len/2)*s*1.08,y:H/2+(row-words.length/2)*s*1.15,vx:0,vy:0,a:0,va:0,drag:false};B.push(b);
+e.onpointerdown=ev=>{b.drag=true;e.setPointerCapture(ev.pointerId);b.ox=ev.clientX-b.x;b.oy=ev.clientY-b.y;b.lx=ev.clientX;b.ly=ev.clientY};
+e.onpointermove=ev=>{if(!b.drag)return;b.vx=ev.clientX-b.lx;b.vy=ev.clientY-b.ly;b.lx=ev.clientX;b.ly=ev.clientY;b.x=ev.clientX-b.ox;b.y=ev.clientY-b.oy};e.onpointerup=()=>b.drag=false});
+addEventListener('pointerdown',()=>{if(!on){on=true;gy=.6;B.forEach(b=>{b.vx=(Math.random()-.5)*6;b.va=(Math.random()-.5)*.1})}});addEventListener('deviceorientation',e=>{if(on&&e.gamma!=null){gx=e.gamma/90;gy=Math.max(.1,e.beta/90)}});addEventListener('resize',()=>{W=innerWidth;H=innerHeight});
+(function f(){for(const b of B){if(!b.drag){b.vx+=gx;b.vy+=gy;b.vx*=.99;b.vy*=.99;b.x+=b.vx;b.y+=b.vy;b.a+=b.va}
+if(!on)continue;if(b.y>H-s){b.y=H-s;b.vy*=-.45;b.vx*=.9;b.va=b.vx*.01}if(b.x<0){b.x=0;b.vx*=-.6}if(b.x>W-s){b.x=W-s;b.vx*=-.6}}
+if(on)for(let i=0;i<B.length;i++)for(let j=i+1;j<B.length;j++){const a=B[i],c=B[j],dx=c.x-a.x,dy=c.y-a.y,d=Math.hypot(dx,dy);if(d<s&&d>0){const o=(s-d)/2,nx=dx/d,ny=dy/d;a.x-=nx*o;a.y-=ny*o;c.x+=nx*o;c.y+=ny*o;
+const p=(a.vx-c.vx)*nx+(a.vy-c.vy)*ny;if(p>0){a.vx-=p*nx*.9;a.vy-=p*ny*.9;c.vx+=p*nx*.9;c.vy+=p*ny*.9}}}
+for(const b of B)b.e.style.transform=`translate(${b.x}px,${b.y}px) rotate(${b.a}rad)`;requestAnimationFrame(f)})();
+</script></body></html>

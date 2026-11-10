@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bubble Wrap</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#c8e4f0;font-family:Fredoka,sans-serif;color:#2a6a8a;user-select:none;-webkit-user-select:none}
+.top{display:flex;justify-content:space-between;align-items:center;padding:14px 20px}.top b{font-size:clamp(20px,4vw,32px)}
+#w{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:2px;padding:10px;background:linear-gradient(135deg,#ffffff40,#ffffff10)}
+.b{aspect-ratio:1;border-radius:50%;cursor:pointer;background:radial-gradient(circle at 35% 30%,#fff 0 10%,#ffffffaa 14%,#d8eef8cc 40%,#a8d4e6 70%,#8cc4dc);box-shadow:inset -4px -6px 10px #6aa8c480,0 4px 6px #5a96b040;transition:transform .08s}
+.b:active{transform:scale(.92)}.b.p{background:radial-gradient(circle,#b5d8e6,#c8e4f0 70%);box-shadow:inset 2px 3px 6px #5a96b060;clip-path:polygon(0 30%,20% 0,45% 15%,70% 0,100% 25%,85% 55%,100% 80%,70% 100%,40% 85%,15% 100%,0 70%,12% 50%);transform:scale(.9)}
+button{font:inherit;background:#2a6a8a;color:#fff;border:0;border-radius:20px;padding:8px 16px;cursor:pointer}</style></head><body>
+<div class="top"><b>POP: <span id="n">0</span></b><button onclick="fill()">NEW SHEET</button></div><div id="w"></div>
+<script>
+const w=document.getElementById('w');let ac,n=0;
+function pop(e){const b=e.target;if(!b.classList.contains('b')||b.classList.contains('p'))return;b.classList.add('p');document.getElementById('n').textContent=++n;navigator.vibrate&&navigator.vibrate(15);
+try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();const len=ac.sampleRate*.06,buf=ac.createBuffer(1,len,ac.sampleRate),d=buf.getChannelData(0);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,4);
+const s=ac.createBufferSource(),f=ac.createBiquadFilter();f.type='bandpass';f.frequency.value=900+Math.random()*1500;s.buffer=buf;s.connect(f).connect(ac.destination);s.start()}catch(_){}}
+w.addEventListener('pointerdown',pop);w.addEventListener('pointerover',e=>{if(e.buttons)pop(e)});
+function fill(){w.innerHTML='';const cnt=Math.ceil(innerWidth/66)*Math.ceil((innerHeight-60)/66);for(let i=0;i<cnt;i++){const b=document.createElement('div');b.className='b';w.appendChild(b)}}fill();
+</script></body></html>

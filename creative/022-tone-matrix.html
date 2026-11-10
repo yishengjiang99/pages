@@ -1,0 +1,20 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tone Matrix</title>
+<style>html body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#07070a;color:#9ef;font-family:system-ui,sans-serif;gap:18px}
+#g{display:grid;grid-template-columns:repeat(16,1fr);gap:4px;width:min(92vw,560px,70vh);aspect-ratio:1}
+#g b{border-radius:4px;background:#14161f;cursor:pointer;transition:background .15s,box-shadow .15s}
+#g b.on{background:#5ad8ff;box-shadow:0 0 12px #5ad8ff}#g b.hit{background:#fff;box-shadow:0 0 24px #fff,0 0 40px #5ad8ff}
+#g b.col{background:#1d2130}#g b.on.col{background:#bdf}
+.r{display:flex;gap:10px}button{background:#14161f;color:#9ef;border:1px solid #2a3040;padding:8px 18px;border-radius:20px;cursor:pointer;font:inherit}
+h1{font-weight:200;letter-spacing:.5em;margin:0;font-size:18px}</style></head><body>
+<h1>TONE MATRIX</h1><div id="g"></div><div class="r"><button id="p">▶ PLAY</button><button id="cl">CLEAR</button><button id="rn">RANDOM</button></div>
+<script>
+const g=document.getElementById('g'),N=16,cells=[];let ac,step=0,timer,on=false;
+const notes=[0,2,4,7,9,12,14,16,19,21,24,26,28,31,33,36].reverse().map(s=>220*Math.pow(2,s/12));
+for(let r=0;r<N;r++)for(let c=0;c<N;c++){const b=document.createElement('b');b.onpointerdown=()=>b.classList.toggle('on');g.appendChild(b);cells.push(b)}
+function play(f){const o=ac.createOscillator(),gn=ac.createGain();o.type='triangle';o.frequency.value=f;gn.gain.setValueAtTime(.12,ac.currentTime);gn.gain.exponentialRampToValueAtTime(.0001,ac.currentTime+.6);o.connect(gn).connect(ac.destination);o.start();o.stop(ac.currentTime+.6)}
+function tick(){cells.forEach((b,i)=>b.classList.toggle('col',i%N===step));for(let r=0;r<N;r++){const b=cells[r*N+step];if(b.classList.contains('on')){play(notes[r]);b.classList.add('hit');setTimeout(()=>b.classList.remove('hit'),180)}}step=(step+1)%N}
+document.getElementById('p').onclick=e=>{ac=ac||new (window.AudioContext||window.webkitAudioContext)();on=!on;e.target.textContent=on?'❚❚ STOP':'▶ PLAY';clearInterval(timer);if(on)timer=setInterval(tick,140)};
+document.getElementById('cl').onclick=()=>cells.forEach(b=>b.classList.remove('on'));
+document.getElementById('rn').onclick=()=>cells.forEach(b=>b.classList.toggle('on',Math.random()<.08));
+[[0,3],[2,5],[4,8],[6,10],[8,12],[10,6],[12,4],[14,2]].forEach(([c,r])=>cells[r*N+c].classList.add('on'));
+</script></body></html>

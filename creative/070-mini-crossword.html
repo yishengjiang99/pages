@@ -1,0 +1,26 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>The Mini</title>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;800&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#fff;font-family:'Libre Franklin',sans-serif;color:#121212;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:40px;padding:20px;box-sizing:border-box}
+h1{font-weight:800;font-size:28px;margin:0 0 4px}.sub{color:#666;font-size:14px;margin-bottom:12px;display:flex;justify-content:space-between}
+#g{display:grid;grid-template-columns:repeat(5,1fr);width:min(88vw,380px);aspect-ratio:1;border:3px solid #121212}
+.c{border:1px solid #999;position:relative;background:#fff;cursor:pointer}.c span{position:absolute;inset:0;display:grid;place-items:center;font:800 clamp(22px,6vw,34px) 'Libre Franklin'}
+.c small{position:absolute;top:2px;left:4px;font-size:11px}.c.hl{background:#a7d8ff}.c.fc{background:#ffda00}.c.ok span{color:#2860d8}
+.cl{max-width:300px}.cl h3{font-size:13px;letter-spacing:.1em;border-bottom:1px solid #ccc;padding-bottom:4px}.cl div{padding:4px 6px;font-size:15px;border-radius:4px}.cl div.on{background:#a7d8ff}.cl b{display:inline-block;width:22px}
+#w{font-weight:800;color:#2860d8;min-height:1.4em;margin-top:10px}.kb{display:none}#hid{position:absolute;opacity:0;width:1px;height:1px}</style></head><body>
+<div><h1>The Mini</h1><div class="sub"><span>Tap a square, then type.</span><span id="tm">0:00</span></div><div id="g"></div><div id="w"></div><input id="hid" autocomplete="off" autocapitalize="characters"></div>
+<div class="cl"><h3>ACROSS</h3><div data-c="a0"><b>1</b>Valentine shape</div><div data-c="a1"><b>6</b>Glowing coal</div><div data-c="a2"><b>7</b>Misuse</div><div data-c="a3"><b>8</b>Pine tree sap</div><div data-c="a4"><b>9</b>What goes viral</div>
+<h3>DOWN</h3><div data-c="d0"><b>1</b>Core of the matter</div><div data-c="d1"><b>2</b>Last bit of a campfire</div><div data-c="d2"><b>3</b>Mistreat</div><div data-c="d3"><b>4</b>Amber's origin</div><div data-c="d4"><b>5</b>Fashion direction</div></div>
+<script>
+const S=['HEART','EMBER','ABUSE','RESIN','TREND'],g=document.getElementById('g'),hid=document.getElementById('hid');let cur=[0,0],dir='a',done=false,t0=Date.now();const L=[];
+for(let r=0;r<5;r++)for(let c=0;c<5;c++){const d=document.createElement('div');d.className='c';const n=r===0?c+1:(c===0?r+5:0);d.innerHTML=(n?`<small>${n}</small>`:'')+'<span></span>';
+d.onclick=()=>{if(cur[0]===r&&cur[1]===c)dir=dir==='a'?'d':'a';cur=[r,c];hl();hid.focus()};g.appendChild(d);L.push(d)}
+function cell(r,c){return L[r*5+c]}function hl(){L.forEach((d,i)=>{const r=i/5|0,c=i%5;d.classList.toggle('hl',dir==='a'?r===cur[0]:c===cur[1]);d.classList.toggle('fc',r===cur[0]&&c===cur[1])});
+document.querySelectorAll('[data-c]').forEach(e=>e.classList.toggle('on',e.dataset.c===dir+(dir==='a'?cur[0]:cur[1])))}
+function adv(s){if(dir==='a')cur[1]=Math.max(0,Math.min(4,cur[1]+s));else cur[0]=Math.max(0,Math.min(4,cur[0]+s))}
+function chk(){let ok=true;L.forEach((d,i)=>{if(d.lastChild.textContent!==S[i/5|0][i%5])ok=false});if(ok&&!done){done=true;L.forEach(d=>d.classList.add('ok'));document.getElementById('w').textContent='Solved! It\'s a word square: every row equals its column.'}}
+function key(k){if(done)return;if(/^[a-z]$/i.test(k)){cell(...cur).lastChild.textContent=k.toUpperCase();adv(1)}else if(k==='Backspace'){cell(...cur).lastChild.textContent='';adv(-1)}else if(k==='ArrowRight'){dir='a';adv(1)}else if(k==='ArrowLeft'){dir='a';adv(-1)}else if(k==='ArrowDown'){dir='d';adv(1)}else if(k==='ArrowUp'){dir='d';adv(-1)}else if(k===' '||k==='Tab')dir=dir==='a'?'d':'a';hl();chk()}
+addEventListener('keydown',e=>{if(e.target===hid&&/^[a-z]$/i.test(e.key))return;if(['Tab',' '].includes(e.key))e.preventDefault();key(e.key)});
+hid.addEventListener('input',()=>{const v=hid.value.slice(-1);hid.value='';if(v)key(v)});
+document.querySelectorAll('[data-c]').forEach(e=>e.onclick=()=>{dir=e.dataset.c[0];const n=+e.dataset.c[1];cur=dir==='a'?[n,0]:[0,n];hl();hid.focus()});
+setInterval(()=>{if(!done){const s=(Date.now()-t0)/1000|0;document.getElementById('tm').textContent=(s/60|0)+':'+String(s%60).padStart(2,'0')}},1000);hl();
+</script></body></html>

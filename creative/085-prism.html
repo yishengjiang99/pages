@@ -1,0 +1,13 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Prism</title>
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#000;touch-action:none}svg{width:100%;height:100%}
+.t{position:fixed;bottom:20px;width:100%;text-align:center;color:#fff6;font:12px system-ui;letter-spacing:.5em}</style></head><body>
+<svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet" id="s"><defs><filter id="gl"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<linearGradient id="pg" x1="0" x2="1"><stop offset="0" stop-color="#ffffff10"/><stop offset=".5" stop-color="#ffffff28"/><stop offset="1" stop-color="#ffffff08"/></linearGradient></defs>
+<line id="in" stroke="#fff" stroke-width="4" filter="url(#gl)"/><g id="sp" filter="url(#gl)"></g><polygon points="500,170 380,400 620,400" fill="url(#pg)" stroke="#ffffffaa" stroke-width="2"/></svg>
+<div class="t">MOVE TO AIM THE LIGHT</div>
+<script>
+const C=['#ff0000','#ff7f00','#ffff00','#00ff00','#0080ff','#4b0082','#8f00ff'],inp=document.getElementById('in'),sp=document.getElementById('sp');
+const s=document.getElementById('s');let ay=.3;s.addEventListener('pointermove',e=>{const r=s.getBoundingClientRect();ay=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))});
+(function f(t){const sy=120+ay*200+Math.sin(t/1500)*10;const ex=440,ey=285;inp.setAttribute('x1',0);inp.setAttribute('y1',sy);inp.setAttribute('x2',ex);inp.setAttribute('y2',ey);
+const base=(ey-sy)/ex;let o='';C.forEach((c,i)=>{const sp2=.18+i*.045+base*.4;const x2=1000,y2=ey+(x2-560)*sp2+40;o+=`<polygon points="${ex},${ey} 560,${ey+12+i*4} ${x2},${y2} ${x2},${y2+28}" fill="${c}" opacity=".85"/>`});sp.innerHTML=o;requestAnimationFrame(f)})(0);
+</script></body></html>

@@ -1,0 +1,20 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Spirograph</title>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@500;700&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#fffaf2;font-family:Quicksand,sans-serif;color:#444;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:24px;padding:20px;box-sizing:border-box}
+canvas{width:min(90vw,74vh);aspect-ratio:1;border-radius:50%;background:#fff;box-shadow:0 10px 40px #e9dccb,inset 0 0 0 1px #eee}
+.p{display:flex;flex-direction:column;gap:12px;min-width:220px}h1{margin:0 0 6px;font-size:28px;color:#ff6b6b}label{font-size:13px;display:flex;justify-content:space-between}input{width:100%;accent-color:#ff6b6b}
+button{font:inherit;font-weight:700;border:2px solid #444;background:#fff;border-radius:30px;padding:8px;cursor:pointer}</style></head><body>
+<canvas id="c" width="900" height="900"></canvas><div class="p"><h1>Spirograph</h1>
+<label>Fixed ring R <span id="vR"></span></label><input type="range" id="R" min="60" max="200" value="150">
+<label>Moving wheel r <span id="vr"></span></label><input type="range" id="r" min="5" max="140" value="52">
+<label>Pen offset d <span id="vd"></span></label><input type="range" id="d" min="5" max="160" value="80">
+<button id="clr">New sheet</button><button id="rnd">Surprise me</button></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),q=id=>document.getElementById(id);let th=0,hue=0;
+function val(){return{R:+q('R').value,r:+q('r').value,d:+q('d').value}}function lbl(){const v=val();q('vR').textContent=v.R;q('vr').textContent=v.r;q('vd').textContent=v.d}
+function clr(){x.fillStyle='#fff';x.fillRect(0,0,900,900);th=0;lbl()}
+function pt(t){const{R,r,d}=val(),k=2.1;return[450+k*((R-r)*Math.cos(t)+d*Math.cos((R-r)/r*t)),450+k*((R-r)*Math.sin(t)-d*Math.sin((R-r)/r*t))]}
+['R','r','d'].forEach(i=>q(i).oninput=()=>{clr();hue=Math.random()*360});q('clr').onclick=clr;
+q('rnd').onclick=()=>{q('R').value=60+Math.random()*140|0;q('r').value=5+Math.random()*135|0;q('d').value=5+Math.random()*155|0;hue=Math.random()*360;clr()};
+clr();(function f(){x.lineWidth=1.4;x.globalCompositeOperation='multiply';for(let i=0;i<40;i++){const a=pt(th);th+=.02;const b=pt(th);x.strokeStyle=`hsla(${(hue+th*2)%360},80%,60%,.8)`;x.beginPath();x.moveTo(...a);x.lineTo(...b);x.stroke()}x.globalCompositeOperation='source-over';requestAnimationFrame(f)})();
+</script></body></html>

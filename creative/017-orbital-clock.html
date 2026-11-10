@@ -1,0 +1,18 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Orrery Clock</title>
+<link href="https://fonts.googleapis.com/css2?family=Unica+One&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;display:grid;place-items:center;background:#05060b radial-gradient(circle,#141b33,#05060b 70%);color:#c9d4ff;font-family:'Unica One',sans-serif;overflow:hidden}
+svg{width:min(94vw,94vh)}.t{position:fixed;bottom:5vh;letter-spacing:.4em;font-size:clamp(18px,3vw,28px)}</style></head><body>
+<svg viewBox="-200 -200 400 400" id="s">
+<defs><radialGradient id="sun"><stop offset="0" stop-color="#fff6c8"/><stop offset=".5" stop-color="#ffb347"/><stop offset="1" stop-color="#ff6a00" stop-opacity="0"/></radialGradient></defs>
+<circle r="60" fill="url(#sun)"/><circle r="18" fill="#ffd27a"/>
+<g fill="none" stroke="#c9d4ff22"><circle r="70"/><circle r="120"/><circle r="175"/></g>
+<g id="h"><circle cx="70" r="9" fill="#ff7b6b"/></g><g id="m"><circle cx="120" r="7" fill="#6bc5ff"/><circle cx="120" r="12" fill="none" stroke="#6bc5ff66"/></g>
+<g id="se"><circle cx="175" r="4" fill="#e9e9ff"/></g><g id="tk"></g></svg>
+<div class="t" id="t"></div>
+<script>
+const tk=document.getElementById('tk');for(let i=0;i<60;i++){const a=i*6*Math.PI/180,r1=i%5?188:184;tk.innerHTML+=`<line x1="${Math.sin(a)*r1}" y1="${-Math.cos(a)*r1}" x2="${Math.sin(a)*192}" y2="${-Math.cos(a)*192}" stroke="#c9d4ff${i%5?'44':'aa'}"/>`}
+const H=document.getElementById('h'),M=document.getElementById('m'),S=document.getElementById('se');
+(function f(){const d=new Date(),ms=d.getMilliseconds(),s=d.getSeconds()+ms/1000,m=d.getMinutes()+s/60,h=d.getHours()%12+m/60;
+H.setAttribute('transform',`rotate(${h*30-90})`);M.setAttribute('transform',`rotate(${m*6-90})`);S.setAttribute('transform',`rotate(${s*6-90})`);
+document.getElementById('t').textContent=d.toTimeString().slice(0,8);requestAnimationFrame(f)})();
+</script></body></html>

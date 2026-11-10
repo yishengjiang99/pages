@@ -1,0 +1,25 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Contours</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;600&display=swap" rel="stylesheet">
+<style>html body{margin:0;overflow:hidden;background:#f1ece0;font-family:'Barlow Condensed',sans-serif;color:#5b3a1e}canvas{display:block;cursor:pointer}
+.l{position:fixed;left:24px;bottom:24px;background:#f1ece0e6;border:1px solid #5b3a1e;padding:12px 16px;font-size:13px;letter-spacing:.1em}.l b{display:block;font-size:24px;font-weight:600;letter-spacing:.02em}
+.n{position:fixed;right:24px;top:24px;width:50px;height:50px;border:1px solid #5b3a1e;border-radius:50%;display:grid;place-items:center;font-weight:600;background:#f1ece0}</style></head><body>
+<canvas id="c"></canvas><div class="l"><b id="nm">MOUNT IMAGINARY</b>QUADRANGLE 7.5′ · CONTOUR INTERVAL 20 M · TAP TO RESURVEY</div><div class="n">N↑</div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H;const P=new Uint8Array(512);
+function seed(){const p=[...Array(256).keys()].sort(()=>Math.random()-.5);for(let i=0;i<512;i++)P[i]=p[i&255]}
+function gr(h,a,b){const g=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]][h&7];return g[0]*a+g[1]*b}
+function noise(a,b){const X=Math.floor(a)&255,Y=Math.floor(b)&255;a-=Math.floor(a);b-=Math.floor(b);const u=a*a*(3-2*a),v=b*b*(3-2*b);const A=P[X]+Y,B=P[X+1]+Y;
+return (1-v)*((1-u)*gr(P[A],a,b)+u*gr(P[B],a-1,b))+v*((1-u)*gr(P[A+1],a,b-1)+u*gr(P[B+1],a-1,b-1))}
+function fbm(a,b){let s=0,am=1,f=1;for(let i=0;i<5;i++){s+=am*noise(a*f,b*f);am*=.5;f*=2}return s}
+function draw(){W=c.width=innerWidth;H=c.height=innerHeight;seed();x.fillStyle='#f1ece0';x.fillRect(0,0,W,H);const G=6,cw=Math.ceil(W/G)+1,ch=Math.ceil(H/G)+1,F=new Float32Array(cw*ch);
+for(let j=0;j<ch;j++)for(let i=0;i<cw;i++)F[j*cw+i]=fbm(i*G/650,j*G/650);
+x.strokeStyle='#2b6f8c33';x.lineWidth=.5;for(let i=0;i<W;i+=100){x.beginPath();x.moveTo(i,0);x.lineTo(i,H);x.stroke()}for(let j=0;j<H;j+=100){x.beginPath();x.moveTo(0,j);x.lineTo(W,j);x.stroke()}
+for(let L=-1;L<=1;L+=.04){const major=Math.round(L*20)%5===0;x.strokeStyle=L<-.35?'#2b6f8c':'#8a5a2b';x.lineWidth=major?1.6:.7;x.beginPath();
+for(let j=0;j<ch-1;j++)for(let i=0;i<cw-1;i++){const a=F[j*cw+i],b=F[j*cw+i+1],d=F[(j+1)*cw+i],e=F[(j+1)*cw+i+1];const k=(a>L?8:0)|(b>L?4:0)|(e>L?2:0)|(d>L?1:0);if(k===0||k===15)continue;
+const X=i*G,Y=j*G,t=(p,q)=>(L-p)/(q-p),T=[X+G*t(a,b),Y],Rr=[X+G,Y+G*t(b,e)],Bm=[X+G*t(d,e),Y+G],Lf=[X,Y+G*t(a,d)];
+const seg={1:[Lf,Bm],2:[Bm,Rr],3:[Lf,Rr],4:[T,Rr],5:[Lf,T,Bm,Rr],6:[T,Bm],7:[Lf,T],8:[Lf,T],9:[T,Bm],10:[T,Rr,Lf,Bm],11:[T,Rr],12:[Lf,Rr],13:[Bm,Rr],14:[Lf,Bm]}[k];
+for(let s=0;s<seg.length;s+=2){x.moveTo(...seg[s]);x.lineTo(...seg[s+1])}}x.stroke()}
+let mx=-1,mi=0;for(let i=0;i<F.length;i++)if(F[i]>mx){mx=F[i];mi=i}const px=(mi%cw)*G,py=(mi/cw|0)*G;x.fillStyle='#5b3a1e';x.beginPath();x.moveTo(px,py-7);x.lineTo(px+6,py+4);x.lineTo(px-6,py+4);x.fill();x.font='600 14px Barlow Condensed';x.fillText((2000+mx*1800|0)+' m',px+10,py+4);
+const N=['MOUNT IMAGINARY','PEAK ABSURDITY','SUMMIT OF DOUBT','RIDGE OF LATE MAIL','HILL OF FORGOTTEN TABS','MOUNT NEVERMORE'];document.getElementById('nm').textContent=N[Math.random()*N.length|0]}
+draw();c.onclick=draw;addEventListener('resize',draw);
+</script></body></html>

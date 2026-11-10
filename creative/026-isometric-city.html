@@ -1,0 +1,18 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Isopolis</title>
+<link href="https://fonts.googleapis.com/css2?family=Righteous&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:linear-gradient(#bfe6ff,#fde4f2);font-family:Righteous,sans-serif}
+svg{width:100%;height:100%}h1{position:fixed;top:16px;left:20px;margin:0;color:#334;font-size:clamp(22px,4vw,40px)}h1 small{display:block;font-size:12px;letter-spacing:.3em;opacity:.6}
+.b{transition:transform .5s cubic-bezier(.3,1.6,.5,1)}.b:hover{transform:translateY(-12px)}</style></head><body>
+<h1>ISOPOLIS<small>TAP A BLOCK TO REBUILD · HOVER TO LIFT</small></h1><svg id="s" viewBox="-460 -230 920 720"></svg>
+<script>
+const s=document.getElementById('s'),N=8,T=46;const iso=(x,y,z)=>[(x-y)*T,(x+y)*T*.5-z];
+const pal=[['#ffadad','#e08a8a','#c66f6f'],['#a0c4ff','#7fa3e0','#6487c4'],['#caffbf','#a6dd9b','#88bf7e'],['#ffd6a5','#e0b583','#c49966'],['#bdb2ff','#9b90e0','#7f74c4'],['#fdffb6','#dadd92','#bfc177']];
+function block(x,y){const h=Math.random()<.15?6:20+Math.random()**2*190,p=pal[Math.random()*pal.length|0],g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('class','b');
+const a=iso(x,y,0),b=iso(x+1,y,0),c=iso(x+1,y+1,0),d=iso(x,y+1,0),A=iso(x,y,h),B=iso(x+1,y,h),C=iso(x+1,y+1,h),D=iso(x,y+1,h),pt=q=>q.join(',');
+let o=`<polygon points="${pt(d)} ${pt(c)} ${pt(C)} ${pt(D)}" fill="${p[1]}"/><polygon points="${pt(b)} ${pt(c)} ${pt(C)} ${pt(B)}" fill="${p[2]}"/><polygon points="${pt(A)} ${pt(B)} ${pt(C)} ${pt(D)}" fill="${p[0]}"/>`;
+if(h>40){for(let k=14;k<h-10;k+=16)for(let w=.2;w<.9;w+=.3){const q=iso(x+w,y+1,k),r=iso(x+w+.15,y+1,k);o+=`<line x1="${q[0]}" y1="${q[1]}" x2="${r[0]}" y2="${r[1]}" stroke="#fff8" stroke-width="5"/>`}}
+if(h<10){const tc=iso(x+.5,y+.5,0);o+=`<circle cx="${tc[0]}" cy="${tc[1]-22}" r="16" fill="#5bbf6a"/><rect x="${tc[0]-2}" y="${tc[1]-12}" width="4" height="12" fill="#7a5233"/>`}
+g.innerHTML=o;g.onclick=()=>{const n=block(x,y);g.replaceWith(n)};return g}
+function build(){s.innerHTML='';const ground=[iso(0,0,0),iso(N,0,0),iso(N,N,0),iso(0,N,0)].map(p=>p.join(',')).join(' ');s.innerHTML=`<polygon points="${ground}" fill="#6d7a8c" transform="translate(0 6)"/><polygon points="${ground}" fill="#8796ab"/>`;
+for(let i=0;i<N*2;i++)for(let x=0;x<N;x++){const y=i-x;if(y>=0&&y<N&&(x%3!==2)&&(y%3!==2))s.appendChild(block(x,y))}}build();
+</script></body></html>

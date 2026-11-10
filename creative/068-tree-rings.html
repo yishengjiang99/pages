@@ -1,0 +1,14 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dendrochronology</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;1,300&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#2b2118;color:#e8d5b5;font-family:'Crimson Pro',serif;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4vw;padding:20px;box-sizing:border-box}
+svg{width:min(90vw,72vh);filter:drop-shadow(0 20px 30px #0008);cursor:pointer}.i{max-width:300px}h1{font-weight:300;font-size:clamp(32px,5vw,52px);margin:0;line-height:1}p{font-style:italic;opacity:.8;line-height:1.5}#a{font-size:20px}</style></head><body>
+<svg viewBox="-210 -210 420 420" id="s"></svg><div class="i"><h1>Dendro&shy;chronology</h1><p>A slice through a synthetic oak. Wide rings are wet years; narrow ones are drought. The scar on the left was a fire. Tap for another tree.</p><div id="a"></div></div>
+<script>
+function tree(){const s=document.getElementById('s'),Y=60+Math.random()*90|0;let o='<defs><radialGradient id="w"><stop offset="0" stop-color="#e9c99a"/><stop offset="1" stop-color="#c9955e"/></radialGradient></defs>';
+const pts=(r,k)=>{let d='';for(let a=0;a<=360;a+=4){const t=a*Math.PI/180,j=r*(1+.04*Math.sin(t*3+k)+.03*Math.sin(t*7+k*2)-(a>160&&a<200&&r>120?.06*Math.cos((a-180)/20*1.57):0));d+=(a?'L':'M')+(Math.cos(t)*j).toFixed(1)+' '+(Math.sin(t)*j*.94).toFixed(1)}return d+'Z'};
+o+=`<path d="${pts(205,0)}" fill="#5a3a22"/><path d="${pts(196,0)}" fill="url(#w)"/>`;let r=6;const R=[];for(let y=0;y<Y;y++){const w=(190/Y)*(.4+Math.random()*1.2);r+=w;if(r>192)break;R.push(r)}
+R.forEach((rr,i)=>o+=`<path d="${pts(rr,i*.05)}" fill="none" stroke="#7a4a26" stroke-opacity="${.35+Math.random()*.4}" stroke-width="${.6+Math.random()*1.4}"/>`);
+for(let k=0;k<14;k++){const a=Math.random()*6.28;o+=`<line x1="0" y1="0" x2="${Math.cos(a)*190}" y2="${Math.sin(a)*180}" stroke="#7a4a26" stroke-opacity=".15" stroke-width="1"/>`}
+o+=`<circle r="4" fill="#5a3a22"/><path d="M-196 -8 L-150 -2 L-196 6" fill="#3a2414" opacity=".8"/>`;s.innerHTML=o;document.getElementById('a').textContent=R.length+' rings · approx. '+R.length+' years old'}
+tree();document.getElementById('s').onclick=tree;
+</script></body></html>

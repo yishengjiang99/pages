@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Origami Fox</title>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;700&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#e9e4da;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Zen Kaku Gothic New',sans-serif;color:#3a3530;gap:10px}
+svg{width:min(80vw,60vh);filter:drop-shadow(0 18px 18px #0002)}polygon{transition:all 1.2s cubic-bezier(.7,0,.2,1)}
+h1{font-weight:300;letter-spacing:.6em;margin:0;font-size:clamp(16px,3vw,24px);text-indent:.6em}p{margin:0;font-size:12px;letter-spacing:.3em;opacity:.6}
+.d{display:flex;gap:8px;margin-top:8px}.d i{width:8px;height:8px;border-radius:50%;background:#3a353033}.d i.on{background:#e8603c}</style></head><body>
+<svg viewBox="0 0 200 200" id="s"></svg><h1 id="h">KITSUNE</h1><p>TAP TO FOLD</p><div class="d" id="d"></div>
+<script>
+const shapes={fox:[['#e8603c',[[40,60],[70,20],[100,70]]],['#d0502f',[[160,60],[130,20],[100,70]]],['#f07a52',[[40,60],[100,70],[100,150]]],['#e8603c',[[160,60],[100,70],[100,150]]],['#f2efe9',[[70,110],[100,150],[85,125]]],['#e6e1d8',[[130,110],[100,150],[115,125]]],['#3a3530',[[95,145],[105,145],[100,155]]]],
+crane:[['#4a7fb5',[[20,90],[100,100],[70,60]]],['#3b6a9b',[[180,40],[100,100],[130,60]]],['#6aa0d4',[[60,110],[100,100],[100,170]]],['#4a7fb5',[[140,110],[100,100],[100,170]]],['#5b8fc4',[[100,100],[150,130],[175,70]]],['#2e5880',[[175,70],[185,65],[180,80]]],['#3b6a9b',[[100,100],[60,110],[30,150]]]],
+fish:[['#2fa37e',[[40,100],[100,60],[100,140]]],['#24876a',[[100,60],[160,100],[100,100]]],['#3cbf94',[[100,140],[160,100],[100,100]]],['#24876a',[[160,100],[190,70],[180,100]]],['#3cbf94',[[160,100],[190,130],[180,100]]],['#f2efe9',[[60,95],[66,90],[66,100]]],['#1d6b54',[[100,60],[120,45],[130,75]]]],
+star:[['#e8b43c',[[100,20],[120,80],[80,80]]],['#d49a2a',[[180,80],[120,80],[130,120]]],['#f2c75a',[[150,170],[130,120],[100,140]]],['#d49a2a',[[50,170],[100,140],[70,120]]],['#e8b43c',[[20,80],[70,120],[80,80]]],['#f7d77d',[[80,80],[120,80],[130,120]]],['#f2c75a',[[80,80],[130,120],[70,120]]]]};
+const names=Object.keys(shapes),jp={fox:'KITSUNE',crane:'TSURU',fish:'SAKANA',star:'HOSHI'};let i=0;const s=document.getElementById('s');
+for(let k=0;k<7;k++)s.innerHTML+='<polygon/>';const P=[...s.children],d=document.getElementById('d');names.forEach(()=>d.innerHTML+='<i></i>');
+function fold(){const sh=shapes[names[i]];P.forEach((p,k)=>{p.setAttribute('points',sh[k][1].map(q=>q.join(',')).join(' '));p.setAttribute('fill',sh[k][0])});document.getElementById('h').textContent=jp[names[i]];[...d.children].forEach((e,k)=>e.className=k===i?'on':'')}
+fold();addEventListener('pointerdown',()=>{i=(i+1)%names.length;fold()});setInterval(()=>{i=(i+1)%names.length;fold()},4000);
+</script></body></html>

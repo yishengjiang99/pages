@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bauhaus Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#efe6d2;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Archivo Black',sans-serif;gap:20px;padding:20px;box-sizing:border-box}
+#g{width:min(90vw,72vh);aspect-ratio:1;display:grid;grid-template-columns:repeat(4,1fr);border:6px solid #111;background:#111;gap:6px}
+#g div{background:#efe6d2;position:relative;overflow:hidden;transition:background .4s}
+#g div i{position:absolute;inset:0;transition:all .5s cubic-bezier(.7,0,.3,1)}
+h1{margin:0;font-size:clamp(28px,6vw,56px);letter-spacing:-.02em;color:#111}h1 span{color:#d72c16}
+button{font:inherit;background:#1b4aa3;color:#efe6d2;border:0;padding:12px 26px;font-size:18px;cursor:pointer;box-shadow:6px 6px 0 #111}</style></head><body>
+<h1>BAU<span>HAUS</span> 1919</h1><div id="g"></div><button onclick="gen()">COMPOSE</button>
+<script>
+const C=['#d72c16','#1b4aa3','#f2b705','#111','#efe6d2'],g=document.getElementById('g');
+for(let i=0;i<16;i++)g.innerHTML+='<div><i></i></div>';
+const S=[c=>`border-radius:50%;background:${c}`,c=>`border-radius:100% 0 0 0;background:${c}`,c=>`clip-path:polygon(0 100%,50% 0,100% 100%);background:${c}`,c=>`background:${c};inset:25%`,c=>`background:linear-gradient(90deg,${c} 50%,#0000 50%)`,c=>`border-radius:0 0 100% 100%/0 0 100% 100%;inset:0 0 50% 0;background:${c}`,c=>`background:repeating-linear-gradient(0deg,${c} 0 12%,#0000 12% 25%)`,c=>`border-radius:50%;inset:30%;background:${c};box-shadow:0 0 0 12px #efe6d2,0 0 0 24px ${c}`];
+const r=a=>a[Math.random()*a.length|0];
+function gen(){[...g.children].forEach(d=>{const bg=r(C);d.style.background=bg;let c;do c=r(C);while(c===bg);d.firstChild.style.cssText=r(S)(c)+`;transform:rotate(${r([0,90,180,270])}deg)`})}gen();
+</script></body></html>

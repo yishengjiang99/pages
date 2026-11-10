@@ -1,0 +1,20 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Turing Patterns</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#0c0c0c;display:flex;align-items:center;justify-content:center;font-family:Syne,sans-serif}
+canvas{width:100vmax;height:100vmax;image-rendering:auto;cursor:crosshair;touch-action:none}
+.t{position:fixed;left:20px;top:16px;color:#fff;mix-blend-mode:difference;font-size:clamp(22px,4vw,40px);pointer-events:none}.t small{display:block;font-size:12px;letter-spacing:.2em;font-family:system-ui;opacity:.8}
+.m{position:fixed;right:16px;top:16px;display:flex;gap:6px}.m button{font:12px system-ui;padding:6px 10px;border-radius:14px;border:1px solid #fff5;background:#0006;color:#fff;cursor:pointer}</style></head><body>
+<canvas id="c" width="200" height="200"></canvas><div class="t">GRAY–SCOTT<small>REACTION · DIFFUSION · DRAW TO SEED</small></div>
+<div class="m"><button data-p="0.0367,0.0649">coral</button><button data-p="0.029,0.057">maze</button><button data-p="0.025,0.06">spots</button><button data-p="0.014,0.054">waves</button></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),N=200;let A=new Float32Array(N*N).fill(1),B=new Float32Array(N*N),A2=new Float32Array(N*N),B2=new Float32Array(N*N),F=.029,K=.057;
+const img=x.createImageData(N,N);function seed(cx,cy,r){for(let j=-r;j<=r;j++)for(let i=-r;i<=r;i++)if(i*i+j*j<=r*r){const X=(cx+i+N)%N,Y=(cy+j+N)%N;B[Y*N+X]=1;A[Y*N+X]=.5}}
+for(let k=0;k<20;k++)seed(Math.random()*N|0,Math.random()*N|0,4);
+document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{[F,K]=b.dataset.p.split(',').map(Number);A.fill(1);B.fill(0);for(let k=0;k<12;k++)seed(Math.random()*N|0,Math.random()*N|0,4)});
+let dn=false;c.addEventListener('pointerdown',e=>{dn=true;pt(e)});addEventListener('pointerup',()=>dn=false);c.addEventListener('pointermove',e=>dn&&pt(e));
+function pt(e){const r=c.getBoundingClientRect();seed((e.clientX-r.left)/r.width*N|0,(e.clientY-r.top)/r.height*N|0,3)}
+function step(){for(let y=0;y<N;y++){const u=((y-1+N)%N)*N,d=((y+1)%N)*N,m=y*N;for(let X=0;X<N;X++){const l=(X-1+N)%N,r=(X+1)%N,i=m+X;
+const la=A[m+l]*.2+A[m+r]*.2+A[u+X]*.2+A[d+X]*.2+A[u+l]*.05+A[u+r]*.05+A[d+l]*.05+A[d+r]*.05-A[i],lb=B[m+l]*.2+B[m+r]*.2+B[u+X]*.2+B[d+X]*.2+B[u+l]*.05+B[u+r]*.05+B[d+l]*.05+B[d+r]*.05-B[i];
+const ab=A[i]*B[i]*B[i];A2[i]=A[i]+la-ab+F*(1-A[i]);B2[i]=B[i]+.5*lb+ab-(K+F)*B[i]}}[A,A2]=[A2,A];[B,B2]=[B2,B]}
+(function f(){for(let k=0;k<16;k++)step();for(let i=0;i<N*N;i++){const v=Math.max(0,Math.min(1,A[i]-B[i]));const k=i*4,w=v*v*(3-2*v);img.data[k]=18+224*w;img.data[k+1]=12+221*w;img.data[k+2]=48+172*w;img.data[k+3]=255;}x.putImageData(img,0,0);requestAnimationFrame(f)})();
+</script></body></html>

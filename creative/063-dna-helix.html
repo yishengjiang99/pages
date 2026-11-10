@@ -1,0 +1,15 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Double Helix</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@200;600&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#04121a radial-gradient(circle at 70% 50%,#0b3a4a,#04121a 60%);font-family:Sora,sans-serif;color:#cdeff7;display:flex;align-items:center;justify-content:space-around;flex-wrap:wrap}
+.h{height:86vh;width:220px;position:relative;perspective:800px}.s{position:absolute;inset:0;transform-style:preserve-3d;animation:r 10s linear infinite}@keyframes r{to{transform:rotateY(360deg)}}
+.bp{position:absolute;left:50%;height:4px;width:160px;margin-left:-80px;transform-style:preserve-3d;display:flex;justify-content:space-between;align-items:center}
+.bp i{width:16px;height:16px;border-radius:50%;flex:none}.bp u{flex:1;height:2px;background:linear-gradient(90deg,var(--a),var(--b));opacity:.7}
+.t{max-width:340px;padding:20px}.t h1{font-weight:200;font-size:clamp(34px,6vw,60px);margin:0;line-height:1}.t b{font-weight:600;color:#5ef2c2}.t p{opacity:.7;line-height:1.6}
+#seq{font-family:ui-monospace,monospace;font-size:14px;letter-spacing:.3em;word-break:break-all;color:#5ef2c2}</style></head><body>
+<div class="h"><div class="s" id="s"></div></div><div class="t"><h1>Deoxyribo&shy;nucleic <b>Acid</b></h1><p>Two strands, antiparallel, wound a full turn every 10.5 base pairs. Every living thing you've met is written in four letters.</p><div id="seq"></div></div>
+<script>
+const s=document.getElementById('s'),C={A:'#ff5e7e',T:'#ffd36e',G:'#5ef2c2',C:'#6ea8ff'},P={A:'T',T:'A',G:'C',C:'G'};let seq='';const n=34,H=innerHeight*.86;
+for(let i=0;i<n;i++){const b='ATGC'[Math.random()*4|0],e=document.createElement('div');e.className='bp';e.style.top=(i/n*H)+'px';e.style.transform=`rotateY(${i*34.3}deg)`;
+e.style.setProperty('--a',C[b]);e.style.setProperty('--b',C[P[b]]);e.innerHTML=`<i style="background:${C[b]};box-shadow:0 0 12px ${C[b]}"></i><u></u><i style="background:${C[P[b]]};box-shadow:0 0 12px ${C[P[b]]}"></i>`;s.appendChild(e);seq+=b}
+document.getElementById('seq').textContent=seq;
+</script></body></html>

@@ -1,0 +1,18 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Start</title>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;600&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#1d1d1d;color:#fff;font-family:'Open Sans','Segoe UI',sans-serif;padding:5vh 5vw;box-sizing:border-box}
+h1{font-weight:300;font-size:clamp(36px,7vw,64px);margin:0 0 4vh}.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));grid-auto-rows:120px;gap:8px;max-width:1000px}
+.t{position:relative;overflow:hidden;padding:10px;font-size:14px;cursor:pointer;transition:transform .15s;perspective:600px}.t:active{transform:scale(.96)}.t.w{grid-column:span 2}.t.l{grid-column:span 2;grid-row:span 2}
+.t .ic{font-size:40px;font-weight:300;position:absolute;left:50%;top:44%;transform:translate(-50%,-50%)}.t .n{position:absolute;left:10px;bottom:8px;font-weight:600}
+.fl{position:absolute;inset:0;padding:10px;display:flex;flex-direction:column;justify-content:center;animation:fp 8s infinite}.fl:nth-child(2){animation-delay:-4s}@keyframes fp{0%,45%{transform:translateY(0)}50%,95%{transform:translateY(-100%)}100%{transform:translateY(-200%)}}
+.big{font-size:56px;font-weight:300;line-height:1}</style></head><body>
+<h1>Start</h1><div class="g">
+<div class="t l" style="background:#0078d7"><div class="fl"><div class="big" id="tm">12:00</div><div id="dt"></div></div><div class="n">Clock</div></div>
+<div class="t" style="background:#e81123"><div class="ic">✉</div><div class="n">Mail · 3</div></div><div class="t" style="background:#00b294"><div class="ic">☀</div><div class="n">21° Sunny</div></div>
+<div class="t w" style="background:#ff8c00"><div class="fl" style="padding-left:16px"><b style="font-size:20px">Now playing</b>Tiles — The Flat Design Band</div><div class="n">Music</div></div>
+<div class="t" style="background:#68217a"><div class="ic">☎</div><div class="n">People</div></div><div class="t" style="background:#107c10"><div class="ic">♜</div><div class="n">Games</div></div>
+<div class="t w" style="background:#2d7d9a"><div class="fl"><b style="font-size:18px">News</b>Skeuomorphism declared dead, again</div><div class="n">News</div></div>
+<div class="t" style="background:#c30052"><div class="ic">◉</div><div class="n">Camera</div></div><div class="t" style="background:#4a5459"><div class="ic">⚙</div><div class="n">Settings</div></div>
+<div class="t w" style="background:#008272"><div class="fl"><div class="big" style="font-size:36px">☁ 7 days</div><div>no rain in sight</div></div><div class="n">Weather</div></div><div class="t" style="background:#5c2d91"><div class="ic">▶</div><div class="n">Video</div></div></div>
+<script>const clk=()=>{const d=new Date();document.getElementById('tm').textContent=d.toTimeString().slice(0,5);document.getElementById('dt').textContent=d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})};clk();setInterval(clk,1000);
+document.querySelectorAll('.t').forEach(t=>t.addEventListener('pointerdown',e=>{const r=t.getBoundingClientRect(),dx=(e.clientX-r.left)/r.width-.5,dy=(e.clientY-r.top)/r.height-.5;t.style.transform=`rotateY(${dx*14}deg) rotateX(${-dy*14}deg) scale(.97)`;setTimeout(()=>t.style.transform='',180)}))</script></body></html>

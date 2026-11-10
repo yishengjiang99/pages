@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lava Lamp</title>
+<link href="https://fonts.googleapis.com/css2?family=Bungee+Shade&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;gap:6vw;background:#2a1240 radial-gradient(circle at 50% 50%,#ff5a3655,#0000 50%);overflow:hidden;font-family:'Bungee Shade',cursive}
+.lamp{position:relative;width:min(36vw,220px);height:min(78vh,560px)}
+.cap{position:absolute;top:0;left:22%;right:22%;height:14%;background:linear-gradient(90deg,#777,#ddd 40%,#888);clip-path:polygon(20% 0,80% 0,100% 100%,0 100%)}
+.glass{position:absolute;top:14%;left:10%;right:10%;height:58%;clip-path:polygon(28% 0,72% 0,100% 100%,0 100%);background:linear-gradient(#ff9a3c,#ff2f6b);overflow:hidden}
+.glass svg{width:100%;height:100%}.glass:after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,#fff0 10%,#fff4 30%,#fff0 45%)}
+.base{position:absolute;bottom:0;left:0;right:0;height:28%;background:linear-gradient(90deg,#777,#eee 40%,#888);clip-path:polygon(10% 0,90% 0,70% 50%,100% 100%,0 100%,30% 50%)}
+h1{color:#ffcf6e;font-size:clamp(28px,6vw,72px);line-height:1;margin:0;max-width:5em}</style></head><body>
+<div class="lamp"><div class="cap"></div><div class="glass"><svg viewBox="0 0 100 200" preserveAspectRatio="none"><defs><filter id="goo"><feGaussianBlur stdDeviation="5"/><feColorMatrix values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 30 -12"/></filter></defs><g filter="url(#goo)" fill="#ffe14d" id="g"></g></svg></div><div class="base"></div></div>
+<h1>GROOVY SINCE 1963</h1>
+<script>
+const g=document.getElementById('g'),B=[];for(let i=0;i<9;i++){const c=document.createElementNS('http://www.w3.org/2000/svg','circle');const b={el:c,x:25+Math.random()*50,y:Math.random()*200,r:7+Math.random()*10,s:.15+Math.random()*.35,p:Math.random()*6};c.setAttribute('r',b.r);g.appendChild(c);B.push(b)}
+const pool=document.createElementNS('http://www.w3.org/2000/svg','rect');pool.setAttribute('x',0);pool.setAttribute('y',188);pool.setAttribute('width',100);pool.setAttribute('height',20);g.appendChild(pool);
+(function f(t){B.forEach(b=>{b.y=100+95*Math.sin(t/1000*b.s+b.p);b.el.setAttribute('cx',b.x+Math.sin(t/1500+b.p)*8);b.el.setAttribute('cy',b.y)});requestAnimationFrame(f)})(0);
+</script></body></html>

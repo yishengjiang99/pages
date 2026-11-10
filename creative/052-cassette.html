@@ -1,0 +1,22 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mixtape '89</title>
+<link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Teko:wght@500&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;background:#f3d34a repeating-linear-gradient(45deg,#f3d34a 0 30px,#f0c93a 30px 60px);font-family:Teko,sans-serif}
+.k{width:min(92vw,520px);aspect-ratio:1.58;background:linear-gradient(#2b2b2b,#141414);border-radius:22px;position:relative;box-shadow:0 30px 50px #0005,inset 0 2px 0 #555}
+.lb{position:absolute;left:6%;right:6%;top:7%;height:58%;border-radius:10px;background:linear-gradient(#f6f1e4 0 22%,#ff5e5b 22% 26%,#f6f1e4 26% 74%,#00a6a6 74% 78%,#f6f1e4 78%)}
+.lb .t{position:absolute;left:5%;top:3%;font:clamp(16px,4vw,26px) 'Permanent Marker',cursive;color:#1a3d8f;transform:rotate(-2deg)}
+.win{position:absolute;left:22%;right:22%;top:32%;height:36%;background:#1a1a1a;border-radius:40px;display:flex;justify-content:space-between;align-items:center;padding:0 6%}
+.reel{width:26%;aspect-ratio:1;border-radius:50%;background:#eee;position:relative;box-shadow:0 0 0 var(--t,10px) #3a2a1f}.reel:before{content:'';position:absolute;inset:25%;border-radius:50%;background:repeating-conic-gradient(#1a1a1a 0 20deg,#eee 20deg 60deg)}
+.play .reel{animation:sp 1.6s linear infinite}@keyframes sp{to{transform:rotate(-360deg)}}
+.tape{flex:1;height:30%;margin:0 4%;background:#3a2a1f88;border-radius:4px}
+.bt{position:absolute;bottom:0;left:22%;right:22%;height:22%;background:#222;clip-path:polygon(8% 0,92% 0,100% 100%,0 100%);display:flex;justify-content:space-around;align-items:center}.bt i{width:8%;aspect-ratio:1;border-radius:50%;background:#000}
+.ctl{display:flex;gap:10px}.ctl button{font:500 22px Teko;width:80px;height:56px;border:0;border-radius:6px;background:#ddd;box-shadow:0 6px 0 #888;cursor:pointer}.ctl button:active,.ctl button.on{transform:translateY(5px);box-shadow:0 1px 0 #888}
+.tr{font-size:26px;color:#1a1a1a;min-height:1.2em}</style></head><body>
+<div class="k" id="k"><div class="lb"><div class="t">Summer '89 — side A ♥</div></div><div class="win"><div class="reel" id="r1"></div><div class="tape"></div><div class="reel" id="r2"></div></div><div class="bt"><i></i><i></i><i></i></div></div>
+<div class="tr" id="tr">INSERT FEELINGS · PRESS PLAY</div><div class="ctl"><button id="pl">▶</button><button id="st">■</button><button id="ff">▶▶</button></div>
+<script>
+const k=document.getElementById('k'),r1=document.getElementById('r1'),r2=document.getElementById('r2'),T=['01 · Driving Nowhere Slowly','02 · Mall Fountain Coins','03 · Neon on Wet Pavement','04 · Your Walkman, My Headphones','05 · Last Bus Home'];let p=0,tr=0,tm;
+function upd(){r1.style.setProperty('--t',(18-p*14)+'px');r2.style.setProperty('--t',(4+p*14)+'px')}upd();
+document.getElementById('pl').onclick=()=>{k.classList.add('play');document.getElementById('tr').textContent=T[tr];clearInterval(tm);tm=setInterval(()=>{p=Math.min(1,p+.002);upd()},100)};
+document.getElementById('st').onclick=()=>{k.classList.remove('play');clearInterval(tm);document.getElementById('tr').textContent='STOPPED'};
+document.getElementById('ff').onclick=()=>{tr=(tr+1)%T.length;p=Math.min(1,p+.15);upd();document.getElementById('tr').textContent=T[tr]};
+</script></body></html>

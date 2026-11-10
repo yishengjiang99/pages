@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Life, in Neon</title>
+<style>html body{margin:0;overflow:hidden;background:#000;font-family:ui-monospace,Menlo,monospace}canvas{display:block;cursor:crosshair}
+.u{position:fixed;left:16px;bottom:16px;color:#f0f;font-size:12px;letter-spacing:.15em;text-shadow:0 0 8px #f0f}</style></head><body>
+<canvas id="c"></canvas><div class="u">B3/S23 · GEN <span id="g">0</span> · DRAW TO SEED · SPACE PAUSE</div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),S=8;let W,H,a,b,age,gen=0,run=true,down=false;
+function init(){W=Math.ceil(innerWidth/S);H=Math.ceil(innerHeight/S);c.width=W*S;c.height=H*S;a=new Uint8Array(W*H);b=new Uint8Array(W*H);age=new Float32Array(W*H);for(let i=0;i<a.length;i++)a[i]=Math.random()<.18}
+init();addEventListener('resize',init);
+function step(){for(let y=0;y<H;y++)for(let X=0;X<W;X++){let n=0;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++)if(i||j)n+=a[((y+j+H)%H)*W+(X+i+W)%W];const k=y*W+X;b[k]=n===3||(n===2&&a[k])?1:0}[a,b]=[b,a];gen++}
+function draw(){x.fillStyle='rgba(0,0,0,.25)';x.fillRect(0,0,c.width,c.height);for(let k=0;k<a.length;k++){if(a[k])age[k]=Math.min(age[k]+1,60);else age[k]*=.85;
+if(age[k]>.5){const h=(180+age[k]*3)%360;x.fillStyle=a[k]?`hsl(${h},100%,60%)`:`hsla(${h},100%,50%,${age[k]/60})`;x.fillRect((k%W)*S+1,(k/W|0)*S+1,S-2,S-2)}}}
+let t=0;(function f(){if(run&&++t%3===0){step();document.getElementById('g').textContent=gen}draw();requestAnimationFrame(f)})();
+function paint(e){const X=e.clientX/S|0,Y=e.clientY/S|0;for(let j=-1;j<=1;j++)for(let i=-1;i<=1;i++)if(Math.random()<.6)a[((Y+j+H)%H)*W+(X+i+W)%W]=1}
+c.addEventListener('pointerdown',e=>{down=true;paint(e)});addEventListener('pointerup',()=>down=false);c.addEventListener('pointermove',e=>down&&paint(e));
+addEventListener('keydown',e=>{if(e.code==='Space'){run=!run;e.preventDefault()}});
+</script></body></html>

@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Halftone Pop</title>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+<style>html body{margin:0;overflow:hidden;background:#fff5d6;font-family:Bangers,cursive}canvas{display:block}
+.b{position:fixed;left:6vw;top:8vh;background:#fff;border:4px solid #111;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;padding:24px 34px;font-size:clamp(28px,6vw,64px);color:#111;letter-spacing:.04em;transform:rotate(-4deg)}
+.b:after{content:'';position:absolute;bottom:-28px;left:30%;border:16px solid transparent;border-top:28px solid #111}
+.pw{position:fixed;right:6vw;bottom:10vh;font-size:clamp(50px,12vw,140px);color:#ffe600;-webkit-text-stroke:4px #111;transform:rotate(8deg);text-shadow:8px 8px 0 #ff2a6d}</style></head><body>
+<canvas id="c"></canvas><div class="b">MOVE THE LIGHT!</div><div class="pw">POW!</div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,lx=.3,ly=.3;function rs(){W=c.width=innerWidth;H=c.height=innerHeight}rs();addEventListener('resize',rs);
+addEventListener('pointermove',e=>{lx=e.clientX/W;ly=e.clientY/H});
+(function f(t){x.fillStyle='#fff5d6';x.fillRect(0,0,W,H);const cx=W*.6,cy=H*.48,R=Math.min(W,H)*.32,S=11;const ax=Math.cos(.3),ay=Math.sin(.3);
+x.save();x.translate(W/2,H/2);x.rotate(.3);for(let j=-H;j<H;j+=S)for(let i=-W;i<W;i+=S){const px=W/2+i*ax-j*ay,py=H/2+i*ay+j*ax;
+const dx=(px-cx)/R,dy=(py-cy)/R,d2=dx*dx+dy*dy;let v,col;if(d2<1){const nz=Math.sqrt(1-d2);const L=[(lx-.6)*2,(ly-.48)*2,.8],ll=Math.hypot(...L);v=1-Math.max(0,(dx*L[0]+dy*L[1]+nz*L[2])/ll);col='#ff2a6d'}
+else{const sh=Math.hypot(px-(cx+R*.3),(py-(cy+R*1.05))*3)/R;v=sh<1?.6*(1-sh):0;col='#1a73e8';if(!v){v=.08+.06*Math.sin(i*.01+t/1000);col='#1a73e8'}}
+const r=S*.62*Math.sqrt(v);if(r>.4){x.fillStyle=col;x.beginPath();x.arc(i,j,r,0,7);x.fill()}}x.restore();requestAnimationFrame(f)})(0);
+</script></body></html>

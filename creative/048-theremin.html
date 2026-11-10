@@ -1,0 +1,20 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Theremin</title>
+<link href="https://fonts.googleapis.com/css2?family=Major+Mono+Display&display=swap" rel="stylesheet">
+<style>html body{margin:0;overflow:hidden;background:#0b1d16;font-family:'Major Mono Display',monospace;color:#b8f5d0;touch-action:none}canvas{display:block}
+.u{position:fixed;top:20px;left:24px;pointer-events:none}.u h1{margin:0;font-size:clamp(24px,5vw,44px);font-weight:400}.u p{margin:6px 0;font-size:12px;opacity:.6}
+.r{position:fixed;right:24px;top:24px;text-align:right;font-size:14px;pointer-events:none}</style></head><body>
+<canvas id="c"></canvas><div class="u"><h1>theremin</h1><p>press &amp; drag · x = pitch · y = volume</p></div><div class="r"><div id="hz">— hz</div><div id="nt">—</div></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,ac,osc,gn,an,lfo,down=false,px=0,py=0,data;function rs(){W=c.width=innerWidth;H=c.height=innerHeight}rs();addEventListener('resize',rs);
+const NN=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+function start(){if(ac)return;ac=new (window.AudioContext||window.webkitAudioContext)();osc=ac.createOscillator();osc.type='sine';gn=ac.createGain();gn.gain.value=0;an=ac.createAnalyser();an.fftSize=2048;data=new Uint8Array(an.fftSize);
+lfo=ac.createOscillator();lfo.frequency.value=5.5;const lg=ac.createGain();lg.gain.value=4;lfo.connect(lg).connect(osc.frequency);const del=ac.createDelay();del.delayTime.value=.25;const fb=ac.createGain();fb.gain.value=.3;
+osc.connect(gn);gn.connect(an);an.connect(ac.destination);gn.connect(del);del.connect(fb).connect(del);del.connect(ac.destination);osc.start();lfo.start()}
+function upd(){if(!ac)return;const f=110*Math.pow(2,px/W*4),v=down?Math.max(0,1-py/H)*.4:0;osc.frequency.setTargetAtTime(f,ac.currentTime,.03);gn.gain.setTargetAtTime(v,ac.currentTime,.05);
+document.getElementById('hz').textContent=f.toFixed(1)+' hz';const m=Math.round(12*Math.log2(f/440))+69;document.getElementById('nt').textContent=NN[m%12]+(Math.floor(m/12)-1)}
+c.addEventListener('pointerdown',e=>{start();down=true;px=e.clientX;py=e.clientY;upd()});addEventListener('pointermove',e=>{px=e.clientX;py=e.clientY;upd()});addEventListener('pointerup',()=>{down=false;upd()});
+(function f(t){x.fillStyle='rgba(11,29,22,.25)';x.fillRect(0,0,W,H);x.strokeStyle='#b8f5d022';for(let i=0;i<=48;i++){const X=i/48*W;x.beginPath();x.moveTo(X,0);x.lineTo(X,i%12?12:30);x.stroke()}
+x.strokeStyle='#4dffa6';x.lineWidth=2;x.shadowColor='#4dffa6';x.shadowBlur=12;x.beginPath();
+if(an){an.getByteTimeDomainData(data);for(let i=0;i<data.length;i+=2){const X=i/data.length*W,Y=H/2+(data[i]-128)/128*H*.4;i?x.lineTo(X,Y):x.moveTo(X,Y)}}else{for(let X=0;X<W;X+=4){const Y=H/2+Math.sin(X/40+t/300)*6;X?x.lineTo(X,Y):x.moveTo(X,Y)}}
+x.stroke();x.shadowBlur=0;if(down){x.fillStyle='#4dffa6';x.beginPath();x.arc(px,py,8,0,7);x.fill()}requestAnimationFrame(f)})(0);
+</script></body></html>

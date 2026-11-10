@@ -1,0 +1,22 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Stacker</title>
+<link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;gap:24px;background:#0f0c29 linear-gradient(135deg,#0f0c29,#302b63,#24243e);font-family:'Russo One',sans-serif;color:#fff;flex-wrap:wrap;touch-action:manipulation}
+canvas{height:min(80vh,600px);aspect-ratio:1/2;background:#0008;border:2px solid #fff3;border-radius:6px;box-shadow:0 0 40px #7b5cff55}
+.s{min-width:140px}.s div{font-size:12px;opacity:.6;letter-spacing:.2em}.s b{display:block;font-size:34px;margin-bottom:16px}
+.pad{display:grid;grid-template-columns:repeat(4,52px);gap:6px}.pad button{height:52px;border:0;border-radius:10px;background:#ffffff1c;color:#fff;font-size:20px}</style></head><body>
+<canvas id="c" width="200" height="400"></canvas><div class="s"><div>SCORE</div><b id="sc">0</b><div>LINES</div><b id="ln">0</b><div style="margin-bottom:10px">← → ↓ · ↑ ROTATE</div>
+<div class="pad"><button data-k="L">◀</button><button data-k="R">▶</button><button data-k="U">⟳</button><button data-k="D">▼</button></div></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),C=10,R=20,S=20;let g=Array.from({length:R},()=>Array(C).fill(0)),pc,sc=0,ln=0,drop=0,over=false;
+const SH=[[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]]],COL=['#00f0f0','#f0f000','#a000f0','#0060f0','#f0a000','#f00040','#00f060'];
+function nw(){const i=Math.random()*7|0;pc={m:SH[i],c:i+1,x:3,y:0};if(hit(pc.m,pc.x,pc.y)){g=g.map(r=>r.fill(0));sc=0;ln=0}}
+function hit(m,px,py){return m.some((r,y)=>r.some((v,X)=>v&&(px+X<0||px+X>=C||py+y>=R||(py+y>=0&&g[py+y][px+X]))))}
+function rot(m){return m[0].map((_,i)=>m.map(r=>r[i]).reverse())}
+function lock(){pc.m.forEach((r,y)=>r.forEach((v,X)=>{if(v&&pc.y+y>=0)g[pc.y+y][pc.x+X]=pc.c}));let n=0;g=g.filter(r=>{if(r.every(v=>v)){n++;return false}return true});while(g.length<R)g.unshift(Array(C).fill(0));ln+=n;sc+=[0,100,300,500,800][n];nw()}
+function mv(k){if(k==='L'&&!hit(pc.m,pc.x-1,pc.y))pc.x--;if(k==='R'&&!hit(pc.m,pc.x+1,pc.y))pc.x++;if(k==='U'){const r=rot(pc.m);if(!hit(r,pc.x,pc.y))pc.m=r;else if(!hit(r,pc.x-1,pc.y)){pc.m=r;pc.x--}}if(k==='D'){if(!hit(pc.m,pc.x,pc.y+1))pc.y++;else lock()}}
+function cell(X,y,i,a){x.fillStyle=COL[i-1];x.globalAlpha=a;x.fillRect(X*S+1,y*S+1,S-2,S-2);x.fillStyle='#fff6';x.fillRect(X*S+1,y*S+1,S-2,3);x.globalAlpha=1}
+function draw(){x.clearRect(0,0,200,400);x.strokeStyle='#ffffff08';for(let i=0;i<C;i++)for(let j=0;j<R;j++)x.strokeRect(i*S,j*S,S,S);g.forEach((r,y)=>r.forEach((v,X)=>v&&cell(X,y,v,1)));
+let gy=pc.y;while(!hit(pc.m,pc.x,gy+1))gy++;pc.m.forEach((r,y)=>r.forEach((v,X)=>{if(v){cell(pc.x+X,gy+y,pc.c,.2);cell(pc.x+X,pc.y+y,pc.c,1)}}));document.getElementById('sc').textContent=sc;document.getElementById('ln').textContent=ln}
+addEventListener('keydown',e=>{const m={ArrowLeft:'L',ArrowRight:'R',ArrowUp:'U',ArrowDown:'D'}[e.key];if(m){e.preventDefault();mv(m)}});document.querySelectorAll('[data-k]').forEach(b=>b.onpointerdown=()=>mv(b.dataset.k));
+nw();let last=0;(function f(t){if(t-last>Math.max(120,600-ln*20)){last=t;mv('D')}draw();requestAnimationFrame(f)})(0);
+</script></body></html>

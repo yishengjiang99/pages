@@ -1,0 +1,18 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Glass Weather</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;600&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:Outfit,sans-serif;color:#fff;background:#1b1340;overflow:hidden}
+.b{position:fixed;border-radius:50%;filter:blur(40px);opacity:.9;animation:mv 18s ease-in-out infinite alternate}
+.b1{width:50vmax;height:50vmax;background:#ff5ea8;left:-10vmax;top:-10vmax}.b2{width:40vmax;height:40vmax;background:#4fd1ff;right:-8vmax;bottom:-12vmax;animation-delay:-6s}.b3{width:30vmax;height:30vmax;background:#ffc94f;left:40%;top:50%;animation-delay:-12s}
+@keyframes mv{to{transform:translate(10vmax,8vmax) scale(1.2)}}
+.card{position:relative;width:min(88vw,380px);padding:28px;border-radius:28px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.loc{font-weight:600;letter-spacing:.04em}.dt{opacity:.7;font-size:14px}.tmp{font-size:110px;font-weight:200;line-height:1;margin:16px 0 0}.tmp sup{font-size:40px}
+.cond{display:flex;align-items:center;gap:10px;font-size:18px}
+.row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:24px}.row div{background:rgba(255,255,255,.1);border-radius:16px;padding:10px 0;text-align:center;font-size:13px}.row b{display:block;font-size:18px;margin-top:6px}
+.sun{width:46px;height:46px;position:relative}.sun:before{content:'';position:absolute;inset:8px;border-radius:50%;background:#ffd76a;box-shadow:0 0 20px #ffd76a}
+.cl{position:absolute;width:34px;height:16px;background:#fff;border-radius:10px;right:-4px;bottom:6px;animation:dr 4s ease-in-out infinite alternate}.cl:before{content:'';position:absolute;width:18px;height:18px;border-radius:50%;background:#fff;left:6px;top:-9px}
+@keyframes dr{to{transform:translateX(-8px)}}</style></head><body>
+<div class="b b1"></div><div class="b b2"></div><div class="b b3"></div>
+<div class="card"><div class="loc">Lisbon, PT</div><div class="dt" id="d"></div><div class="tmp">23<sup>°</sup></div>
+<div class="cond"><div class="sun"><div class="cl"></div></div>Partly sunny · H 26° L 17°</div>
+<div class="row"><div>Tue<b>24°</b></div><div>Wed<b>22°</b></div><div>Thu<b>19°</b></div><div>Fri<b>21°</b></div><div>Sat<b>25°</b></div></div></div>
+<script>document.getElementById('d').textContent=new Date().toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'})</script></body></html>

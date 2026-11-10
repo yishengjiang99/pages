@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Golden Hour</title>
+<link href="https://fonts.googleapis.com/css2?family=Marcellus&display=swap" rel="stylesheet">
+<style>html body{margin:0;overflow:hidden;background:#000;font-family:Marcellus,serif}canvas{display:block}
+.t{position:fixed;top:12vh;left:0;right:0;text-align:center;color:#fff5e1;font-size:clamp(28px,6vw,64px);letter-spacing:.2em;text-shadow:0 2px 30px #ff7b5488;pointer-events:none}</style></head><body>
+<canvas id="c"></canvas><div class="t">GOLDEN HOUR</div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H;function rs(){W=c.width=innerWidth;H=c.height=innerHeight}rs();addEventListener('resize',rs);
+(function f(ms){const t=ms/1000,hz=H*.58;const sk=x.createLinearGradient(0,0,0,hz);sk.addColorStop(0,'#2b1b4a');sk.addColorStop(.45,'#c1446c');sk.addColorStop(.8,'#ff9a5a');sk.addColorStop(1,'#ffd28a');x.fillStyle=sk;x.fillRect(0,0,W,hz);
+const sr=Math.min(W,H)*.11,sy=hz-sr*.45;const sg=x.createRadialGradient(W/2,sy,0,W/2,sy,sr*4);sg.addColorStop(0,'#fff3c4');sg.addColorStop(.25,'#ffd28a88');sg.addColorStop(1,'#ffd28a00');x.fillStyle=sg;x.fillRect(0,0,W,hz);
+x.fillStyle='#fff1c1';x.beginPath();x.arc(W/2,sy,sr,0,7);x.fill();
+x.fillStyle='#ffffff18';for(let i=0;i<5;i++){const cx=((t*6*(i+1)+i*300)%(W+400))-200,cy=H*.12+i*H*.07;x.beginPath();x.ellipse(cx,cy,140+i*30,10+i*2,0,0,7);x.fill()}
+const se=x.createLinearGradient(0,hz,0,H);se.addColorStop(0,'#7a3b5e');se.addColorStop(1,'#1a1030');x.fillStyle=se;x.fillRect(0,hz,W,H-hz);
+for(let y=hz;y<H;y+=3){const p=(y-hz)/(H-hz),w=sr*(1.2+p*3)*(.6+.4*Math.sin(y*.3+t*3)),off=Math.sin(y*.11+t*2)*10*p;x.fillStyle=`rgba(255,${200-p*80},${140-p*60},${.75-p*.55})`;x.fillRect(W/2-w/2+off,y,w,1.6)}
+for(let k=0;k<5;k++){x.strokeStyle=`rgba(255,220,180,${.08+k*.02})`;x.lineWidth=1;x.beginPath();const yy=hz+(H-hz)*(k+1)/6;for(let X=0;X<=W;X+=10){const Y=yy+Math.sin(X*.02+t*(1+k*.3)+k)*(2+k);X?x.lineTo(X,Y):x.moveTo(X,Y)}x.stroke()}
+const bx=((t*18)%(W+200))-100,by=hz+(H-hz)*.25+Math.sin(t*1.5)*3;x.fillStyle='#1a1030';x.beginPath();x.moveTo(bx-30,by);x.lineTo(bx+30,by);x.lineTo(bx+22,by+8);x.lineTo(bx-22,by+8);x.fill();x.beginPath();x.moveTo(bx,by-50);x.lineTo(bx,by);x.lineTo(bx+26,by-4);x.fill();x.beginPath();x.moveTo(bx-2,by-44);x.lineTo(bx-2,by-2);x.lineTo(bx-20,by-4);x.fill();
+x.fillStyle='#1a1030';x.beginPath();x.moveTo(W*.78,hz);x.quadraticCurveTo(W*.88,hz-H*.06,W,hz-H*.03);x.lineTo(W,hz);x.fill();requestAnimationFrame(f)})(0);
+</script></body></html>

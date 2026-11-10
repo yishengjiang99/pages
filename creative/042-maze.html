@@ -1,0 +1,20 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Labyrinth</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#f4f1ea;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;gap:12px}
+canvas{width:min(92vw,78vh);aspect-ratio:1;background:#f4f1ea}h1{margin:0;font-size:clamp(30px,6vw,56px);letter-spacing:.1em;color:#222}h1 span{color:#ff4f2e}
+button{font:inherit;font-size:20px;letter-spacing:.1em;background:#222;color:#f4f1ea;border:0;padding:6px 18px;cursor:pointer}</style></head><body>
+<h1>LABY<span>RINTH</span></h1><canvas id="c" width="840" height="840"></canvas><button onclick="go()">NEW MAZE</button>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),N=28,S=840/N;let run=0;
+async function go(){const id=++run;const wall=Array.from({length:N*N},()=>[1,1,1,1]),vis=new Uint8Array(N*N),st=[0];vis[0]=1;x.fillStyle='#f4f1ea';x.fillRect(0,0,840,840);
+const sleep=()=>new Promise(r=>requestAnimationFrame(r));let k=0;
+while(st.length){if(id!==run)return;const cu=st[st.length-1],cx=cu%N,cy=cu/N|0;const nb=[[0,-1,0,2],[1,0,1,3],[0,1,2,0],[-1,0,3,1]].filter(([dx,dy])=>{const nx=cx+dx,ny=cy+dy;return nx>=0&&ny>=0&&nx<N&&ny<N&&!vis[ny*N+nx]});
+if(nb.length){const[dx,dy,a,b]=nb[Math.random()*nb.length|0],n=(cy+dy)*N+cx+dx;wall[cu][a]=0;wall[n][b]=0;vis[n]=1;st.push(n)}else st.pop();
+if(++k%8===0){draw(wall,st);await sleep()}}draw(wall,[]);
+const prev=new Int32Array(N*N).fill(-1),q=[0];prev[0]=0;while(q.length){const cu=q.shift();if(cu===N*N-1)break;const cx=cu%N,cy=cu/N|0;[[0,-1,0],[1,0,1],[0,1,2],[-1,0,3]].forEach(([dx,dy,w])=>{if(!wall[cu][w]){const n=(cy+dy)*N+cx+dx;if(prev[n]<0){prev[n]=cu;q.push(n)}}})}
+const path=[];for(let p=N*N-1;p!==0;p=prev[p])path.push(p);path.push(0);path.reverse();x.strokeStyle='#ff4f2e';x.lineWidth=S*.35;x.lineCap='round';x.lineJoin='round';
+for(let i=1;i<path.length;i++){if(id!==run)return;x.beginPath();x.moveTo((path[i-1]%N+.5)*S,((path[i-1]/N|0)+.5)*S);x.lineTo((path[i]%N+.5)*S,((path[i]/N|0)+.5)*S);x.stroke();if(i%2)await sleep()}}
+function draw(w,st){x.fillStyle='#f4f1ea';x.fillRect(0,0,840,840);x.fillStyle='#ffd9cf';st.forEach(i=>x.fillRect((i%N)*S,(i/N|0)*S,S,S));x.strokeStyle='#222';x.lineWidth=3;x.lineCap='square';x.beginPath();
+w.forEach((v,i)=>{const X=(i%N)*S,Y=(i/N|0)*S;if(v[0]&&i>0){x.moveTo(X,Y);x.lineTo(X+S,Y)}if(v[1]){x.moveTo(X+S,Y);x.lineTo(X+S,Y+S)}if(v[2]&&i<N*N-1){x.moveTo(X,Y+S);x.lineTo(X+S,Y+S)}if(v[3]){x.moveTo(X,Y);x.lineTo(X,Y+S)}});x.stroke()}
+go();
+</script></body></html>

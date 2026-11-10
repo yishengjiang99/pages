@@ -1,0 +1,24 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Studio Room</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@800&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#ffe8d6;display:grid;place-items:center;perspective:1200px;font-family:Nunito,sans-serif;touch-action:none}
+.w{--s:min(60vmin,380px);position:relative;width:var(--s);height:var(--s);transform-style:preserve-3d;transform:rotateX(-30deg) rotateY(-45deg);cursor:grab}
+.w *{position:absolute;transform-style:preserve-3d}.fl{width:var(--s);height:var(--s);background:repeating-linear-gradient(90deg,#c58c5a 0 calc(var(--s)/8),#b97d4c calc(var(--s)/8) calc(var(--s)/4));transform:rotateX(90deg) translateZ(calc(var(--s)/-2))}
+.wl{width:var(--s);height:var(--s);background:#a8d5ba;transform:translateZ(calc(var(--s)/-2))}.wr{width:var(--s);height:var(--s);background:#8cc7a3;transform:rotateY(90deg) translateZ(calc(var(--s)/-2))}
+.win{left:20%;top:15%;width:35%;height:40%;background:linear-gradient(#bde0fe,#fff);border:6px solid #fff;box-sizing:border-box;transform:translateZ(1px)}.win:after{content:'';position:absolute;left:50%;top:0;bottom:0;width:4px;margin-left:-2px;background:#fff}
+.art{left:25%;top:18%;width:30%;height:26%;background:conic-gradient(#ff6b6b,#feca57,#48dbfb,#ff6b6b);border:5px solid #333;box-sizing:border-box;transform:translateZ(1px)}
+.box{--w:40px;--h:40px;--d:40px}.box>i{display:block;position:absolute}
+.rug{left:30%;top:30%;width:45%;height:45%;border-radius:50%;background:repeating-radial-gradient(#e76f51 0 10px,#f4a261 10px 20px);transform:translateZ(1px)}
+.lbl{position:fixed;bottom:20px;left:0;right:0;text-align:center;color:#6d4c41;letter-spacing:.2em;font-size:13px}</style></head><body>
+<div class="w" id="w"><div class="fl"><div class="rug"></div></div><div class="wl"><div class="win"></div></div><div class="wr"><div class="art"></div></div><div id="furn"></div></div><div class="lbl">DRAG TO ROTATE THE ROOM</div>
+<script>
+const w=document.getElementById('w'),furn=document.getElementById('furn'),S=w.offsetWidth;
+function box(x,y,z,W,H,D,c1,c2,c3){const g=document.createElement('div');g.style.transform=`translate3d(${x}px,${y}px,${z}px)`;
+const f=(w,h,t,c)=>`<i style="width:${w}px;height:${h}px;background:${c};transform:${t}"></i>`;
+g.innerHTML=f(W,H,`translateZ(${D/2}px) translate(${-W/2}px,${-H/2}px)`,c1)+f(W,H,`translate(${-W/2}px,${-H/2}px) translateZ(${-D/2}px)`,c1)+f(D,H,`translate(${-D/2}px,${-H/2}px) rotateY(90deg) translateZ(${W/2}px)`,c2)+f(D,H,`translate(${-D/2}px,${-H/2}px) rotateY(-90deg) translateZ(${W/2}px)`,c2)+f(W,D,`translate(${-W/2}px,${-D/2}px) rotateX(90deg) translateZ(${H/2}px)`,c3);furn.appendChild(g)}
+box(S*.55,S*.92,S*-.36,S*.42,S*.16,S*.26,'#5e60ce','#4ea8de','#6930c3');box(S*.55,S*.8,S*-.47,S*.42,S*.4,S*.06,'#5e60ce','#4ea8de','#7400b8');
+box(S*.32,S*.87,S*-.36,S*.05,S*.26,S*.26,'#4ea8de','#5e60ce','#6930c3');box(S*.78,S*.87,S*-.36,S*.05,S*.26,S*.26,'#4ea8de','#5e60ce','#6930c3');
+box(S*.9,S*.88,S*-.1,S*.12,S*.24,S*.12,'#e9c46a','#f4a261','#e76f51');box(S*.9,S*.68,S*-.1,S*.04,S*.16,S*.04,'#264653','#2a9d8f','#264653');box(S*.9,S*.57,S*-.1,S*.1,S*.06,S*.1,'#ffd166','#ffb703','#fff3b0');
+box(S*.1,S*.6,S*.1,S*.2,S*.8,S*.3,'#8d6e63','#6d4c41','#a1887f');box(S*.2,S*.35,S*.1,S*.005,S*.08,S*.2,'#e63946','#e63946','#e63946');
+let rx=-30,ry=-45,d=false,lx,ly;addEventListener('pointerdown',e=>{d=true;lx=e.clientX;ly=e.clientY});addEventListener('pointerup',()=>d=false);
+addEventListener('pointermove',e=>{if(!d)return;ry=Math.max(-90,Math.min(0,ry+(e.clientX-lx)*.4));rx=Math.max(-70,Math.min(-5,rx-(e.clientY-ly)*.4));lx=e.clientX;ly=e.clientY;w.style.transform=`rotateX(${rx}deg) rotateY(${ry}deg)`});
+</script></body></html>

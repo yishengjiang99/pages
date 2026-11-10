@@ -1,0 +1,19 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Summer Polaroids</title>
+<link href="https://fonts.googleapis.com/css2?family=Reenie+Beanie&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#b98b5e;background-image:radial-gradient(#0000 0,#00000022 100%),repeating-radial-gradient(circle at 30% 40%,#b98b5e 0 4px,#b3845a 4px 7px);font-family:'Reenie Beanie',cursive;touch-action:none}
+.p{position:absolute;width:min(40vw,200px);background:#fbfbf6;padding:12px 12px 46px;box-shadow:0 8px 20px #0005;cursor:grab;user-select:none;transition:box-shadow .2s}
+.p:active{cursor:grabbing;box-shadow:0 20px 40px #0006}.ph{aspect-ratio:1;position:relative;overflow:hidden;filter:sepia(.25) saturate(1.2) contrast(.95)}
+.p span{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:clamp(20px,4vw,28px);color:#333}
+.pin{position:absolute;top:-8px;left:50%;width:16px;height:16px;margin-left:-8px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ff8a80,#c62828);box-shadow:0 3px 4px #0005}
+.s1{background:linear-gradient(#ffcf71 0 40%,#f2994a 40% 55%,#2d9cdb 55%)}.s1:after{content:'';position:absolute;left:30%;top:22%;width:30%;aspect-ratio:1;border-radius:50%;background:#fff6c8}
+.s2{background:linear-gradient(#a1c4fd,#c2e9fb 60%,#5b8c51 60%)}.s2:after{content:'';position:absolute;left:10%;bottom:40%;width:80%;height:30%;background:#2f5130;clip-path:polygon(0 100%,15% 20%,30% 70%,50% 0,70% 60%,85% 30%,100% 100%)}
+.s3{background:#2c3e50 radial-gradient(circle at 70% 30%,#f1c40f 0 8%,#0000 9%)}.s3:after{content:'';position:absolute;inset:50% 0 0;background:repeating-linear-gradient(#e67e22 0 3px,#d35400 3px 8px);opacity:.8}
+.s4{background:linear-gradient(135deg,#ff9a9e,#fecfef)}.s4:after{content:'♥';position:absolute;inset:0;display:grid;place-items:center;font-size:90px;color:#fff8}
+.s5{background:#76b852 repeating-linear-gradient(90deg,#0000 0 18px,#ffffff22 18px 20px)}.s5:after{content:'';position:absolute;left:35%;top:35%;width:30%;aspect-ratio:1;border-radius:50%;background:#fff;box-shadow:0 0 0 6px #333 inset}
+.s6{background:linear-gradient(#0f2027,#2c5364)}.s6:after{content:'';position:absolute;inset:0;background:radial-gradient(1px 1px at 20% 30%,#fff,#0000),radial-gradient(1px 1px at 60% 20%,#fff,#0000),radial-gradient(2px 2px at 80% 60%,#fff,#0000),radial-gradient(1px 1px at 40% 70%,#fff,#0000)}</style></head><body>
+<script>
+const items=[['s1','Algarve sunset'],['s2','the hike, day 3'],['s3','night market'],['s4','us ♥'],['s5','backyard league'],['s6','stars over Joshua Tree']];let z=1;
+items.forEach(([c,t],i)=>{const p=document.createElement('div');p.className='p';p.innerHTML=`<div class="pin"></div><div class="ph ${c}"></div><span>${t}</span>`;
+const W=innerWidth,H=innerHeight;p.style.left=(W*.06+(i%3)*W*.3+Math.random()*30)+'px';p.style.top=(H*.06+(i/3|0)*H*.45+Math.random()*30)+'px';p.style.transform=`rotate(${(Math.random()-.5)*16}deg)`;
+let ox,oy,d=false;p.onpointerdown=e=>{d=true;p.setPointerCapture(e.pointerId);ox=e.clientX-p.offsetLeft;oy=e.clientY-p.offsetTop;p.style.zIndex=++z};p.onpointermove=e=>{if(d){p.style.left=e.clientX-ox+'px';p.style.top=e.clientY-oy+'px'}};p.onpointerup=()=>d=false;document.body.appendChild(p)});
+</script></body></html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lucky 7s</title>
+<link href="https://fonts.googleapis.com/css2?family=Rye&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;display:grid;place-items:center;background:#3a0d0d radial-gradient(circle,#7a1a1a,#2a0808 70%);font-family:Rye,serif;color:#ffd166}
+.m{background:linear-gradient(#c0392b,#7b1e14);padding:26px;border-radius:30px 30px 14px 14px;box-shadow:0 0 0 8px #ffd166,0 0 0 12px #8a5a10,0 30px 60px #000a;text-align:center;position:relative}
+.bulbs{position:absolute;inset:-4px;border-radius:inherit;pointer-events:none;background:radial-gradient(circle,#fff6c4 3px,#0000 4px) 0 0/24px 24px;-webkit-mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);padding:10px;animation:bl .6s steps(2) infinite}
+@keyframes bl{50%{filter:brightness(.4)}}h1{margin:0 0 14px;font-size:clamp(28px,6vw,46px);text-shadow:3px 3px 0 #7b1e14,0 0 20px #ffd166}
+.rs{display:flex;gap:10px;background:#1a0505;padding:10px;border-radius:10px;box-shadow:inset 0 0 20px #000}.r{width:min(22vw,100px);height:min(30vw,140px);background:linear-gradient(#ccc,#fff 30% 70%,#ccc);border-radius:6px;overflow:hidden;position:relative}
+.st{position:absolute;left:0;right:0;top:0;display:flex;flex-direction:column}.st div{height:min(30vw,140px);display:grid;place-items:center;font-size:min(14vw,64px)}
+button{margin-top:18px;font:inherit;font-size:24px;padding:10px 40px;border:0;border-radius:40px;background:linear-gradient(#ffd166,#e0a800);color:#7b1e14;box-shadow:0 6px 0 #8a5a10;cursor:pointer}button:active{transform:translateY(4px);box-shadow:0 2px 0 #8a5a10}
+.cr{margin-top:12px;font-size:20px}#msg{min-height:1.4em;font-size:20px;margin-top:8px;color:#fff}</style></head><body>
+<div class="m"><div class="bulbs"></div><h1>LUCKY ★ 7s</h1><div class="rs"><div class="r"><div class="st"></div></div><div class="r"><div class="st"></div></div><div class="r"><div class="st"></div></div></div>
+<button id="sp">SPIN</button><div class="cr">CREDITS: <span id="cr">100</span> <small style="font-size:12px;opacity:.7">(play money)</small></div><div id="msg"></div></div>
+<script>
+const S=['🍒','🍋','🔔','⭐','7️⃣','🍉','💎'],R=[...document.querySelectorAll('.st')];let cr=100,busy=false;
+R.forEach(r=>{for(let i=0;i<30;i++){const d=document.createElement('div');d.textContent=S[Math.random()*S.length|0];r.appendChild(d)}});
+document.getElementById('sp').onclick=async()=>{if(busy||cr<5)return;busy=true;cr-=5;document.getElementById('cr').textContent=cr;document.getElementById('msg').textContent='';const res=[];
+await Promise.all(R.map((r,i)=>new Promise(ok=>{const h=r.firstChild.offsetHeight,pick=Math.random()<.25&&i?res[0]:S[Math.random()*S.length|0];res.push(pick);const idx=24+(Math.random()*4|0);r.children[idx].textContent=pick;
+r.style.transition='none';r.style.transform='translateY(0)';void r.offsetWidth;r.style.transition=`transform ${1.2+i*.5}s cubic-bezier(.2,.9,.3,1.05)`;r.style.transform=`translateY(${-idx*h}px)`;setTimeout(ok,(1.2+i*.5)*1000)})));
+let win=0;if(res[0]===res[1]&&res[1]===res[2])win=res[0]==='7️⃣'?250:res[0]==='💎'?150:60;else if(res[0]===res[1]||res[1]===res[2])win=10;cr+=win;document.getElementById('cr').textContent=cr;
+document.getElementById('msg').textContent=win>=60?'★ JACKPOT +'+win+' ★':win?'Nice! +'+win:'So close...';busy=false};
+</script></body></html>

@@ -1,0 +1,20 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rain on Glass</title>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo&display=swap" rel="stylesheet">
+<style>html body{margin:0;overflow:hidden;background:#0a0e18;font-family:'Nanum Myeongjo',serif}canvas{position:fixed;inset:0;display:block}
+.t{position:fixed;left:7vw;bottom:10vh;color:#dfe8ff;font-size:clamp(20px,3.5vw,38px);max-width:16em;text-shadow:0 2px 20px #000;z-index:2}.t small{display:block;font-size:.4em;letter-spacing:.3em;opacity:.6;margin-top:10px}</style></head><body>
+<canvas id="bg"></canvas><canvas id="c"></canvas><div class="t">The city is still out there. It's just blurry for a while.<small>SEOUL · 23:41 · RAIN</small></div>
+<script>
+const bg=document.getElementById('bg'),b=bg.getContext('2d'),c=document.getElementById('c'),x=c.getContext('2d');let W,H,D=[];
+function rs(){W=bg.width=c.width=innerWidth;H=bg.height=c.height=innerHeight;b.fillStyle='#0a0e18';b.fillRect(0,0,W,H);const cols=['#ff9f43','#ff4d6d','#4dabf7','#ffe066','#b197fc','#63e6be'];
+for(let i=0;i<140;i++){const r=10+Math.random()*60,X=Math.random()*W,Y=H*.25+Math.random()*H*.7,col=cols[Math.random()*6|0];const g=b.createRadialGradient(X,Y,0,X,Y,r);g.addColorStop(0,col+'aa');g.addColorStop(1,col+'00');b.fillStyle=g;b.beginPath();b.arc(X,Y,r,0,7);b.fill()}}
+rs();addEventListener('resize',rs);
+function drop(){D.push({x:Math.random()*W,y:Math.random()*H*.9-40,r:2+Math.random()**3*12,v:0,trail:[]})}for(let i=0;i<250;i++)drop();
+(function f(){x.clearRect(0,0,W,H);if(Math.random()<.6)drop();
+for(const d of D){if(d.r>6&&Math.random()<.04)d.v+=.6+Math.random();d.v*=.96;if(d.v>.2){d.y+=d.v*d.r*.25;d.x+=(Math.random()-.5)*.6;if(Math.random()<.3)d.trail.push({x:d.x,y:d.y-d.r,r:d.r*.25,l:1})}
+for(const t of d.trail){t.l-=.004;x.fillStyle=`rgba(200,220,255,${t.l*.25})`;x.beginPath();x.arc(t.x,t.y,t.r,0,7);x.fill()}d.trail=d.trail.filter(t=>t.l>0);
+x.save();x.beginPath();x.ellipse(d.x,d.y,d.r,d.r*1.1,0,0,7);x.clip();x.translate(d.x,d.y);x.scale(-1,-1);x.drawImage(bg,d.x-d.r*4,d.y-d.r*4,d.r*8,d.r*8,-d.r,-d.r,d.r*2,d.r*2);x.restore();
+x.strokeStyle='rgba(0,0,0,.35)';x.lineWidth=1;x.beginPath();x.ellipse(d.x,d.y+.5,d.r,d.r*1.1,0,0,3.14);x.stroke();x.fillStyle='rgba(255,255,255,.5)';x.beginPath();x.arc(d.x-d.r*.3,d.y-d.r*.4,d.r*.18,0,7);x.fill()}
+for(let i=0;i<D.length;i++)for(let j=i+1;j<D.length&&j<i+40;j++){const a=D[i],e=D[j];if(a.r&&e.r&&Math.hypot(a.x-e.x,a.y-e.y)<(a.r+e.r)*.8){const big=a.r>e.r?a:e,sm=big===a?e:a;big.r=Math.min(18,Math.sqrt(big.r**2+sm.r**2));sm.r=0}}
+D=D.filter(d=>d.r>0&&d.y<H+30);if(D.length>600)D.splice(0,D.length-600);
+bg.style.filter='blur(14px) brightness(.9)';requestAnimationFrame(f)})();
+</script></body></html>

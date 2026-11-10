@@ -1,0 +1,13 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Composition No. ∞</title>
+<style>html body{margin:0;height:100vh;background:#111;display:flex;align-items:center;justify-content:center;flex-direction:column;font-family:Futura,'Century Gothic',sans-serif}
+#m{width:min(90vw,80vh);aspect-ratio:1;position:relative;background:#111;cursor:pointer;box-shadow:0 0 0 20px #f3efe3,0 0 0 22px #bbb}
+#m div{position:absolute;transition:all .8s cubic-bezier(.6,0,.2,1)}.cap{color:#ccc;font-size:12px;letter-spacing:.3em;margin-top:44px}</style></head><body>
+<div id="m"></div><div class="cap">COMPOSITION NO. <span id="n">1</span> · CLICK TO REPAINT</div>
+<script>
+const m=document.getElementById('m');let n=1;
+function split(x,y,w,h,d,out){if(d>4||(w<18&&h<18)||(d>1&&Math.random()<.25)){out.push([x,y,w,h]);return}
+const v=w>h?Math.random()<.8:Math.random()<.2;const r=.25+Math.random()*.5;if(v){split(x,y,w*r,h,d+1,out);split(x+w*r,y,w*(1-r),h,d+1,out)}else{split(x,y,w,h*r,d+1,out);split(x,y+h*r,w,h*(1-r),d+1,out)}}
+function paint(){const out=[];split(0,0,100,100,0,out);m.innerHTML='';const col=['#f3efe3','#f3efe3','#f3efe3','#f3efe3','#d62718','#1d3fa0','#f5c518','#f3efe3','#111'];
+out.forEach(([x,y,w,h])=>{const d=document.createElement('div');d.style.cssText=`left:calc(${x}% + 5px);top:calc(${y}% + 5px);width:calc(${w}% - 10px);height:calc(${h}% - 10px);background:${col[Math.random()*col.length|0]}`;m.appendChild(d)});document.getElementById('n').textContent=n++}
+m.onclick=paint;paint();
+</script></body></html>

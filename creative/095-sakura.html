@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hanami</title>
+<link href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#f6efe6;font-family:'Yuji Syuku',serif}canvas{position:fixed;inset:0}
+svg.br{position:fixed;left:-2vw;top:-4vh;width:min(70vw,620px)}.t{position:fixed;right:8vw;top:12vh;writing-mode:vertical-rl;font-size:clamp(28px,5vw,54px);color:#2b2b2b;letter-spacing:.3em}
+.t small{font-size:.35em;color:#b5374a;margin-top:1em}.seal{display:inline-grid;writing-mode:horizontal-tb;margin-top:.8em;font-size:16px;letter-spacing:0;width:44px;height:44px;background:#b5374a;color:#f6efe6;display:grid;place-items:center;font-size:14px;border-radius:4px}
+.mt{position:fixed;bottom:0;left:0;right:0;height:30vh;background:linear-gradient(#0000,#e9dfd2);}</style></head><body>
+<div class="mt"></div>
+<svg class="br" viewBox="0 0 600 400" fill="none"><path d="M0 60 C120 80 200 120 300 110 S480 150 560 220" stroke="#2b2420" stroke-width="12" stroke-linecap="round"/><path d="M200 105 C230 160 250 200 240 260" stroke="#2b2420" stroke-width="6" stroke-linecap="round"/><path d="M360 125 C400 100 440 70 470 40" stroke="#2b2420" stroke-width="5" stroke-linecap="round"/><path d="M90 70 C110 120 100 160 120 190" stroke="#2b2420" stroke-width="4" stroke-linecap="round"/><g id="bl"></g></svg>
+<canvas id="c"></canvas><div class="t">花より団子<span class="seal">春</span></div>
+<script>
+const bl=document.getElementById('bl');const pts=[[60,70],[120,78],[180,95],[240,110],[300,110],[350,120],[420,140],[480,170],[540,205],[205,140],[230,190],[245,240],[395,105],[440,70],[468,42],[100,110],[112,160],[120,190],[260,100],[330,115]];
+pts.forEach(([X,Y])=>{for(let k=0;k<3;k++){const ox=X+(Math.random()-.5)*36,oy=Y+(Math.random()-.5)*30,r=6+Math.random()*6;let g='';for(let i=0;i<5;i++){const a=i*72*Math.PI/180+Math.random();g+=`<ellipse cx="${ox+Math.cos(a)*r*.7}" cy="${oy+Math.sin(a)*r*.7}" rx="${r*.6}" ry="${r*.45}" transform="rotate(${a*57.3} ${ox+Math.cos(a)*r*.7} ${oy+Math.sin(a)*r*.7})" fill="${Math.random()<.5?'#f7c6d0':'#f4aebd'}"/>`}bl.innerHTML+=g+`<circle cx="${ox}" cy="${oy}" r="${r*.2}" fill="#b5374a"/>`}});
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,P=[];function rs(){W=c.width=innerWidth;H=c.height=innerHeight}rs();addEventListener('resize',rs);let wind=0;addEventListener('pointermove',e=>wind=(e.clientX/W-.5)*2);
+for(let i=0;i<70;i++)P.push({x:Math.random()*W,y:Math.random()*H,s:6+Math.random()*7,r:Math.random()*6,vr:(Math.random()-.5)*.05,vy:.5+Math.random(),ph:Math.random()*6});
+(function f(t){x.clearRect(0,0,W,H);for(const p of P){p.y+=p.vy;p.x+=Math.sin(t/1000+p.ph)*.6+wind*1.5+.3;p.r+=p.vr;if(p.y>H+20){p.y=-20;p.x=Math.random()*W*.8}if(p.x>W+20)p.x=-20;if(p.x<-20)p.x=W+20;
+x.save();x.translate(p.x,p.y);x.rotate(p.r);x.scale(1,Math.abs(Math.sin(t/600+p.ph))*.6+.4);x.fillStyle='#f4aebd';x.beginPath();x.moveTo(0,-p.s);x.quadraticCurveTo(p.s*.8,-p.s*.2,0,p.s);x.quadraticCurveTo(-p.s*.8,-p.s*.2,0,-p.s);x.fill();x.restore()}requestAnimationFrame(f)})(0);
+</script></body></html>

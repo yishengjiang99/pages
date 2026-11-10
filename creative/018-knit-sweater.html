@@ -1,0 +1,21 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ugly Sweater Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Sniglet:wght@800&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#7a1f2b;font-family:Sniglet,cursive;color:#fff}
+#k{position:fixed;inset:0;width:100%;height:100%}.lbl{position:relative;margin:12vh auto 0;width:max-content;max-width:90vw;background:#f4ead5;color:#7a1f2b;padding:14px 30px;border-radius:12px;font-size:clamp(26px,6vw,60px);box-shadow:0 0 0 6px #f4ead5,0 0 0 9px #7a1f2b,0 0 0 12px #f4ead5,0 20px 40px #0006;text-align:center;transform:rotate(-2deg)}
+.lbl small{display:block;font-size:.35em;letter-spacing:.2em}.b{position:relative;display:block;margin:30px auto;font:inherit;font-size:18px;padding:10px 24px;border:0;border-radius:30px;background:#f4ead5;color:#7a1f2b;cursor:pointer}</style></head><body>
+<svg id="k"></svg><div class="lbl">Ugly Sweater<small>HAND KNIT · 100% PIXEL WOOL</small></div><button class="b" onclick="draw()">RE-KNIT</button>
+<script>
+const P=[['#7a1f2b','#f4ead5','#2f5d3a'],['#1e3a5f','#f4ead5','#c9a227'],['#2f5d3a','#f4ead5','#b3262e'],['#3b2a4f','#f4ead5','#e88aa2']];
+const motifs=[ // 9x9 bit motifs
+['000010000','000111000','001111100','000111000','001111100','011111110','000111000','000111000','000000000'],
+['100000001','010010010','001010100','000111000','111111111','000111000','001010100','010010010','100000001'],
+['000000000','011000110','111101111','111111111','011111110','001111100','000111000','000010000','000000000'],
+['001000100','001111100','011010110','011111110','001111100','000111000','011111110','110000011','000000000']];
+function draw(){const s=document.getElementById('k'),W=innerWidth,H=innerHeight,c=P[Math.random()*P.length|0],st=Math.max(10,Math.min(W,H)/50|0),cols=Math.ceil(W/st)+1,rows=Math.ceil(H/st)+1;
+document.body.style.background=c[0];let o='<defs><path id="v" d="M0 0 Q.5 1.1 0 1.6 M1 0 Q.5 1.1 1 1.6" /></defs>',band=Math.random()*9|0,m=motifs[Math.random()*4|0];
+for(let r=0;r<rows;r++){for(let q=0;q<cols;q++){let col=c[0];const br=r%24;
+if(br===0||br===2)col=c[1];else if(br===1)col=(q%2)?c[2]:c[1];else if(br>=4&&br<13){const mr=br-4,mq=q%12;if(mq<9&&m[mr][mq]==='1')col=c[1]}
+else if(br>=14&&br<22){if((Math.abs((q%8)-3.5)+Math.abs(br-17.5))<3.2)col=((q+br)%2)?c[2]:c[1]}
+o+=`<g transform="translate(${q*st} ${r*st}) scale(${st})" fill="${col}"><path d="M.05 .05 Q.25 .9 .5 .95 Q.75 .9 .95 .05 Q.5 .35 .05 .05Z" stroke="#0003" stroke-width=".06"/></g>`}}s.innerHTML=o;document.querySelector('.lbl').style.color=c[0]}
+draw();addEventListener('resize',draw);
+</script></body></html>

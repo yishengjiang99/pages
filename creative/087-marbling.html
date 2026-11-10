@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Suminagashi</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500&display=swap" rel="stylesheet">
+<style>html body{margin:0;overflow:hidden;background:#f3ecdf;font-family:'Shippori Mincho',serif;touch-action:none}canvas{display:block;cursor:crosshair}
+.t{position:fixed;left:24px;bottom:22px;color:#2c2a29;font-size:13px;letter-spacing:.3em;background:#f3ecdfcc;padding:6px 10px}</style></head><body>
+<canvas id="c"></canvas><div class="t">墨流し · TAP TO DROP INK · DRAG TO COMB</div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,D=[];const cols=['#1d3557','#c1121f','#2c2a29','#457b9d','#e9c46a','#2a9d8f'];let ci=0;
+function rs(){W=c.width=innerWidth;H=c.height=innerHeight}rs();addEventListener('resize',rs);
+function drop(cx,cy,r){for(const d of D)for(const p of d.p){const dx=p[0]-cx,dy=p[1]-cy,m=Math.hypot(dx,dy)||1e-6,k=Math.sqrt(1+r*r/(m*m));p[0]=cx+dx*k;p[1]=cy+dy*k}
+const p=[];for(let i=0;i<120;i++){const a=i/120*Math.PI*2;p.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r])}D.push({p,c:cols[ci++%cols.length]});if(D.length>60)D.shift()}
+function comb(x0,y0,dx,dy){const L=Math.hypot(dx,dy);if(L<1)return;const ux=dx/L,uy=dy/L,z=L*1.2,u=0.05;for(const d of D)for(const p of d.p){const dist=Math.abs((p[0]-x0)*uy-(p[1]-y0)*ux),f=z*Math.pow(.5,dist/18)*.15;p[0]+=ux*f;p[1]+=uy*f}}
+function draw(){x.fillStyle='#f3ecdf';x.fillRect(0,0,W,H);for(const d of D){x.fillStyle=d.c;x.beginPath();d.p.forEach((q,i)=>i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]));x.closePath();x.fill()}requestAnimationFrame(draw)}
+let last=null,moved=false;c.addEventListener('pointerdown',e=>{last=[e.clientX,e.clientY];moved=false});c.addEventListener('pointermove',e=>{if(!last)return;const dx=e.clientX-last[0],dy=e.clientY-last[1];if(Math.hypot(dx,dy)>3){moved=true;comb(last[0],last[1],dx,dy);last=[e.clientX,e.clientY]}});
+addEventListener('pointerup',e=>{if(last&&!moved)drop(e.clientX,e.clientY,20+Math.random()*40);last=null});
+for(let i=0;i<14;i++)drop(innerWidth/2+(Math.random()-.5)*60,innerHeight/2+(Math.random()-.5)*60,30+i*4);for(let k=0;k<6;k++)comb(0,innerHeight*(k+.5)/6,innerWidth*(k%2?-1:1)*.4,0);draw();
+</script></body></html>

@@ -1,0 +1,10 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Moiré</title>
+<style>html{overflow:hidden}html body{margin:0;height:100vh;overflow:hidden;background:#f5f5f0;display:grid;place-items:center;touch-action:none}
+.L{position:absolute;width:150vmax;height:150vmax;border-radius:50%;background:repeating-radial-gradient(circle,#111 0 2px,#0000 2px 7px)}
+.L2{mix-blend-mode:multiply;transition:transform .05s}.L3{background:repeating-linear-gradient(0deg,#e63946 0 2px,#0000 2px 6px);border-radius:0;mix-blend-mode:multiply;opacity:.8}
+.t{position:fixed;bottom:20px;font:700 12px system-ui;letter-spacing:.4em;color:#111;background:#f5f5f0;padding:6px 12px}</style></head><body>
+<div class="L"></div><div class="L L2" id="b"></div><div class="L L3" id="c"></div><div class="t">MOVE · INTERFERENCE</div>
+<script>
+const b=document.getElementById('b'),c=document.getElementById('c');let tx=0,ty=0,auto=true;addEventListener('pointermove',e=>{auto=false;tx=(e.clientX/innerWidth-.5)*80;ty=(e.clientY/innerHeight-.5)*80});
+(function f(t){if(auto){tx=Math.cos(t/1500)*30;ty=Math.sin(t/1100)*30}b.style.transform=`translate(${tx}px,${ty}px)`;c.style.transform=`rotate(${tx*.15+t/400}deg)`;requestAnimationFrame(f)})(0);
+</script></body></html>

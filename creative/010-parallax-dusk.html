@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dusk Descent</title>
+<link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@200;600&display=swap" rel="stylesheet">
+<style>html body{margin:0;font-family:'Josefin Sans',sans-serif;background:#120a1f;color:#fff}
+.hero{height:100vh;position:sticky;top:0;overflow:hidden;background:linear-gradient(#2b1055,#7597de 70%,#f6c1a6)}
+.lay{position:absolute;left:-5%;width:110%;bottom:0;will-change:transform}
+h1{position:absolute;top:30%;width:100%;text-align:center;font-weight:200;font-size:clamp(40px,10vw,130px);letter-spacing:.3em;margin:0;text-indent:.3em}
+.stars{position:absolute;inset:0;background-image:radial-gradient(1px 1px at 20% 30%,#fff,#0000),radial-gradient(1px 1px at 70% 10%,#fff,#0000),radial-gradient(1.5px 1.5px at 40% 20%,#fff,#0000),radial-gradient(1px 1px at 85% 35%,#fff,#0000),radial-gradient(1px 1px at 10% 8%,#fff,#0000),radial-gradient(1px 1px at 55% 40%,#fff,#0000)}
+.moon{position:absolute;right:18%;top:12%;width:9vmin;height:9vmin;border-radius:50%;box-shadow:-2vmin 1vmin 0 0 #fff4d6}
+.after{position:relative;z-index:2;background:#120a1f;min-height:100vh;padding:12vh 8vw;font-size:clamp(18px,2.4vw,26px);line-height:1.6;font-weight:200}
+.after b{font-weight:600;color:#f6c1a6}.sp{height:100vh}</style></head><body>
+<div class="hero"><div class="stars" data-s=".1"></div><div class="moon" data-s=".2"></div><h1 data-s="1.2">DUSK</h1>
+<svg class="lay" data-s=".25" viewBox="0 0 1000 300" preserveAspectRatio="none" style="height:70%"><path fill="#5c4a9e" d="M0 300V160L120 60 210 140 330 30 470 150 560 90 690 170 800 50 920 130 1000 90V300Z"/></svg>
+<svg class="lay" data-s=".45" viewBox="0 0 1000 300" preserveAspectRatio="none" style="height:55%"><path fill="#3d2c78" d="M0 300V190L90 120 200 200 300 100 420 210 540 120 650 190 760 90 880 180 1000 130V300Z"/></svg>
+<svg class="lay" data-s=".7" viewBox="0 0 1000 300" preserveAspectRatio="none" style="height:40%"><path fill="#241650" d="M0 300V220L80 180 180 240 280 150 390 230 510 170 620 250 720 160 840 230 1000 170V300Z"/></svg>
+<svg class="lay" data-s="1" viewBox="0 0 1000 300" preserveAspectRatio="none" style="height:26%"><path fill="#120a1f" d="M0 300V250L100 210 220 260 350 200 470 270 600 220 740 270 860 210 1000 250V300Z"/></svg></div>
+<div class="sp"></div><div class="after">Scroll down and the mountains part like curtains. <b>Every layer moves at its own speed,</b> which is how your eye decides what's near and what's far. Nearer things hurry. Distant things wait. The moon, as always, barely notices you at all.</div>
+<script>const L=[...document.querySelectorAll('[data-s]')];addEventListener('scroll',()=>{const y=scrollY;L.forEach(l=>l.style.transform=`translateY(${y*l.dataset.s}px)`)},{passive:true})</script></body></html>

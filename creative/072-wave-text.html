@@ -1,0 +1,11 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tide Lines</title>
+<link href="https://fonts.googleapis.com/css2?family=Italiana&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:linear-gradient(#e0f2f1,#80cbc4 60%,#00695c);font-family:Italiana,serif}svg{width:100%;height:100%}text{font-size:42px;letter-spacing:4px}</style></head><body>
+<svg viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" id="s"></svg>
+<script>
+const s=document.getElementById('s'),lines=['the sea keeps no diary','but it remembers every shore','salt, then silence, then salt again','we are mostly water, mostly waiting','come in, the tide says, come in','the horizon is just a rumor of more sea'];
+const cols=['#004d40','#00695c','#00796b','#e0f2f1','#ffffff','#b2dfdb'];
+lines.forEach((t,i)=>{s.innerHTML+=`<path id="p${i}" fill="none"/><text fill="${cols[i]}" opacity="${.6+i*.07}"><textPath href="#p${i}" startOffset="0">${(t+' · ').repeat(4)}</textPath></text>`});
+(function f(ms){const t=ms/1000;lines.forEach((_,i)=>{let d='';const y0=110+i*120,A=18+i*4,k=.006-i*.0004;for(let X=-200;X<=1400;X+=20){const y=y0+Math.sin(X*k+t*(.8+i*.15)+i)*A+Math.sin(X*k*2.3-t*.6)*A*.3;d+=(X===-200?'M':'L')+X+' '+y.toFixed(1)}
+document.getElementById('p'+i).setAttribute('d',d);s.querySelectorAll('textPath')[i].setAttribute('startOffset',(-((t*(30+i*8))%600))+'')});requestAnimationFrame(f)})(0);
+</script></body></html>

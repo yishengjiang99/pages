@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rorschach</title>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#efe9dc;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'EB Garamond',serif;color:#2a2622;gap:16px;padding:20px;box-sizing:border-box}
+.card{background:#f8f4ea;padding:4vmin;box-shadow:0 1px 0 #ccc,0 20px 40px #0002;border:1px solid #ddd5c4;position:relative}
+.card:before{content:'PLATE ' attr(data-n);position:absolute;top:10px;left:14px;font-size:12px;letter-spacing:.3em;opacity:.6}
+canvas{display:block;width:min(80vw,62vh);aspect-ratio:4/3}
+p{font-style:italic;font-size:20px;margin:0;text-align:center}button{font:inherit;background:none;border:1px solid #2a2622;padding:8px 22px;cursor:pointer;letter-spacing:.2em}</style></head><body>
+<div class="card" id="cd" data-n="I"><canvas id="c" width="800" height="600"></canvas></div><p id="q">What do you see?</p><button onclick="blot()">NEXT PLATE</button>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let n=0;const R=['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+const Q=['A moth, mid-confession.','Two dancers who disagree.','Your grandmother\'s favorite chair.','A lobster attending a funeral.','The exact shape of Tuesday.','Two bears high-fiving.','A cathedral, if you squint.'];
+function blot(){x.fillStyle='#f8f4ea';x.fillRect(0,0,800,600);const ink=Math.random()<.3?['#b0201c','#1b1b1b']:['#1b1b1b'];
+for(let k=0;k<ink.length;k++){x.fillStyle=ink[k];for(let i=0;i<40+Math.random()*40;i++){let px=400-Math.random()*Math.random()*330,py=300+(Math.random()-.5)*480*Math.random()**.6,r=Math.random()**2*55+4;
+for(let j=0;j<6;j++){x.globalAlpha=.85;x.beginPath();x.ellipse(px,py,r,r*(.6+Math.random()*.8),Math.random()*3,0,7);x.fill();px+=(Math.random()-.5)*r*1.6;py+=(Math.random()-.5)*r*1.6;r*=.8}}}
+x.globalAlpha=1;x.save();x.translate(800,0);x.scale(-1,1);x.drawImage(c,0,0,400,600,0,0,400,600);x.restore();
+document.getElementById('cd').dataset.n=R[n++%10];document.getElementById('q').textContent=n>1?Q[Math.random()*Q.length|0]:'What do you see?'}blot();
+</script></body></html>

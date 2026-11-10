@@ -1,0 +1,20 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Radial Synth</title>
+<link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#07010f;font-family:Michroma,sans-serif;color:#fff}canvas{display:block}
+.b{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:120px;height:120px;border-radius:50%;border:0;background:radial-gradient(#ff3d81,#7b2ff7);color:#fff;font:14px Michroma;letter-spacing:.2em;cursor:pointer;box-shadow:0 0 40px #ff3d8188}
+.t{position:fixed;bottom:20px;width:100%;text-align:center;font-size:11px;letter-spacing:.4em;opacity:.6}</style></head><body>
+<canvas id="c"></canvas><button class="b" id="b">PLAY</button><div class="t">GENERATIVE ARPEGGIO · WEB AUDIO · NO SAMPLES</div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,ac,an,data,on=false,timer,step=0;function rs(){W=c.width=innerWidth;H=c.height=innerHeight}rs();addEventListener('resize',rs);
+const chords=[[57,60,64,67],[53,57,60,64],[48,52,55,59],[55,59,62,65]],mf=m=>440*Math.pow(2,(m-69)/12);
+function note(m,t,d,type,v){const o=ac.createOscillator(),g=ac.createGain(),f=ac.createBiquadFilter();o.type=type;o.frequency.value=mf(m);f.type='lowpass';f.frequency.setValueAtTime(3000,t);f.frequency.exponentialRampToValueAtTime(300,t+d);
+g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(v,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+d);o.connect(f).connect(g).connect(an);o.start(t);o.stop(t+d+.05)}
+function tick(){const t=ac.currentTime+.05,ch=chords[(step/16|0)%4];note(ch[[0,1,2,3,2,1,3,2][step%8]]+12,t,.25,'sawtooth',.08);if(step%4===0)note(ch[0]-12,t,.5,'triangle',.25);
+if(step%8===4){const n=ac.createBufferSource(),b=ac.createBuffer(1,ac.sampleRate*.1,ac.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*(1-i/d.length)**3;n.buffer=b;const g=ac.createGain();g.gain.value=.15;n.connect(g).connect(an);n.start(t)}step++}
+document.getElementById('b').onclick=e=>{if(!ac){ac=new (window.AudioContext||window.webkitAudioContext)();an=ac.createAnalyser();an.fftSize=512;data=new Uint8Array(an.frequencyBinCount);const dl=ac.createDelay();dl.delayTime.value=.375;const fb=ac.createGain();fb.gain.value=.35;an.connect(ac.destination);an.connect(dl);dl.connect(fb).connect(dl);dl.connect(ac.destination)}
+on=!on;e.target.textContent=on?'STOP':'PLAY';clearInterval(timer);if(on)timer=setInterval(tick,150)};
+(function f(ms){x.fillStyle='rgba(7,1,15,.2)';x.fillRect(0,0,W,H);const cx=W/2,cy=H/2,R=Math.min(W,H)*.18,n=128;
+for(let i=0;i<n;i++){const v=data&&on?data[i%data.length]/255:.35+.25*Math.sin(ms/400+i*.3);const a=i/n*Math.PI*2+ms/6000,L=R+v*Math.min(W,H)*.28;
+x.strokeStyle=`hsl(${280+v*120+i},90%,${50+v*20}%)`;x.lineWidth=3;x.beginPath();x.moveTo(cx+Math.cos(a)*R,cy+Math.sin(a)*R);x.lineTo(cx+Math.cos(a)*L,cy+Math.sin(a)*L);x.stroke()}
+if(an&&on)an.getByteFrequencyData(data);requestAnimationFrame(f)})(0);
+</script></body></html>

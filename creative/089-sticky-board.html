@@ -1,0 +1,20 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sprint Board</title>
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@400;700&family=Inter:wght@700&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#f0efe9 radial-gradient(#d8d6cc 1px,#0000 1.5px) 0 0/20px 20px;font-family:Kalam,cursive}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;padding:20px;min-height:calc(100vh - 40px)}.col{background:#ffffff80;border:2px dashed #c9c6b8;border-radius:12px;padding:12px;min-height:60vh}
+.col h2{font:700 14px Inter,sans-serif;letter-spacing:.2em;margin:0 0 12px;color:#555;display:flex;justify-content:space-between}
+.n{padding:14px 12px 18px;margin:0 0 14px;font-size:18px;line-height:1.3;box-shadow:0 6px 10px #0002,0 1px 0 #0001;cursor:grab;transform:rotate(var(--r));transition:transform .2s;position:relative;touch-action:none;user-select:none}
+.n:hover{transform:rotate(0) scale(1.03)}.n.dr{opacity:.5}.n small{display:block;margin-top:8px;font-size:13px;opacity:.6}
+.n:before{content:'';position:absolute;top:-6px;left:50%;width:60px;height:14px;margin-left:-30px;background:#ffffff90;transform:rotate(-3deg)}
+.y{background:#fff59d}.p{background:#f8bbd0}.b{background:#b3e5fc}.g{background:#c5e1a5}.o{background:#ffcc80}
+@media(max-width:700px){.cols{grid-template-columns:1fr}}</style></head><body>
+<div class="cols"><div class="col" data-c="todo"><h2>TO DO <span></span></h2></div><div class="col" data-c="doing"><h2>DOING <span></span></h2></div><div class="col" data-c="done"><h2>DONE ✓ <span></span></h2></div></div>
+<script>
+const N=[['todo','y','Rename variables from "data2" to something humane','backend'],['todo','p','Figure out why the button is 1px off on Safari','css 😩'],['todo','b','Write docs (for real this time)','team'],['doing','g','Make onboarding not feel like tax forms','ux'],['doing','o','Fix flaky test that only fails on Fridays','ci'],['done','y','Coffee machine: replaced','ops ☕'],['done','b','Dark mode','design'],['todo','o','Delete the TODO comments from 2019','tech debt']];
+function cnt(){document.querySelectorAll('.col').forEach(c=>c.querySelector('span').textContent=c.querySelectorAll('.n').length)}
+N.forEach(([c,k,t,tag])=>{const n=document.createElement('div');n.className='n '+k;n.style.setProperty('--r',(Math.random()*4-2)+'deg');n.innerHTML=t+`<small>#${tag}</small>`;n.draggable=true;
+n.addEventListener('dragstart',e=>{n.classList.add('dr');e.dataTransfer.setData('text','x');window.drag=n});n.addEventListener('dragend',()=>n.classList.remove('dr'));
+n.addEventListener('pointerdown',e=>{if(e.pointerType==='mouse')return;window.drag=n;n.classList.add('dr')});document.querySelector(`[data-c=${c}]`).appendChild(n)});
+document.querySelectorAll('.col').forEach(c=>{c.addEventListener('dragover',e=>e.preventDefault());c.addEventListener('drop',e=>{e.preventDefault();if(window.drag)c.appendChild(window.drag);cnt()})});
+addEventListener('pointerup',e=>{if(e.pointerType==='mouse'||!window.drag)return;const el=document.elementFromPoint(e.clientX,e.clientY),col=el&&el.closest('.col');if(col)col.appendChild(window.drag);window.drag.classList.remove('dr');window.drag=null;cnt()});cnt();
+</script></body></html>

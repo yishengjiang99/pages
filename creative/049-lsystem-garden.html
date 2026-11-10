@@ -1,0 +1,15 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>L-System Garden</title>
+<link href="https://fonts.googleapis.com/css2?family=Caudex:ital@0;1&display=swap" rel="stylesheet">
+<style>html body{margin:0;overflow:hidden;background:linear-gradient(#f6f1e3,#e9e0c9);font-family:Caudex,serif;color:#3d4a2e}canvas{display:block}
+.u{position:fixed;top:24px;left:30px;pointer-events:none}.u h1{margin:0;font-size:clamp(26px,5vw,48px);font-weight:400}.u p{font-style:italic;margin:4px 0;opacity:.7}</style></head><body>
+<canvas id="c"></canvas><div class="u"><h1>Hortus Algorithmicus</h1><p>Tap the soil to plant. Each species is a grammar.</p></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H;function rs(){W=c.width=innerWidth;H=c.height=innerHeight;soil()}addEventListener('resize',rs);
+const SP=[{ax:'X',r:{X:'F+[[X]-X]-F[-FX]+X',F:'FF'},a:25,n:5,c:'#4c6b3a',f:'#e07a5f'},{ax:'F',r:{F:'FF-[-F+F+F]+[+F-F-F]'},a:22,n:4,c:'#5a7a44',f:null},{ax:'X',r:{X:'F[+X][-X]FX',F:'FF'},a:26,n:6,c:'#6b5a3a',f:'#f2cc8f'},{ax:'X',r:{X:'F[+X]F[-X]+X',F:'FF'},a:20,n:6,c:'#3d5a40',f:'#b56576'}];
+function soil(){x.clearRect(0,0,W,H);x.fillStyle='#8b6f47';x.fillRect(0,H*.85,W,H);x.fillStyle='#6f5636';for(let i=0;i<W;i+=6)x.fillRect(i,H*.85+Math.random()*H*.15,3,2)}
+function grow(px){const s=SP[Math.random()*SP.length|0];let str=s.ax;for(let i=0;i<s.n;i++)str=[...str].map(ch=>s.r[ch]||ch).join('');const len=(H*.42)/Math.pow(2,s.n)*(.7+Math.random()*.6);
+const ops=[];let st=[],X=px,Y=H*.85,a=-90+(Math.random()-.5)*8,d=0;for(const ch of str){if(ch==='F'){const nx=X+Math.cos(a*Math.PI/180)*len,ny=Y+Math.sin(a*Math.PI/180)*len;ops.push([X,Y,nx,ny,st.length]);X=nx;Y=ny}
+else if(ch==='+')a+=s.a+(Math.random()-.5)*6;else if(ch==='-')a-=s.a+(Math.random()-.5)*6;else if(ch==='['){st.push([X,Y,a])}else if(ch===']'){if(s.f&&Math.random()<.15)ops.push(['f',X,Y]);[X,Y,a]=st.pop()}}
+let i=0;(function step(){for(let k=0;k<Math.max(8,ops.length/120)&&i<ops.length;k++,i++){const o=ops[i];if(o[0]==='f'){x.fillStyle=s.f;x.beginPath();x.arc(o[1],o[2],3+Math.random()*2,0,7);x.fill()}else{x.strokeStyle=s.c;x.lineWidth=Math.max(.6,3.5-o[4]*.6);x.lineCap='round';x.beginPath();x.moveTo(o[0],o[1]);x.lineTo(o[2],o[3]);x.stroke()}}if(i<ops.length)requestAnimationFrame(step)})()}
+rs();addEventListener('pointerdown',e=>grow(e.clientX));[.2,.5,.8].forEach((p,i)=>setTimeout(()=>grow(W*p),i*500));
+</script></body></html>

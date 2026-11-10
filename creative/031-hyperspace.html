@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hyperspace</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;900&display=swap" rel="stylesheet">
+<style>html body{margin:0;overflow:hidden;background:#000;font-family:Orbitron,sans-serif}canvas{display:block}
+.h{position:fixed;left:50%;bottom:8vh;transform:translateX(-50%);color:#9cf;text-align:center;letter-spacing:.3em;font-size:12px;user-select:none}
+.h b{display:block;font-size:clamp(20px,4vw,38px);font-weight:900;color:#fff;margin-bottom:6px}</style></head><body>
+<canvas id="c"></canvas><div class="h"><b id="v">0.12 c</b>HOLD TO ENGAGE WARP</div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,S=[],sp=2,tgt=2,hold=false;function rs(){W=c.width=innerWidth;H=c.height=innerHeight}rs();addEventListener('resize',rs);
+for(let i=0;i<900;i++)S.push({x:(Math.random()-.5)*2000,y:(Math.random()-.5)*2000,z:Math.random()*1000,pz:0});
+addEventListener('pointerdown',()=>tgt=60);addEventListener('pointerup',()=>tgt=2);addEventListener('keydown',e=>e.code==='Space'&&(tgt=60));addEventListener('keyup',()=>tgt=2);
+(function f(){sp+=(tgt-sp)*.03;x.fillStyle=`rgba(0,0,${sp>20?20:0},${sp>20?.35:.6})`;x.fillRect(0,0,W,H);const cx=W/2,cy=H/2;
+for(const s of S){s.pz=s.z;s.z-=sp;if(s.z<1){s.z=1000;s.pz=1000;s.x=(Math.random()-.5)*2000;s.y=(Math.random()-.5)*2000}
+const k=400/s.z,pk=400/s.pz,X=cx+s.x*k,Y=cy+s.y*k,PX=cx+s.x*pk,PY=cy+s.y*pk;const b=Math.min(1,(1000-s.z)/700);
+x.strokeStyle=`rgba(${180+b*75},${200+b*55},255,${b})`;x.lineWidth=Math.max(.5,k*1.2);x.beginPath();x.moveTo(PX,PY);x.lineTo(X,Y);x.stroke()}
+document.getElementById('v').textContent=sp>40?'WARP '+(sp/10).toFixed(1):(sp*.06).toFixed(2)+' c';requestAnimationFrame(f)})();
+</script></body></html>

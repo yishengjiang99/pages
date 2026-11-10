@@ -1,0 +1,21 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hexahedron</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;display:grid;place-items:center;background:radial-gradient(#26324a,#0a0d14);font-family:'Space Grotesk',sans-serif;overflow:hidden;color:#fff;perspective:1100px}
+.sc{--s:min(46vmin,300px);width:var(--s);height:var(--s);position:relative;transform-style:preserve-3d;transform:rotateX(-22deg) rotateY(30deg);cursor:grab;touch-action:none}
+.f{position:absolute;inset:0;display:grid;place-items:center;font-size:calc(var(--s)*.22);font-weight:700;border:1px solid rgba(255,255,255,.4);backface-visibility:visible}
+.f:nth-child(1){transform:translateZ(calc(var(--s)/2));background:linear-gradient(135deg,#ff6a3d,#ff2e63)}
+.f:nth-child(2){transform:rotateY(180deg) translateZ(calc(var(--s)/2));background:linear-gradient(135deg,#08d9d6,#2a6fdb)}
+.f:nth-child(3){transform:rotateY(90deg) translateZ(calc(var(--s)/2));background:repeating-linear-gradient(45deg,#f9ed69 0 14px,#f08a5d 14px 28px)}
+.f:nth-child(4){transform:rotateY(-90deg) translateZ(calc(var(--s)/2));background:radial-gradient(circle,#b83b5e 20%,#6a2c70 21% 40%,#b83b5e 41%)}
+.f:nth-child(5){transform:rotateX(90deg) translateZ(calc(var(--s)/2));background:conic-gradient(#fce38a,#f38181,#eaffd0,#95e1d3,#fce38a)}
+.f:nth-child(6){transform:rotateX(-90deg) translateZ(calc(var(--s)/2));background:#222 radial-gradient(#fff 1.5px,#0000 2px) 0 0/16px 16px}
+.h{position:fixed;bottom:9vh;font-size:12px;letter-spacing:.3em;opacity:.6}
+.sh{position:absolute;width:var(--s);height:var(--s);transform:rotateX(90deg) translateZ(calc(var(--s)*-.9));background:radial-gradient(rgba(0,0,0,.6),#0000 70%);filter:blur(10px)}</style></head><body>
+<div class="sc" id="c"><div class="f">ONE</div><div class="f">TWO</div><div class="f">THR</div><div class="f">FOR</div><div class="f">FIV</div><div class="f">SIX</div></div>
+<div class="h">DRAG TO SPIN</div>
+<script>
+const c=document.getElementById('c');let rx=-22,ry=30,vx=0,vy=.25,d=false,lx,ly;
+addEventListener('pointerdown',e=>{d=true;lx=e.clientX;ly=e.clientY});addEventListener('pointerup',()=>d=false);
+addEventListener('pointermove',e=>{if(!d)return;vy=(e.clientX-lx)*.3;vx=-(e.clientY-ly)*.3;lx=e.clientX;ly=e.clientY});
+(function t(){rx+=vx;ry+=vy;if(!d){vx*=.95;vy=vy*.98+.25*.02}c.style.transform=`rotateX(${rx}deg) rotateY(${ry}deg)`;requestAnimationFrame(t)})();
+</script></body></html>

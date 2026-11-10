@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PCB</title>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600&display=swap" rel="stylesheet">
+<style>html body{margin:0;overflow:hidden;background:#0a3d2a;font-family:'Chakra Petch',sans-serif}canvas{display:block}
+.chip{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(40vw,240px);aspect-ratio:1;background:#151515;border-radius:6px;box-shadow:0 10px 30px #0008,inset 0 0 0 2px #333;display:grid;place-items:center;color:#c9c9c9;text-align:center;font-size:clamp(14px,2.5vw,22px)}
+.chip small{display:block;font-size:10px;opacity:.5;letter-spacing:.2em}.chip:before{content:'';position:absolute;top:10px;left:10px;width:10px;height:10px;border-radius:50%;background:#333}</style></head><body>
+<canvas id="c"></canvas><div class="chip"><div>YJ-9000<small>MADE IN CSS · REV 1.0</small></div></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,T=[],P=[];const G=16;
+function rs(){W=c.width=innerWidth;H=c.height=innerHeight;T=[];const occ=new Set(),cx=W/2,cy=H/2,cs=Math.min(W*.4,240)/2;
+for(let k=0;k<160;k++){const side=k%4,off=((k/4|0)/40-.5)*cs*1.8;let px=side===0?cx-cs:side===1?cx+cs:cx+off,py=side===2?cy-cs:side===3?cy+cs:cy+off;px=Math.round(px/G)*G;py=Math.round(py/G)*G;
+const dir=[[-1,0],[1,0],[0,-1],[0,1]][side];let pts=[[px,py]],d=dir;for(let s=0;s<60;s++){if(Math.random()<.18){const turn=Math.random()<.5?1:-1;d=d[0]?[d[0],turn]:[turn,d[1]];}else d=dir;px+=d[0]*G;py+=d[1]*G;const key=px+','+py;if(occ.has(key)||px<0||py<0||px>W||py>H)break;occ.add(key);pts.push([px,py])}if(pts.length>3)T.push(pts)}}
+rs();addEventListener('resize',rs);
+(function f(){x.fillStyle='#0a3d2a';x.fillRect(0,0,W,H);x.strokeStyle='#1e7a50';x.lineWidth=3;x.lineJoin='round';for(const t of T){x.beginPath();t.forEach((p,i)=>i?x.lineTo(...p):x.moveTo(...p));x.stroke();const e=t[t.length-1];x.fillStyle='#c9a227';x.beginPath();x.arc(e[0],e[1],5,0,7);x.fill();x.fillStyle='#0a3d2a';x.beginPath();x.arc(e[0],e[1],2,0,7);x.fill()}
+if(Math.random()<.3&&T.length)P.push({t:T[Math.random()*T.length|0],i:0});x.fillStyle='#7dffb0';x.shadowColor='#7dffb0';x.shadowBlur=12;
+P=P.filter(p=>{p.i+=.35;const k=p.i|0;if(k>=p.t.length-1)return false;const a=p.t[k],b=p.t[k+1],f=p.i-k;x.beginPath();x.arc(a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,3,0,7);x.fill();return true});x.shadowBlur=0;requestAnimationFrame(f)})();
+</script></body></html>

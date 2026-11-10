@@ -1,0 +1,13 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Hive</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#1a1206;font-family:'Baloo 2',cursive}canvas{display:block}
+.t{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);color:#1a1206;font-size:clamp(50px,14vw,180px);pointer-events:none;text-shadow:0 0 30px #ffc93c,0 0 60px #ffc93c;letter-spacing:.05em}</style></head><body>
+<canvas id="c"></canvas><div class="t">HIVE</div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,cells=[],mx=-999,my=-999;const R=34;
+function rs(){W=c.width=innerWidth;H=c.height=innerHeight;cells=[];const w=Math.sqrt(3)*R;for(let r=-1;r<H/(R*1.5)+1;r++)for(let q=-1;q<W/w+1;q++)cells.push({x:q*w+(r%2?w/2:0),y:r*R*1.5,h:0,f:Math.random()<.35?Math.random():0})}rs();addEventListener('resize',rs);
+addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY});addEventListener('pointerdown',e=>{for(const k of cells)if(Math.hypot(k.x-e.clientX,k.y-e.clientY)<R)k.f=k.f?0:1});
+function hex(X,Y,r){x.beginPath();for(let i=0;i<6;i++){const a=Math.PI/6+i*Math.PI/3;x.lineTo(X+Math.cos(a)*r,Y+Math.sin(a)*r)}x.closePath()}
+(function f(t){x.fillStyle='#1a1206';x.fillRect(0,0,W,H);for(const k of cells){const d=Math.hypot(k.x-mx,k.y-my),tg=Math.max(0,1-d/220);k.h+=(tg-k.h)*.12;const wave=.5+.5*Math.sin(t/600-(k.x+k.y)*.01);
+hex(k.x,k.y,R-3-k.h*4);const l=18+k.h*45+k.f*30*wave;x.fillStyle=`hsl(${38+k.h*8},95%,${l}%)`;x.fill();if(k.f){hex(k.x,k.y,R*.45);x.fillStyle=`hsla(45,100%,${70+wave*20}%,.5)`;x.fill()}x.strokeStyle='#3a2a0a';x.lineWidth=3;hex(k.x,k.y,R-1.5);x.stroke()}requestAnimationFrame(f)})(0);
+</script></body></html>

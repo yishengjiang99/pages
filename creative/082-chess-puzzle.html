@@ -1,0 +1,23 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Mate in One</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Display:ital,wght@1,600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#262421;color:#ddd;font-family:Inter,sans-serif;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:30px;padding:20px;box-sizing:border-box}
+#b{display:grid;grid-template-columns:repeat(8,1fr);width:min(92vw,78vh,560px);aspect-ratio:1;box-shadow:0 10px 30px #000a;border-radius:4px;overflow:hidden}
+.s{display:grid;place-items:center;font-size:min(9.5vw,8.5vh,62px);line-height:1;cursor:pointer;position:relative;user-select:none}.s.l{background:#eeeed2}.s.d{background:#769656}
+.s.sel{background:#f6f669}.s.mv:after{content:'';position:absolute;width:30%;height:30%;border-radius:50%;background:#0003}.s.win{background:#9bc700}.s.bad{background:#e05050}
+.s .w{color:#fff;text-shadow:0 0 2px #000,0 2px 2px #0008}.s .k{color:#111}.i h1{font:italic 600 clamp(32px,5vw,48px) 'Noto Serif Display',serif;margin:0;color:#fff}.i p{max-width:280px;line-height:1.5;color:#aaa}#m{font-weight:600;color:#9bc700;min-height:1.5em}
+button{font:inherit;background:#3c3a36;color:#ddd;border:0;padding:10px 16px;border-radius:6px;cursor:pointer}</style></head><body>
+<div id="b"></div><div class="i"><h1>Mate in One</h1><p>White to move. Find the single move that ends the game. Tap a white piece, then a destination.</p><div id="m"></div><button onclick="load()">Reset</button></div>
+<script>
+const G={'♔':'w','♕':'w','♖':'w','♗':'w','♘':'w','♙':'w','♚':'k','♛':'k','♜':'k','♝':'k','♞':'k','♟':'k'};let P,sel=null,done;
+function load(){P={g8:'♚',f7:'♟',g7:'♟',h7:'♟',a6:'♜',c6:'♞',e1:'♖',g1:'♔',f2:'♙',g2:'♙',h2:'♙',d4:'♗',b7:'♟'};sel=null;done=false;document.getElementById('m').textContent='';draw()}
+const sq=(f,r)=>'abcdefgh'[f]+(r+1);
+function moves(s){const p=P[s],f='abcdefgh'.indexOf(s[0]),r=+s[1]-1,out=[];const ray=(df,dr,one)=>{let F=f+df,R=r+dr;while(F>=0&&F<8&&R>=0&&R<8){const t=sq(F,R);if(P[t]){if(G[P[t]]==='k')out.push(t);break}out.push(t);if(one)break;F+=df;R+=dr}};
+if(p==='♖')[[1,0],[-1,0],[0,1],[0,-1]].forEach(d=>ray(...d));if(p==='♗')[[1,1],[-1,1],[1,-1],[-1,-1]].forEach(d=>ray(...d));if(p==='♔')[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]].forEach(d=>ray(...d,1));
+if(p==='♙'){const t=sq(f,r+1);if(!P[t])out.push(t)}return out}
+function draw(){const b=document.getElementById('b');b.innerHTML='';const mv=sel?moves(sel):[];for(let r=7;r>=0;r--)for(let f=0;f<8;f++){const s=sq(f,r),d=document.createElement('div');d.className='s '+((f+r)%2?'l':'d')+(s===sel?' sel':'')+(mv.includes(s)?' mv':'');
+if(P[s])d.innerHTML=`<span class="${G[P[s]]}">${P[s]}</span>`;d.onclick=()=>click(s,d);b.appendChild(d)}}
+function click(s,d){if(done)return;if(P[s]&&G[P[s]]==='w'){sel=s;draw();return}if(sel&&moves(sel).includes(s)){const p=P[sel];delete P[sel];P[s]=p;sel=null;draw();
+if(p==='♖'&&s==='e8'){done=true;document.getElementById('m').textContent='Re8#  — Back-rank mate! The pawns became a prison.';[...document.querySelectorAll('.s')][0*8+4].classList.add('win')}
+else{document.getElementById('m').style.color='#e05050';document.getElementById('m').textContent='Not quite. Black escapes. Try again.';setTimeout(()=>{document.getElementById('m').style.color='';load()},1400)}}}
+load();
+</script></body></html>

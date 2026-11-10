@@ -1,0 +1,12 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>2027</title>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Work+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>html body{margin:0;background:#ff4d00;color:#111;font-family:'Work Sans',sans-serif;padding:4vw}
+.y{font:clamp(120px,32vw,420px)/.8 Anton,sans-serif;margin:0 0 3vw;letter-spacing:-.02em;color:#111}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:3vw 2vw}.m h2{font:28px Anton,sans-serif;margin:0 0 6px;border-bottom:3px solid #111}
+.d{display:grid;grid-template-columns:repeat(7,1fr);font-size:12px;text-align:center;gap:2px}.d span{padding:3px 0}.d .h{font-weight:600;opacity:.5}.d .w{font-weight:600}.d .t{background:#111;color:#ff4d00;border-radius:50%}</style></head><body>
+<h1 class="y">2027</h1><div class="g" id="g"></div>
+<script>
+const g=document.getElementById('g'),now=new Date(),M=['January','February','March','April','May','June','July','August','September','October','November','December'];
+M.forEach((m,i)=>{let o=`<div class="m"><h2>${String(i+1).padStart(2,'0')} ${m}</h2><div class="d">`+'MTWTFSS'.split('').map(d=>`<span class="h">${d}</span>`).join('');const f=(new Date(2027,i,1).getDay()+6)%7,n=new Date(2027,i+1,0).getDate();
+for(let k=0;k<f;k++)o+='<span></span>';for(let d=1;d<=n;d++){const wd=(f+d-1)%7,t=now.getMonth()===i&&now.getDate()===d;o+=`<span class="${wd>4?'w':''}${t?' t':''}">${d}</span>`}g.innerHTML+=o+'</div></div>'});
+</script></body></html>

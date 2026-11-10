@@ -1,0 +1,25 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Snake / Nokia</title>
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;display:grid;place-items:center;background:#2a3a2c;font-family:Silkscreen,monospace;touch-action:none}
+.ph{background:linear-gradient(160deg,#4b5d73,#2c3a4b);padding:30px 22px 40px;border-radius:40px 40px 60px 60px;box-shadow:inset 0 2px 4px #fff4,0 30px 60px #0008}
+.scr{background:#9bbc0f;border:10px solid #1c2530;border-radius:10px;padding:8px;box-shadow:inset 0 0 20px #0004}
+canvas{display:block;width:min(80vw,320px);aspect-ratio:1;image-rendering:pixelated}
+.hud{display:flex;justify-content:space-between;color:#0f380f;font-size:13px;margin-bottom:6px}
+.k{display:grid;grid-template-columns:repeat(3,56px);gap:8px;justify-content:center;margin-top:20px}
+.k button{height:44px;border-radius:14px;border:0;background:#cfd8e3;font:14px Silkscreen;box-shadow:0 4px 0 #8a96a6;color:#2c3a4b}.k button:active{transform:translateY(3px);box-shadow:0 1px 0 #8a96a6}
+.brand{color:#cfd8e3;text-align:center;font-size:14px;letter-spacing:.3em;margin-bottom:14px}</style></head><body>
+<div class="ph"><div class="brand">NOKLA</div><div class="scr"><div class="hud"><span id="sc">0000</span><span id="st">PRESS ANY KEY</span></div><canvas id="c" width="20" height="20"></canvas></div>
+<div class="k"><span></span><button data-d="0,-1">▲</button><span></span><button data-d="-1,0">◀</button><button data-d="0,1">▼</button><button data-d="1,0">▶</button></div></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d'),N=20;let s,d,nd,f,sc,alive=false,t;
+function reset(){s=[[10,10],[9,10],[8,10]];d=[1,0];nd=d;sc=0;place();alive=true;document.getElementById('st').textContent='';clearInterval(t);t=setInterval(step,120)}
+function place(){do f=[Math.random()*N|0,Math.random()*N|0];while(s.some(p=>p[0]==f[0]&&p[1]==f[1]))}
+function step(){d=nd;const h=[(s[0][0]+d[0]+N)%N,(s[0][1]+d[1]+N)%N];if(s.some(p=>p[0]==h[0]&&p[1]==h[1])){alive=false;clearInterval(t);document.getElementById('st').textContent='GAME OVER';return}
+s.unshift(h);if(h[0]==f[0]&&h[1]==f[1]){sc+=10;place()}else s.pop();document.getElementById('sc').textContent=String(sc).padStart(4,'0');draw()}
+function draw(){x.fillStyle='#9bbc0f';x.fillRect(0,0,N,N);x.fillStyle='#0f380f';s.forEach(p=>x.fillRect(p[0],p[1],1,1));x.fillStyle='#306230';x.fillRect(f[0],f[1],1,1)}
+function turn(a,b){if(!alive)return reset();if(a==-d[0]&&b==-d[1])return;nd=[a,b]}
+addEventListener('keydown',e=>{const m={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0],w:[0,-1],s:[0,1],a:[-1,0],d:[1,0]}[e.key];if(m){e.preventDefault();turn(...m)}else if(!alive)reset()});
+document.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>turn(...b.dataset.d.split(',').map(Number)));
+let sx,sy;c.addEventListener('pointerdown',e=>{sx=e.clientX;sy=e.clientY});c.addEventListener('pointerup',e=>{const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.abs(dx)+Math.abs(dy)<10)return turn(...d);Math.abs(dx)>Math.abs(dy)?turn(Math.sign(dx),0):turn(0,Math.sign(dy))});
+s=[[10,10],[9,10],[8,10]];d=nd=[1,0];f=[15,10];draw();
+</script></body></html>

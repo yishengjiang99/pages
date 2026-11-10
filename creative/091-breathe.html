@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Breathe</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@200;400&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;display:grid;place-items:center;background:linear-gradient(160deg,#a1c4fd,#c2e9fb 50%,#fbc2eb);font-family:'Nunito Sans',sans-serif;color:#3b4a6b}
+.w{position:relative;width:min(70vmin,440px);aspect-ratio:1;display:grid;place-items:center}
+.pt{position:absolute;inset:0;margin:auto;width:46%;height:46%;border-radius:50%;mix-blend-mode:multiply;transform-origin:center;transition:transform 4s cubic-bezier(.45,0,.55,1)}
+.lbl{position:relative;text-align:center;z-index:2}.lbl b{display:block;font-weight:200;font-size:clamp(28px,6vw,48px);letter-spacing:.2em}.lbl span{font-size:14px;letter-spacing:.3em;opacity:.7}
+.cy{position:fixed;bottom:6vh;font-size:12px;letter-spacing:.4em;opacity:.6}</style></head><body>
+<div class="w" id="w"><div class="lbl"><b id="t">BREATHE</b><span id="n">4 · 4 · 4 · 4</span></div></div><div class="cy" id="cy">BOX BREATHING · CYCLE 0</div>
+<script>
+const w=document.getElementById('w'),cols=['#7bdff2aa','#b2f7efaa','#f7d6e0aa','#f2b5d4aa','#a0c4ffaa','#cdb4dbaa'],P=[];
+cols.forEach((c,i)=>{const p=document.createElement('div');p.className='pt';p.style.background=c;w.insertBefore(p,w.firstChild);P.push(p)});
+const ph=[['BREATHE IN',1],['HOLD',1],['BREATHE OUT',0],['HOLD',0]];let k=0,cy=0;
+function set(open){P.forEach((p,i)=>{const a=i*60;p.style.transform=open?`rotate(${a+45}deg) translate(38%) scale(1.25)`:`rotate(${a}deg) translate(4%) scale(.6)`})}
+function step(){const[t,o]=ph[k];document.getElementById('t').textContent=t;set(o);let n=4;document.getElementById('n').textContent=n;const iv=setInterval(()=>{n--;if(n>0)document.getElementById('n').textContent=n;else clearInterval(iv)},1000);
+k=(k+1)%4;if(k===0)document.getElementById('cy').textContent='BOX BREATHING · CYCLE '+(++cy);setTimeout(step,4000)}set(0);setTimeout(step,600);
+</script></body></html>

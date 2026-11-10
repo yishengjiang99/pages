@@ -1,0 +1,17 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Make a Constellation</title>
+<link href="https://fonts.googleapis.com/css2?family=Philosopher:ital@0;1&display=swap" rel="stylesheet">
+<style>html body{margin:0;overflow:hidden;background:radial-gradient(ellipse at bottom,#1b2735,#090a0f);font-family:Philosopher,serif;color:#cfd8ff}canvas{display:block}
+.u{position:fixed;top:20px;left:0;right:0;text-align:center;pointer-events:none}.u h1{margin:0;font-weight:400;font-size:clamp(22px,4vw,36px);letter-spacing:.1em}.u p{margin:6px;font-style:italic;opacity:.6}
+#nm{position:fixed;bottom:30px;left:0;right:0;text-align:center;font-size:clamp(18px,3vw,28px);font-style:italic;color:#ffe9a8}</style></head><body>
+<canvas id="c"></canvas><div class="u"><h1>Name the Sky</h1><p>tap stars to connect them · double-tap empty sky to finish a figure</p></div><div id="nm"></div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,S=[],F=[],cur=[];
+function rs(){W=c.width=innerWidth;H=c.height=innerHeight;S=Array.from({length:Math.min(260,W*H/4000)},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()**3*2.2+.4,p:Math.random()*6}));F=[];cur=[]}rs();addEventListener('resize',rs);
+const A=['The Lesser','The Wandering','The Forgotten','The Patient','The Sleeping','The Crooked','The Little'],N=['Teapot','Heron','Accordion','Fox','Bicycle','Lighthouse','Umbrella','Whale','Key','Harp'];
+c.addEventListener('pointerdown',e=>{let best=null,bd=900;for(const s of S){const d=(s.x-e.clientX)**2+(s.y-e.clientY)**2;if(d<bd){bd=d;best=s}}
+if(best){if(cur[cur.length-1]!==best)cur.push(best)}else if(cur.length>1){const n=A[Math.random()*A.length|0]+' '+N[Math.random()*N.length|0];F.push({s:cur,n});cur=[];document.getElementById('nm').textContent='✦ '+n+' ✦'}});
+c.addEventListener('dblclick',()=>{if(cur.length>1){const n=A[Math.random()*A.length|0]+' '+N[Math.random()*N.length|0];F.push({s:cur,n});cur=[];document.getElementById('nm').textContent='✦ '+n+' ✦'}});
+(function f(t){x.clearRect(0,0,W,H);for(const s of S){const a=.5+.5*Math.sin(t/700+s.p);x.fillStyle=`rgba(255,255,240,${.4+a*.6})`;x.beginPath();x.arc(s.x,s.y,s.r,0,7);x.fill();if(s.r>1.6){x.fillStyle=`rgba(200,220,255,${a*.15})`;x.beginPath();x.arc(s.x,s.y,s.r*4,0,7);x.fill()}}
+for(const fg of F){x.strokeStyle='rgba(255,233,168,.55)';x.lineWidth=1.2;x.beginPath();fg.s.forEach((s,i)=>i?x.lineTo(s.x,s.y):x.moveTo(s.x,s.y));x.stroke();const m=fg.s.reduce((a,s)=>[a[0]+s.x/fg.s.length,a[1]+s.y/fg.s.length],[0,0]);x.fillStyle='rgba(255,233,168,.7)';x.font='italic 14px Philosopher';x.textAlign='center';x.fillText(fg.n,m[0],m[1]+30)}
+if(cur.length){x.strokeStyle='#9fd3ff';x.setLineDash([4,4]);x.beginPath();cur.forEach((s,i)=>i?x.lineTo(s.x,s.y):x.moveTo(s.x,s.y));x.stroke();x.setLineDash([]);cur.forEach(s=>{x.strokeStyle='#9fd3ff';x.beginPath();x.arc(s.x,s.y,7,0,7);x.stroke()})}requestAnimationFrame(f)})(0);
+</script></body></html>

@@ -1,0 +1,18 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Receipt for a Tuesday</title>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Libre+Barcode+39&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#c9c3b8;display:flex;justify-content:center;align-items:flex-start;padding:5vh 0;font-family:'Courier Prime',monospace}
+.r{width:min(86vw,340px);background:#fcfcf8;padding:26px 22px 40px;color:#333;font-size:13px;position:relative;filter:drop-shadow(0 12px 18px #0003);animation:print 2.4s steps(30) both;transform-origin:top}
+@keyframes print{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0 0 -20px 0)}}
+.r:after{content:'';position:absolute;left:0;right:0;bottom:-10px;height:10px;background:linear-gradient(-45deg,#0000 6px,#fcfcf8 6px) 0 0/12px 10px,linear-gradient(45deg,#0000 6px,#fcfcf8 6px) 0 0/12px 10px}
+h1{text-align:center;font-size:20px;margin:0}.c{text-align:center}.hr{border-top:1px dashed #555;margin:10px 0}
+.l{display:flex;justify-content:space-between;gap:8px}.l span:first-child{flex:1}.tot{font-weight:700;font-size:16px}
+.bc{font-family:'Libre Barcode 39';font-size:52px;text-align:center;line-height:1;margin-top:12px}.fade{opacity:.55}</style></head><body>
+<div class="r"><h1>★ LIFE MART ★</h1><div class="c">Store #0042 · Earth, Milky Way<br>TEL (000) 000-0000</div><div class="hr"></div>
+<div class="l"><span>DATE</span><span id="d"></span></div><div class="l"><span>CASHIER</span><span>THE UNIVERSE</span></div><div class="hr"></div>
+<div class="l"><span>1x Alarm snoozed (3x)</span><span>-9:00</span></div><div class="l"><span>1x Coffee, burnt</span><span>4.50</span></div><div class="l"><span>2x Meetings, could be email</span><span>120.00</span></div>
+<div class="l"><span>1x Unexpected compliment</span><span>0.00</span></div><div class="l"><span>4x Tabs left open</span><span>∞</span></div><div class="l"><span>1x Sunset, partly seen</span><span>FREE</span></div>
+<div class="l"><span>1x Existential dread</span><span>12.99</span></div><div class="l fade"><span>   DISCOUNT: dog said hi</span><span>-12.99</span></div><div class="l"><span>1x Leftover pasta</span><span>3.20</span></div>
+<div class="hr"></div><div class="l"><span>SUBTOTAL</span><span>127.70</span></div><div class="l"><span>TAX (ENTROPY 8%)</span><span>10.22</span></div><div class="l tot"><span>TOTAL</span><span>137.92</span></div>
+<div class="l"><span>PAID WITH</span><span>ENERGY ****4u</span></div><div class="hr"></div><div class="c">*** NO REFUNDS ON TIME ***<br>Thank you for living today.<br>Please come again tomorrow.</div>
+<div class="bc">*TUESDAY*</div></div>
+<script>document.getElementById('d').textContent=new Date().toLocaleDateString()</script></body></html>

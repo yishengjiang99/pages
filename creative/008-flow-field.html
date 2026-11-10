@@ -1,0 +1,15 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Flow Field</title>
+<style>html body{margin:0;background:#0d0b14;overflow:hidden;font-family:ui-monospace,monospace}canvas{display:block}
+.u{position:fixed;left:20px;top:20px;color:#e9d8ff;font-size:12px;letter-spacing:.2em;opacity:.7;mix-blend-mode:difference}</style></head><body>
+<canvas id="c"></canvas><div class="u">FLOW FIELD · TAP TO REGENERATE</div>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');let W,H,P=[],seed,pal;
+const pals=[['#ff6b6b','#ffd93d','#6bcbff','#c77dff'],['#f4f1de','#e07a5f','#81b29a','#f2cc8f'],['#00f5d4','#00bbf9','#fee440','#f15bb5']];
+function n(a,b){return Math.sin(a*1.7+seed)*Math.cos(b*1.3-seed)+Math.sin((a+b)*.7+seed*2)*.5}
+function init(){W=c.width=innerWidth;H=c.height=innerHeight;seed=Math.random()*100;pal=pals[Math.random()*pals.length|0];x.fillStyle='#0d0b14';x.fillRect(0,0,W,H);
+P=Array.from({length:Math.min(2500,W*H/400)},()=>({x:Math.random()*W,y:Math.random()*H,c:pal[Math.random()*4|0],l:Math.random()*200}))}
+function f(){x.fillStyle='rgba(13,11,20,.02)';x.fillRect(0,0,W,H);x.lineWidth=1.1;
+for(const p of P){const a=n(p.x*.003,p.y*.003)*Math.PI*2;const nx=p.x+Math.cos(a)*1.4,ny=p.y+Math.sin(a)*1.4;x.strokeStyle=p.c;x.globalAlpha=.5;x.beginPath();x.moveTo(p.x,p.y);x.lineTo(nx,ny);x.stroke();p.x=nx;p.y=ny;
+if(--p.l<0||nx<0||ny<0||nx>W||ny>H){p.x=Math.random()*W;p.y=Math.random()*H;p.l=100+Math.random()*200}}x.globalAlpha=1;requestAnimationFrame(f)}
+addEventListener('resize',init);addEventListener('pointerdown',init);init();f();
+</script></body></html>

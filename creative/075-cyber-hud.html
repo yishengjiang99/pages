@@ -1,0 +1,25 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HUD // NEXUS-7</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#05080d radial-gradient(circle,#0b1a24,#05080d 70%);font-family:Rajdhani,sans-serif;color:#00f0ff}
+.c{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(80vmin,560px);aspect-ratio:1}.c svg{width:100%;height:100%;overflow:visible}
+.r1,.r2,.r3{transform-box:view-box;transform-origin:0 0}.r1{animation:sp 20s linear infinite}.r2{animation:sp 12s linear infinite reverse}.r3{animation:sp 6s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
+.pn{position:fixed;font-family:'Share Tech Mono',monospace;font-size:12px;border:1px solid #00f0ff55;padding:10px 12px;background:#00f0ff08;clip-path:polygon(0 0,calc(100% - 12px) 0,100% 12px,100% 100%,12px 100%,0 calc(100% - 12px));min-width:160px}
+.pn b{display:block;font-family:Rajdhani;font-size:14px;letter-spacing:.2em;color:#ff2e88;margin-bottom:6px}.tl{top:20px;left:20px}.tr{top:20px;right:20px}.bl{bottom:20px;left:20px}.br{bottom:20px;right:20px}
+.bar{height:5px;background:#00f0ff22;margin:4px 0}.bar i{display:block;height:100%;background:#00f0ff;box-shadow:0 0 8px #00f0ff;transition:width .5s}
+.ctr{position:absolute;inset:0;display:grid;place-items:center;text-align:center}.ctr b{font-size:clamp(30px,7vmin,54px);font-weight:700;letter-spacing:.1em;text-shadow:0 0 18px #00f0ff}.ctr small{display:block;font-size:12px;letter-spacing:.4em;color:#ff2e88}
+.scan{position:fixed;inset:0;background:repeating-linear-gradient(#0000 0 3px,#00f0ff06 3px 4px);pointer-events:none}
+@media(max-width:640px){.pn{min-width:120px;font-size:10px}.bl,.br{display:none}}</style></head><body>
+<div class="c"><svg viewBox="-200 -200 400 400" fill="none" stroke="#00f0ff">
+<circle r="190" stroke-opacity=".2"/><g class="r1"><circle r="175" stroke-dasharray="2 8" stroke-width="6" stroke-opacity=".6"/></g>
+<g class="r2"><circle r="150" stroke-dasharray="90 30 10 30" stroke-width="3"/></g><g class="r3"><path d="M0 -125 A125 125 0 0 1 108 62" stroke="#ff2e88" stroke-width="4"/></g>
+<circle r="110" stroke-opacity=".3"/><g id="tk"></g></svg><div class="ctr"><div><small>CORE SYNC</small><b id="pc">87.4%</b><small id="st">NOMINAL</small></div></div></div>
+<div class="pn tl"><b>SYS // VITALS</b>CPU <div class="bar"><i id="b1" style="width:60%"></i></div>MEM <div class="bar"><i id="b2" style="width:40%"></i></div>NET <div class="bar"><i id="b3" style="width:80%"></i></div></div>
+<div class="pn tr"><b>GEO // LOCK</b><div id="geo"></div></div><div class="pn bl"><b>LOG</b><div id="log"></div></div><div class="pn br"><b>TIME // UTC</b><div id="tm" style="font-size:22px"></div></div><div class="scan"></div>
+<script>
+const tk=document.getElementById('tk');for(let i=0;i<72;i++){const a=i*5*Math.PI/180,r1=i%6?118:114;tk.innerHTML+=`<line x1="${Math.cos(a)*r1}" y1="${Math.sin(a)*r1}" x2="${Math.cos(a)*124}" y2="${Math.sin(a)*124}" stroke-opacity="${i%6?.4:1}"/>`}
+const L=['handshake ok','decrypting sector 7','ghost signal filtered','uplink stable','drone swarm idle','firewall: 0 breaches','cache warmed'],log=[];
+setInterval(()=>{['b1','b2','b3'].forEach(b=>document.getElementById(b).style.width=(20+Math.random()*80)+'%');document.getElementById('pc').textContent=(80+Math.random()*19.9).toFixed(1)+'%';
+log.unshift('> '+L[Math.random()*L.length|0]);log.length=Math.min(log.length,4);document.getElementById('log').innerHTML=log.join('<br>');
+document.getElementById('geo').innerHTML=`LAT ${(35.6+Math.random()*.01).toFixed(5)}<br>LON ${(139.7+Math.random()*.01).toFixed(5)}<br>ALT ${(400+Math.random()*20).toFixed(1)}m`;
+document.getElementById('tm').textContent=new Date().toISOString().slice(11,19)},900);
+</script></body></html>

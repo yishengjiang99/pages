@@ -1,0 +1,15 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Variable</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,100..1000&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#d4ff3f;color:#0b0b0b;font-family:'Roboto Flex',sans-serif;display:flex;flex-direction:column;justify-content:center}
+.row{white-space:nowrap;font-size:clamp(48px,13vw,200px);line-height:.88;text-transform:uppercase;display:flex;justify-content:center}
+.row span{display:inline-block;transition:font-variation-settings .1s}
+.row:nth-child(even){color:#d4ff3f;-webkit-text-stroke:2px #0b0b0b}
+.lb{position:fixed;bottom:16px;left:0;right:0;text-align:center;font:500 12px 'Roboto Flex';letter-spacing:.3em}</style></head><body>
+<div class="row">Stretch</div><div class="row">Squeeze</div><div class="row">Breathe</div><div class="row">Repeat</div>
+<div class="lb">MOVE YOUR CURSOR / FINGER</div>
+<script>
+const L=[];document.querySelectorAll('.row').forEach(r=>{const t=r.textContent;r.textContent='';[...t].forEach(ch=>{const s=document.createElement('span');s.textContent=ch;r.appendChild(s);L.push(s)})});
+let mx=innerWidth/2,my=innerHeight/2;addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY});
+(function f(t){L.forEach((s,i)=>{const b=s.getBoundingClientRect(),d=Math.hypot(b.x+b.width/2-mx,b.y+b.height/2-my),k=Math.max(0,1-d/(innerWidth*.35));
+const wave=(Math.sin(t/600+i*.4)+1)/2;const wg=100+900*Math.max(k,wave*.3),wd=25+126*k;s.style.fontVariationSettings=`'wght' ${wg|0},'wdth' ${wd|0},'opsz' 144`});requestAnimationFrame(f)})(0);
+</script></body></html>

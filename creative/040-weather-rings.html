@@ -1,0 +1,19 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>A Year of Temperature</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+<style>html body{margin:0;min-height:100vh;background:#0e0f13;color:#ddd;font-family:'DM Sans',sans-serif;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4vw;padding:24px;box-sizing:border-box}
+svg{width:min(92vw,80vh)}.i{max-width:300px}h1{font:clamp(30px,5vw,52px)/1 'DM Serif Display',serif;margin:0 0 12px;color:#fff}p{line-height:1.6;color:#999}
+.sc{height:10px;border-radius:5px;background:linear-gradient(90deg,#3b4cc0,#7b9ff9,#c0d4f5,#f2cbb7,#ee8468,#b40426)}.sl{display:flex;justify-content:space-between;font-size:12px;color:#888;margin-top:4px}
+#tip{font-size:22px;color:#fff;min-height:1.4em;font-weight:700}</style></head><body>
+<svg viewBox="-320 -320 640 640" id="s"></svg>
+<div class="i"><h1>A Year in Degrees</h1><p>365 days of synthetic daily highs in a temperate city, wrapped around a clock face. Each bar is one day; length and color are temperature.</p><div id="tip">Hover a day</div><div class="sc"></div><div class="sl"><span>-8°</span><span>36°</span></div></div>
+<script>
+const s=document.getElementById('s'),M=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+const cs=[[59,76,192],[123,159,249],[192,212,245],[242,203,183],[238,132,104],[180,4,38]];function col(v){const t=Math.max(0,Math.min(.999,(v+8)/44))*5,i=t|0,f=t-i,a=cs[i],b=cs[i+1];return`rgb(${a.map((q,k)=>q+(b[k]-q)*f|0)})`}
+let o='';for(let k=0;k<12;k++){const a=k/12*Math.PI*2-Math.PI/2;o+=`<text x="${Math.cos(a+.26)*300}" y="${Math.sin(a+.26)*300}" fill="#666" font-size="13" text-anchor="middle" font-family="DM Sans">${M[k]}</text><line x1="0" y1="0" x2="${Math.cos(a)*285}" y2="${Math.sin(a)*285}" stroke="#ffffff10"/>`}
+o+='<circle r="80" fill="none" stroke="#ffffff15"/><circle r="180" fill="none" stroke="#ffffff10"/>';s.innerHTML=o;
+for(let d=0;d<365;d++){const v=14-13*Math.cos((d-15)/365*Math.PI*2)+Math.sin(d*1.7)*3+Math.sin(d*.37)*2.5,a=d/365*Math.PI*2-Math.PI/2,r0=70,r1=r0+(v+10)*4.4;
+const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',Math.cos(a)*r0);l.setAttribute('y1',Math.sin(a)*r0);l.setAttribute('x2',Math.cos(a)*r0);l.setAttribute('y2',Math.sin(a)*r0);
+l.setAttribute('stroke',col(v));l.setAttribute('stroke-width',2.6);l.setAttribute('stroke-linecap','round');s.appendChild(l);
+setTimeout(()=>{l.style.transition='all .8s';l.setAttribute('x2',Math.cos(a)*r1);l.setAttribute('y2',Math.sin(a)*r1)},d*4);
+l.onmouseenter=()=>{const dt=new Date(2026,0,d+1);document.getElementById('tip').textContent=dt.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' · '+v.toFixed(1)+'°C';l.setAttribute('stroke-width',6)};l.onmouseleave=()=>l.setAttribute('stroke-width',2.6)}
+</script></body></html>

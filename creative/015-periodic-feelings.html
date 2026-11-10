@@ -1,0 +1,24 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Periodic Table of Feelings</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;700&display=swap" rel="stylesheet">
+<style>html body{margin:0;background:#101418;color:#e8edf2;font-family:'IBM Plex Sans Condensed',sans-serif;padding:24px}
+h1{font-size:clamp(22px,4vw,40px);margin:0 0 4px}p{margin:0 0 20px;opacity:.6}
+.t{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:5px;max-width:1000px}
+.e{aspect-ratio:1;border-radius:6px;padding:5px;position:relative;cursor:pointer;transition:transform .2s;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.e:hover{transform:scale(1.15);z-index:2;box-shadow:0 10px 30px #000a}
+.e small{font-size:clamp(7px,1.1vw,11px);opacity:.75}.e b{font-size:clamp(14px,3vw,30px);line-height:1}.e span{font-size:clamp(6px,1vw,10px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.j{background:#f7c548;color:#221}.s{background:#4b6fae}.a{background:#d94f4f}.f{background:#7a5ea8}.c{background:#3fa780}.x{background:#e0884a;color:#221}
+.d{margin-top:20px;max-width:1000px;min-height:80px;border-left:4px solid #f7c548;padding:10px 16px;font-size:18px}
+.lg{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;font-size:13px}.lg i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}</style></head><body>
+<h1>The Periodic Table of Feelings</h1><p>Hover or tap an element.</p><div class="t" id="t"></div><div class="d" id="d">Every mood has a weight. Some are noble gases, inert, quiet. Some explode on contact with water.</div>
+<div class="lg"><span><i class="j"></i>Joy</span><span><i class="s"></i>Sadness</span><span><i class="a"></i>Anger</span><span><i class="f"></i>Fear</span><span><i class="c"></i>Calm</span><span><i class="x"></i>Surprise</span></div>
+<script>
+const E=[['Jy','Joy','j'],['Dl','Delight','j'],['Gl','Glee','j'],['Pr','Pride','j'],['Hp','Hope','j'],['Am','Amusement','j'],['Gr','Gratitude','j'],['Lv','Love','j'],['Eu','Euphoria','j'],
+['Sd','Sadness','s'],['Gf','Grief','s'],['Ml','Melancholy','s'],['Ln','Loneliness','s'],['Nt','Nostalgia','s'],['Rg','Regret','s'],['Ds','Despair','s'],['Wt','Wistfulness','s'],['Sh','Shame','s'],
+['Ag','Anger','a'],['Ir','Irritation','a'],['Fr','Frustration','a'],['Rs','Resentment','a'],['Ry','Rage','a'],['Jl','Jealousy','a'],['Sp','Spite','a'],['Cn','Contempt','a'],['Dg','Disgust','a'],
+['Fe','Fear','f'],['Ax','Anxiety','f'],['Dr','Dread','f'],['Pn','Panic','f'],['Nv','Nervousness','f'],['Ws','Worry','f'],['Ap','Apprehension','f'],['Tr','Terror','f'],['Ic','Insecurity','f'],
+['Cm','Calm','c'],['Sr','Serenity','c'],['Ct','Contentment','c'],['Rl','Relief','c'],['Ps','Peace','c'],['Tn','Tenderness','c'],['Ac','Acceptance','c'],['Tu','Trust','c'],['Bl','Bliss','c'],
+['Su','Surprise','x'],['Aw','Awe','x'],['Wn','Wonder','x'],['Cf','Confusion','x'],['Cu','Curiosity','x'],['Sk','Shock','x'],['Am','Amazement','x'],['Ex','Excitement','x'],['Ei','Eureka','x']];
+const t=document.getElementById('t'),d=document.getElementById('d');
+E.forEach((e,i)=>{const el=document.createElement('div');el.className='e '+e[2];el.innerHTML=`<small>${i+1}</small><b>${e[0]}</b><span>${e[1]}</span>`;
+el.onmouseenter=el.onclick=()=>{d.style.borderColor=getComputedStyle(el).backgroundColor;d.innerHTML=`<b>${e[1]}</b> · element ${i+1} · atomic weight ${(Math.sin(i*9.1)*40+60).toFixed(2)} · half-life ${['3 seconds','one afternoon','a decade','until you name it','one good night of sleep'][i%5]}`};t.appendChild(el)});
+</script></body></html>

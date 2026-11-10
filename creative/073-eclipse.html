@@ -1,0 +1,20 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Totality</title>
+<link href="https://fonts.googleapis.com/css2?family=Tenor+Sans&display=swap" rel="stylesheet">
+<style>html body{margin:0;height:100vh;overflow:hidden;background:#000;font-family:'Tenor Sans',sans-serif;color:#fff;cursor:none}
+.sky{position:fixed;inset:0;background:radial-gradient(circle at 50% 50%,#1b2a4a,#000 60%);transition:background 1s}
+.sun{position:fixed;left:50%;top:50%;width:30vmin;height:30vmin;margin:-15vmin;border-radius:50%;background:#fff6d5;box-shadow:0 0 calc(var(--c)*12vmin) calc(var(--c)*3vmin) #fff,0 0 calc(var(--c)*30vmin) calc(var(--c)*8vmin) #9fc5ff88,0 0 80px 20px #ffd27a}
+.cor{position:fixed;left:50%;top:50%;width:80vmin;height:80vmin;margin:-40vmin;border-radius:50%;background:repeating-conic-gradient(from 0deg,#ffffff00 0deg,#ffffff22 2deg,#ffffff00 5deg,#ffffff11 9deg,#ffffff00 13deg);-webkit-mask:radial-gradient(#000 18%,#0000 60%);mask:radial-gradient(#000 18%,#0000 60%);opacity:var(--c);animation:sp 120s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.moon{position:fixed;width:30.6vmin;height:30.6vmin;margin:-15.3vmin;border-radius:50%;background:#050505;left:50%;top:50%}
+.ring{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:#fff;box-shadow:0 0 30px 12px #fff;opacity:0;transform:translate(calc(15vmin*.7),calc(-15vmin*.7))}
+.t{position:fixed;bottom:7vh;left:0;right:0;text-align:center;letter-spacing:.5em;font-size:13px;opacity:.7}.t b{display:block;font-weight:400;font-size:clamp(24px,5vw,44px);letter-spacing:.3em;margin-bottom:10px}</style></head><body>
+<div class="sky" id="sky"></div><div class="cor"></div><div class="sun" id="sun"></div><div class="ring" id="rg"></div><div class="moon" id="m"></div>
+<div class="t"><b id="ph">PARTIAL</b>MOVE TO STEER THE MOON</div>
+<script>
+const m=document.getElementById('m'),r=document.documentElement;let tx=innerWidth*.2,ty=innerHeight*.3,mx=tx,my=ty,user=false;
+addEventListener('pointermove',e=>{user=true;tx=e.clientX;ty=e.clientY});
+(function f(t){if(!user){tx=innerWidth/2+Math.cos(t/4000)*innerWidth*.35;ty=innerHeight/2+Math.sin(t/4000)*innerHeight*.05}mx+=(tx-mx)*.08;my+=(ty-my)*.08;m.style.left=mx+'px';m.style.top=my+'px';
+const d=Math.hypot(mx-innerWidth/2,my-innerHeight/2)/(Math.min(innerWidth,innerHeight)*.3),c=Math.max(0,1-d);r.style.setProperty('--c',c.toFixed(3));
+document.getElementById('rg').style.opacity=c>.92&&c<.985?1:0;document.getElementById('sky').style.background=`radial-gradient(circle at 50% 50%,rgba(27,42,74,${1-c}),#000 60%)`;
+document.getElementById('ph').textContent=c>.985?'TOTALITY':c>.92?'DIAMOND RING':c>.3?'PARTIAL':'DAYLIGHT';requestAnimationFrame(f)})(0);
+</script></body></html>
